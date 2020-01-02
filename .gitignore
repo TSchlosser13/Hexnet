@@ -9,7 +9,5 @@
 *.so
 Hexnet
 
-!_WIP/
 !doc/**/*.png
-
 

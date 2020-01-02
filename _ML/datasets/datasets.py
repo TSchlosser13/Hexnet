@@ -74,7 +74,7 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 	if os.path.isfile(dataset) and dataset.endswith('.h5'):
 		start_time = time()
 
-		with h5py.File(dataset) as h5py_file:
+		with h5py.File(dataset, 'r') as h5py_file:
 			train_classes = np.array(h5py_file['train_classes'])
 			train_data    = np.array(h5py_file['train_data'])
 			train_labels  = np.array(h5py_file['train_labels'])
@@ -88,13 +88,13 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 	else:
 		start_time = time()
 
-		for dataset_set in glob(os.path.join(dataset, '*')):
+		for dataset_set in sorted(glob(os.path.join(dataset, '*'))):
 			current_set = os.path.basename(dataset_set)
 
 			if verbosity_level >= 1:
 				Hexnet_print(f'\t> current_set={current_set}')
 
-			for set_class in glob(os.path.join(dataset_set, '*')):
+			for set_class in sorted(glob(os.path.join(dataset_set, '*'))):
 				current_class = os.path.basename(set_class)
 
 				if verbosity_level >= 2:
@@ -105,7 +105,7 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 				elif 'test' in current_set:
 					test_classes.append(current_class)
 
-				for class_image in glob(os.path.join(set_class, '*')):
+				for class_image in sorted(glob(os.path.join(set_class, '*'))):
 					if verbosity_level >= 3:
 						current_image = os.path.basename(class_image)
 						Hexnet_print(f'\t\t\t> current_image={current_image}')
@@ -163,7 +163,7 @@ def transform_dataset(
 
 	os.makedirs(output_dir, exist_ok=True)
 
-	for dataset_set in glob(os.path.join(dataset, '*')):
+	for dataset_set in sorted(glob(os.path.join(dataset, '*'))):
 		current_set = os.path.basename(dataset_set)
 
 		if verbosity_level >= 1:
@@ -172,7 +172,7 @@ def transform_dataset(
 		output_dir_current_set = os.path.join(output_dir, current_set)
 		os.makedirs(output_dir_current_set, exist_ok=True)
 
-		for set_class in glob(os.path.join(dataset_set, '*')):
+		for set_class in sorted(glob(os.path.join(dataset_set, '*'))):
 			current_class = os.path.basename(set_class)
 
 			if verbosity_level >= 2:
@@ -245,4 +245,5 @@ def show_dataset_classes(
 			index += 1
 
 	plt.show()
+
 

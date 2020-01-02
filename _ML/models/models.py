@@ -30,8 +30,10 @@ import tensorflow as tf
 from tensorflow.keras        import Sequential
 from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPool2D
 
-from layers.layers  import HConv2D, HMaxPool2D, SConv2D, SMaxPool2D
-from models.resnets import model_ResNet_v1, model_ResNet_v2
+from layers.layers import HConv2D, HMaxPool2D, SConv2D, SMaxPool2D
+
+from models.resnets        import *
+from models.contrib.models import *
 
 
 def convert_model_parameters(kernel_size, pool_size):
@@ -171,6 +173,170 @@ def model_HCNN(input_shape, classes, kernel_size, pool_size):
 
 	model.add(HConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
 	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(HConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+
+
+def model_SCNN_custom_v1_ks2_ps2(input_shape, classes):
+	kernel_size = (2, 2)
+	pool_size   = (2, 2)
+
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_SCNN_custom_v1_ks2_ps3(input_shape, classes):
+	kernel_size = (2, 2)
+	pool_size   = (3, 3)
+
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_SCNN_custom_v1_ks3_ps2(input_shape, classes):
+	kernel_size = (3, 3)
+	pool_size   = (2, 2)
+
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_SCNN_custom_v1_ks3_ps3(input_shape, classes):
+	kernel_size = (3, 3)
+	pool_size   = (3, 3)
+
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_HCNN_custom_v1(input_shape, classes):
+	kernel_size = (3, 3)
+	pool_size   = (3, 3)
+
+	model = Sequential()
+
+	model.add(HConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(HConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+
+
+def model_SCNN_custom_v2_ps2(input_shape, classes):
+	kernel_size = (3, 3)
+	pool_size   = (2, 2)
+
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, strides=(2, 2), padding='SAME', activation=tf.nn.relu))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_SCNN_custom_v2_ps3(input_shape, classes):
+	kernel_size = (3, 3)
+	pool_size   = (3, 3)
+
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, strides=(2, 2), padding='SAME', activation=tf.nn.relu))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_HCNN_custom_v2(input_shape, classes):
+	kernel_size = (3, 3)
+	pool_size   = (3, 3)
+
+	model = Sequential()
+
+	model.add(HConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, strides=(2, 2), padding='SAME', activation=tf.nn.relu))
 	model.add(Dropout(rate=0.25))
 	model.add(HConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
 	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))

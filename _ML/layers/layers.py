@@ -33,6 +33,7 @@ import tensorflow as tf
 from scipy.optimize import linear_sum_assignment
 from time           import time
 
+from layers.kernels import rotate_hexagonal_kernels, rotate_square_kernel
 from layers.masks   import build_masks
 from layers.offsets import build_offsets
 from misc.misc      import Hexnet_print
@@ -82,7 +83,7 @@ class SConv2D(tf.keras.layers.Layer):
 	def build(self, input_shape):
 		super().build(input_shape)
 
-		kernel_shape = (self.kernel_size[0], self.kernel_size[1], input_shape[3], self.filters) # WHIOC
+		kernel_shape = (self.kernel_size[0], self.kernel_size[1], input_shape[3], self.filters) # HWIOC
 		bias_shape   = self.filters
 
 		self.kernel = self.add_variable(
@@ -120,7 +121,52 @@ class SConv2D(tf.keras.layers.Layer):
 		return output
 
 
-class SMaxPool2D(tf.keras.layers.Layer):
+class SGConv2D(SConv2D):
+	def call(self, input):
+		kernel_rotated = []
+		group_size     = math.ceil(self.kernel.shape[3] / 4)
+
+		for k in range(4):
+			output_channels_index_min = k * group_size
+
+			if k < 3:
+				output_channels_index_max = (k + 1) * group_size
+			else:
+				output_channels_index_max = self.kernel.shape[3]
+
+			kernel_rotated.append(rotate_square_kernel(kernel=self.kernel[:, :, :, output_channels_index_min:output_channels_index_max], angle = k * 90))
+
+		kernel_rotated = tf.concat(
+			values = kernel_rotated,
+			axis   = 3,
+			name   = 'SGConv2D_kernel_rotated_concat')
+
+
+		output = tf.nn.conv2d(
+			input       = input,
+			filters     = kernel_rotated,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			dilations   = self.dilation_rate,
+			name        = 'SGConv2D_output_conv2d')
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'SGConv2D_output_bias_add')
+
+		output = self.activation(
+			features = output,
+			name     = 'SGConv2D_output_activation')
+
+		return output
+
+
+
+
+class SPool2D(tf.keras.layers.Layer):
 	def __init__(
 		self,
 		pool_size   = (3, 3),
@@ -144,6 +190,21 @@ class SMaxPool2D(tf.keras.layers.Layer):
 	def build(self, input_shape):
 		super().build(input_shape)
 
+
+class SAvgPool2D(SPool2D):
+	def call(self, input):
+		output = tf.nn.avg_pool2d(
+			input       = input,
+			ksize       = self.pool_size,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			name        = 'SAvgPool2D_output_avg_pool2d')
+
+		return output
+
+
+class SMaxPool2D(SPool2D):
 	def call(self, input):
 		output = tf.nn.max_pool2d(
 			input       = input,
@@ -154,6 +215,8 @@ class SMaxPool2D(tf.keras.layers.Layer):
 			name        = 'SMaxPool2D_output_max_pool2d')
 
 		return output
+
+
 
 
 class HConv2D(tf.keras.layers.Layer):
@@ -201,7 +264,7 @@ class HConv2D(tf.keras.layers.Layer):
 		super().build(input_shape)
 
 
-		kernel_shape = (self.kernel_size[0], self.kernel_size[1], input_shape[3], self.filters) # WHIOC
+		kernel_shape = (self.kernel_size[0], self.kernel_size[1], input_shape[3], self.filters) # HWIOC
 		bias_shape   = self.filters
 
 		self.kernel = self.add_variable(
@@ -225,6 +288,9 @@ class HConv2D(tf.keras.layers.Layer):
 
 
 		if type(self.strides) is not tuple:
+			self.strides = tuple(self.strides)
+
+		if len(self.strides) == 1:
 			self.strides = (2 * self.strides, self.strides)
 		else:
 			self.strides = (2 * self.strides[0], self.strides[1])
@@ -312,7 +378,124 @@ class HConv2D(tf.keras.layers.Layer):
 		return output
 
 
-class HMaxPool2D(tf.keras.layers.Layer):
+class HGConv2D(HConv2D):
+	def call(self, input):
+		kernel_masked_even_rows = tf.einsum('ijkl,ij->ijkl', self.kernel, self.kernel_mask_even_rows)
+
+		if input.shape[1] > 1:
+			kernel_masked_odd_rows = []
+
+			kernel_center = int(kernel_masked_even_rows.shape[0] / 2)
+
+			if kernel_center % 2:
+				kernel_shift = -1
+			else:
+				kernel_shift = 1
+
+			for kernel_row in range(kernel_masked_even_rows.shape[0]):
+				if abs(kernel_center - kernel_row) % 2:
+					kernel_masked_odd_rows.append(
+						tf.roll(
+							input = kernel_masked_even_rows[kernel_row],
+							shift = kernel_shift,
+							axis  = 0,
+							name  = 'HGConv2D_kernel_masked_odd_rows_roll'))
+				else:
+					kernel_masked_odd_rows.append(kernel_masked_even_rows[kernel_row])
+
+			kernel_masked_odd_rows = tf.stack(
+				values = kernel_masked_odd_rows,
+				axis   = 0,
+				name   = 'HGConv2D_kernel_masked_odd_rows_stack')
+
+
+		kernel_masked_even_rows_rotated = []
+		kernel_masked_odd_rows_rotated  = []
+
+		group_size = math.ceil(self.kernel.shape[3] / 6)
+
+		for k in range(6):
+			output_channels_index_min = k * group_size
+
+			if k < 5:
+				output_channels_index_max = (k + 1) * group_size
+			else:
+				output_channels_index_max = self.kernel.shape[3]
+
+			kernels_masked = (kernel_masked_even_rows[:, :, :, output_channels_index_min:output_channels_index_max], kernel_masked_odd_rows[:, :, :, output_channels_index_min:output_channels_index_max])
+
+			kernels_masked_rotated = rotate_hexagonal_kernels(kernels=kernels_masked, angle = k * 60)
+
+			kernel_masked_even_rows_rotated.append(kernels_masked_rotated[0])
+			kernel_masked_odd_rows_rotated.append(kernels_masked_rotated[1])
+
+		kernel_masked_even_rows_rotated = tf.concat(
+			values = kernel_masked_even_rows_rotated,
+			axis   = 3,
+			name   = 'HGConv2D_kernel_masked_even_rows_rotated_concat')
+
+		kernel_masked_odd_rows_rotated = tf.concat(
+			values = kernel_masked_odd_rows_rotated,
+			axis   = 3,
+			name   = 'HGConv2D_kernel_masked_odd_rows_rotated_concat')
+
+
+		output_even_rows = tf.nn.conv2d(
+			input       = input,
+			filters     = kernel_masked_even_rows_rotated,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			dilations   = self.dilation_rate,
+			name        = 'HGConv2D_output_even_rows_conv2d')
+
+		if input.shape[1] > 1:
+			output_odd_rows = tf.nn.conv2d(
+				input       = input[:, 1:, :, :],
+				filters     = kernel_masked_odd_rows_rotated,
+				strides     = self.strides,
+				padding     = self.padding,
+				data_format = self.data_format,
+				dilations   = self.dilation_rate,
+				name        = 'HGConv2D_output_odd_rows_conv2d')
+
+
+		if input.shape[1] > 1:
+			output = tf.concat(
+				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
+				axis   = 1,
+				name   = 'HGConv2D_output_concat')
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output = tf.concat(
+					values = (output, output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]),
+					axis   = 1,
+					name   = 'HGConv2D_output_concat')
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output = tf.concat(
+					values = (output, output_even_rows[:, -1:, :, :]),
+					axis   = 1,
+					name   = 'HGConv2D_output_concat')
+		else:
+			output = output_even_rows
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'HGConv2D_output_bias_add')
+
+		output = self.activation(
+			features = output,
+			name     = 'HGConv2D_output_activation')
+
+		return output
+
+
+
+
+class HPool2D(tf.keras.layers.Layer):
 	def __init__(
 		self,
 		pool_size   = (3, 3),
@@ -351,12 +534,12 @@ class HMaxPool2D(tf.keras.layers.Layer):
 		self.kernel_mask_even_rows = tf.convert_to_tensor(
 			value = kernel_mask_even_rows,
 			dtype = tf.float32,
-			name  = 'HMaxPool2D_kernel_mask_even_rows_convert_to_tensor')
+			name  = 'HPool2D_kernel_mask_even_rows_convert_to_tensor')
 
 		self.kernel_mask_odd_rows = tf.convert_to_tensor(
 			value = kernel_mask_odd_rows,
 			dtype = tf.float32,
-			name  = 'HMaxPool2D_kernel_mask_odd_rows_convert_to_tensor')
+			name  = 'HPool2D_kernel_mask_odd_rows_convert_to_tensor')
 
 
 
@@ -452,7 +635,7 @@ class HMaxPool2D(tf.keras.layers.Layer):
 		row_indices, col_indices = linear_sum_assignment(cost_matrix)
 		time_diff = time() - start_time
 
-		Hexnet_print(f'(HMaxPool2D) Initialized pooling layer in {time_diff:.3f} seconds ({input_shape}->{output_shape})')
+		Hexnet_print(f'(HPool2D) Initialized pooling layer in {time_diff:.3f} seconds ({input_shape}->{output_shape})')
 
 		if _ENABLE_DEBUGGING:
 			costs     = cost_matrix[row_indices, col_indices]
@@ -476,6 +659,55 @@ class HMaxPool2D(tf.keras.layers.Layer):
 		if _ENABLE_DEBUGGING:
 			Hexnet_print(f'pooling_offsets =\n{self.pooling_offsets}')
 
+
+class HAvgPool2D(HPool2D):
+	def call(self, input):
+		input = tf.pad(
+			tensor          = input,
+			paddings        = self.paddings,
+			mode            = 'CONSTANT',
+			constant_values = 0,
+			name            = 'HAvgPool2D_input_pad')
+
+
+		input_pooling_list   = self.pooling_offsets.shape[0] * [self.pooling_offsets.shape[1] * [None]]
+		input_pooling_list_h = []
+
+		for h in range(self.pooling_offsets.shape[0]):
+			for w in range(self.pooling_offsets.shape[1]):
+				if self.pooling_offsets[h, w, 0] % 2:
+					kernel_mask = self.kernel_mask_odd_rows
+				else:
+					kernel_mask = self.kernel_mask_even_rows
+
+				h_slice_to_mask          = slice(self.pooling_offsets[h, w, 0] - self.pool_size2[0], self.pooling_offsets[h, w, 0] + self.pool_size2[0] + 1)
+				w_slice_to_mask          = slice(self.pooling_offsets[h, w, 1] - self.pool_size2[1], self.pooling_offsets[h, w, 1] + self.pool_size2[1] + 1)
+				input_pooling_list[h][w] = tf.einsum('ijkl,jk->ijkl', input[:, h_slice_to_mask, w_slice_to_mask, :], kernel_mask)
+
+			input_pooling_list_h.append(
+				tf.concat(
+					values = input_pooling_list[h],
+					axis   = 2,
+					name   = 'HAvgPool2D_input_pooling_list_h_concat'))
+
+		input_pooling_list = tf.concat(
+			values = input_pooling_list_h,
+			axis   = 1,
+			name   = 'HAvgPool2D_input_pooling_list_concat')
+
+
+		output = tf.nn.avg_pool2d(
+			input       = input_pooling_list,
+			ksize       = self.pool_size,
+			strides     = self.strides,
+			padding     = 'VALID',
+			data_format = self.data_format,
+			name        = 'HAvgPool2D_output_avg_pool2d')
+
+		return output
+
+
+class HMaxPool2D(HPool2D):
 	def call(self, input):
 		input = tf.pad(
 			tensor          = input,
@@ -520,5 +752,4 @@ class HMaxPool2D(tf.keras.layers.Layer):
 			name        = 'HMaxPool2D_output_max_pool2d')
 
 		return output
-
 

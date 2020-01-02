@@ -68,6 +68,8 @@ from tensorflow.keras              import Input, Model
 from tensorflow.keras.layers       import Activation, add, AveragePooling2D, BatchNormalization, Conv2D, Dense, Flatten
 from tensorflow.keras.regularizers import l2
 
+from layers.layers import HAvgPool2D, HConv2D, SAvgPool2D, SConv2D
+
 
 def resnet_get_depth(version=1, n=3):
     if version == 1:
@@ -84,7 +86,8 @@ def resnet_layer(inputs,
                  strides=1,
                  activation='relu',
                  batch_normalization=True,
-                 conv_first=True):
+                 conv_first=True,
+                 mode='baseline'):
     """2D Convolution-Batch Normalization-Activation stack builder
 
     # Arguments
@@ -100,12 +103,29 @@ def resnet_layer(inputs,
     # Returns
         x (tensor): tensor as input to the next layer
     """
-    conv = Conv2D(num_filters,
-                  kernel_size=kernel_size,
-                  strides=strides,
-                  padding='same',
-                  kernel_initializer='he_normal',
-                  kernel_regularizer=l2(1e-4))
+    if mode == 'baseline':
+        conv = Conv2D(num_filters,
+                      kernel_size=kernel_size,
+                      strides=strides,
+                      padding='same',
+                      kernel_initializer='he_normal',
+                      kernel_regularizer=l2(1e-4))
+    elif mode == 'S-ResNet':
+        if type(kernel_size) is not tuple:
+            kernel_size = tuple(kernel_size)
+
+        if len(kernel_size) == 1:
+            kernel_size *= 2
+
+        conv = SConv2D(filters=num_filters, kernel_size=kernel_size, strides=strides, padding='SAME')
+    elif mode == 'H-ResNet':
+        if type(kernel_size) is not tuple:
+            kernel_size = tuple(kernel_size)
+
+        if len(kernel_size) == 1:
+            kernel_size *= 2
+
+        conv = HConv2D(filters=num_filters, kernel_size=kernel_size, strides=strides, padding='SAME')
 
     x = inputs
     if conv_first:
@@ -123,7 +143,7 @@ def resnet_layer(inputs,
     return x
 
 
-def resnet_v1(input_shape, depth, num_classes=10):
+def resnet_v1(input_shape, depth, num_classes=10, mode='baseline'):
     """ResNet Version 1 Model builder [a]
 
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
@@ -158,7 +178,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
     num_res_blocks = int((depth - 2) / 6)
 
     inputs = Input(shape=input_shape)
-    x = resnet_layer(inputs=inputs)
+    x = resnet_layer(inputs=inputs, mode=mode)
     # Instantiate the stack of residual units
     for stack in range(3):
         for res_block in range(num_res_blocks):
@@ -167,10 +187,12 @@ def resnet_v1(input_shape, depth, num_classes=10):
                 strides = 2  # downsample
             y = resnet_layer(inputs=x,
                              num_filters=num_filters,
-                             strides=strides)
+                             strides=strides,
+                             mode=mode)
             y = resnet_layer(inputs=y,
                              num_filters=num_filters,
-                             activation=None)
+                             activation=None,
+                             mode=mode)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match
                 # changed dims
@@ -179,14 +201,20 @@ def resnet_v1(input_shape, depth, num_classes=10):
                                  kernel_size=1,
                                  strides=strides,
                                  activation=None,
-                                 batch_normalization=False)
+                                 batch_normalization=False,
+                                 mode=mode)
             x = add([x, y])
             x = Activation('relu')(x)
         num_filters *= 2
 
     # Add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
-    x = AveragePooling2D(pool_size=8)(x)
+    if mode == 'baseline':
+        x = AveragePooling2D(pool_size=8)(x)
+    elif mode == 'S-ResNet':
+        x = SAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
+    elif mode == 'H-ResNet':
+        x = HAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
     y = Flatten()(x)
     outputs = Dense(num_classes,
                     activation='softmax',
@@ -197,7 +225,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
     return model
 
 
-def resnet_v2(input_shape, depth, num_classes=10):
+def resnet_v2(input_shape, depth, num_classes=10, mode='baseline'):
     """ResNet Version 2 Model builder [b]
 
     Stacks of (1 x 1)-(3 x 3)-(1 x 1) BN-ReLU-Conv2D or also known as
@@ -232,7 +260,8 @@ def resnet_v2(input_shape, depth, num_classes=10):
     # v2 performs Conv2D with BN-ReLU on input before splitting into 2 paths
     x = resnet_layer(inputs=inputs,
                      num_filters=num_filters_in,
-                     conv_first=True)
+                     conv_first=True,
+                     mode=mode)
 
     # Instantiate the stack of residual units
     for stage in range(3):
@@ -257,14 +286,17 @@ def resnet_v2(input_shape, depth, num_classes=10):
                              strides=strides,
                              activation=activation,
                              batch_normalization=batch_normalization,
-                             conv_first=False)
+                             conv_first=False,
+                             mode=mode)
             y = resnet_layer(inputs=y,
                              num_filters=num_filters_in,
-                             conv_first=False)
+                             conv_first=False,
+                             mode=mode)
             y = resnet_layer(inputs=y,
                              num_filters=num_filters_out,
                              kernel_size=1,
-                             conv_first=False)
+                             conv_first=False,
+                             mode=mode)
             if res_block == 0:
                 # linear projection residual shortcut connection to match
                 # changed dims
@@ -273,7 +305,8 @@ def resnet_v2(input_shape, depth, num_classes=10):
                                  kernel_size=1,
                                  strides=strides,
                                  activation=None,
-                                 batch_normalization=False)
+                                 batch_normalization=False,
+                                 mode=mode)
             x = add([x, y])
 
         num_filters_in = num_filters_out
@@ -282,7 +315,12 @@ def resnet_v2(input_shape, depth, num_classes=10):
     # v2 has BN-ReLU before Pooling
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = AveragePooling2D(pool_size=8)(x)
+    if mode == 'baseline':
+        x = AveragePooling2D(pool_size=8)(x)
+    elif mode == 'S-ResNet':
+        x = SAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
+    elif mode == 'H-ResNet':
+        x = HAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
     y = Flatten()(x)
     outputs = Dense(num_classes,
                     activation='softmax',
@@ -295,14 +333,38 @@ def resnet_v2(input_shape, depth, num_classes=10):
 
 
 
-def model_ResNet_v1(n, input_shape, classes):
+def model_ResNet_v1(input_shape, classes, n):
     depth = resnet_get_depth(version=1, n=n)
 
-    return resnet_v1(input_shape, depth, num_classes=classes)
+    return resnet_v1(input_shape, depth, num_classes=classes, mode='baseline')
 
 
-def model_ResNet_v2(n, input_shape, classes):
+def model_ResNet_v2(input_shape, classes, n):
     depth = resnet_get_depth(version=2, n=n)
 
-    return resnet_v2(input_shape, depth, num_classes=classes)
+    return resnet_v2(input_shape, depth, num_classes=classes, mode='baseline')
+
+
+def model_SResNet_v1(input_shape, classes, n):
+    depth = resnet_get_depth(version=1, n=n)
+
+    return resnet_v1(input_shape, depth, num_classes=classes, mode='S-ResNet')
+
+
+def model_SResNet_v2(input_shape, classes, n):
+    depth = resnet_get_depth(version=2, n=n)
+
+    return resnet_v2(input_shape, depth, num_classes=classes, mode='S-ResNet')
+
+
+def model_HResNet_v1(input_shape, classes, n):
+    depth = resnet_get_depth(version=1, n=n)
+
+    return resnet_v1(input_shape, depth, num_classes=classes, mode='H-ResNet')
+
+
+def model_HResNet_v2(input_shape, classes, n):
+    depth = resnet_get_depth(version=2, n=n)
+
+    return resnet_v2(input_shape, depth, num_classes=classes, mode='H-ResNet')
 
