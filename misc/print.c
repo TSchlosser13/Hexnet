@@ -27,10 +27,10 @@
 
 #include <stdio.h>
 
-#include "../Hexnet.h"
-
 #include "console.h"
 #include "print.h"
+
+#include "../Hexnet.h"
 
 
 void print_info() {
@@ -46,16 +46,17 @@ void print_help() {
 }
 
 void print_help_full() {
-	puts(
-		"-h, --help                  print options\n"
-		"-i, --input       <image>   input image\n"
-		"-o, --output      <image>   output image\n"
-		"--s2h-rad         <radius>  hexagon radius\n"
-		"--h2s-len         <length>  square side length\n"
-		"--compare-s2s     <image>   compare input image to <image>\n"
-		"--compare-s2h               compare input to output image\n"
-		"--compare-metric  <metric>  compare metric: AE / SE / MAE / MSE / RMSE / PSNR\n"
-		"-d, --display               display results\n"
-		"-v, --verbose               increase verbosity");
+	puts( \
+		"-h, --help                            print options                                                                                 \n" \
+		"-i, --input       <image>             square or hexagonal pixel based input image                                                   \n" \
+		"-o, --output      <image>             hexagonal pixel based output image, square pixel based output images base name                \n" \
+		"--s2h-rad         <radius>            enable square to hexagonal image transformation by setting the hexagonal pixels outer radius  \n" \
+		"--h2s-len         <length>            enable hexagonal to square image transformation by setting the square pixels side length      \n" \
+		"--s2s-res         <width> [<height>]  enable square to square image transformation by setting the output resolution                 \n" \
+		"--compare-s2s     <image>             compare square input (i, input) to input square image <image>                                 \n" \
+		"--compare-s2h                         compare square input (i, input) to hexagonal output image (o, output) using s2h-rad           \n" \
+		"--compare-metric  <metric>            compare-s2s and compare-s2h compare metric: AE / SE / MAE / MSE / RMSE / PSNR                 \n" \
+		"-d, --display                         display hexagonal input (i, input) or output image (o, output) using s2h-rad                  \n" \
+		"-v, --verbose                         increase verbosity                                                                            ");
 }
 

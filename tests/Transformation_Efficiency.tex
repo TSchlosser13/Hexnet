@@ -8,7 +8,7 @@
 \begin{document}
 	\begin{tikzpicture}
 		\begin{axis}[
-		 colormap/viridis, colorbar, mesh/cols=39, point meta min=-1, point meta max=1,
+		 colormap/viridis, colorbar, mesh/cols=39, point meta min=-10, point meta max=10,
 		 xlabel={Test Image Number}, ylabel={$R$}, colorbar style={ylabel={$\Delta T$}}]
 			\addplot3[surf, shader=interp] file {Transformation_Efficiency.dat};
 		\end{axis}
