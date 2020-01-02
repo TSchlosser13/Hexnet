@@ -1,0 +1,79 @@
+\documentclass[border=1pt]{standalone}
+
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{colorbrewer}
+\pgfplotsset{compat=newest, cycle list/Set1}
+
+
+\begin{document}
+	\begin{tikzpicture}
+		\begin{axis}[
+		 cycle multiindex* list={
+			 Set1\nextlist
+			 [3 of]mark list\nextlist
+			 solid, solid, solid, solid, solid, solid, solid, solid, solid, dotted, dotted, dotted, dotted, dotted, dotted, dotted, dotted, dotted},
+		 legend cell align=left, legend pos=outer north east,
+		 xlabel={Epoch}, ylabel={Loss}, ticklabel style={/pgf/number format/.cd, fixed, fixed zerofill, precision=1}]
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_CIFAR-10_s2s.h5_2-32-3-3_loss.dat};
+			\addlegendentry{CIFAR-10 S-CNN $3 \times 3$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_CIFAR-10_s2s.h5_2-32-3-2_loss.dat};
+			\addlegendentry{CIFAR-10 S-CNN $2 \times 2$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_HCNN_CIFAR-10_s2h.h5_2-32-3-3_loss.dat};
+			\addlegendentry{CIFAR-10 H-CNN $7^1$}
+
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_CIFAR-100_s2s.h5_2-32-3-3_loss.dat};
+			\addlegendentry{CIFAR-100 S-CNN $3 \times 3$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_CIFAR-100_s2s.h5_2-32-3-2_loss.dat};
+			\addlegendentry{CIFAR-100 S-CNN $2 \times 2$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_HCNN_CIFAR-100_s2h.h5_2-32-3-3_loss.dat};
+			\addlegendentry{CIFAR-100 H-CNN $7^1$}
+
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_CINIC-10_s2s.h5_2-32-3-3_loss.dat};
+			\addlegendentry{CINIC-10 S-CNN $3 \times 3$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_CINIC-10_s2s.h5_2-32-3-2_loss.dat};
+			\addlegendentry{CINIC-10 S-CNN $2 \times 2$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_HCNN_CINIC-10_s2h.h5_2-32-3-3_loss.dat};
+			\addlegendentry{CINIC-10 H-CNN $7^1$}
+
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_COIL-20_s2s.h5_2-32-3-3_loss.dat};
+			\addlegendentry{COIL-20 S-CNN $3 \times 3$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_COIL-20_s2s.h5_2-32-3-2_loss.dat};
+			\addlegendentry{COIL-20 S-CNN $2 \times 2$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_HCNN_COIL-20_s2h.h5_2-32-3-3_loss.dat};
+			\addlegendentry{COIL-20 H-CNN $7^1$}
+
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_COIL-100_s2s.h5_2-32-3-3_loss.dat};
+			\addlegendentry{COIL-100 S-CNN $3 \times 3$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_COIL-100_s2s.h5_2-32-3-2_loss.dat};
+			\addlegendentry{COIL-100 S-CNN $2 \times 2$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_HCNN_COIL-100_s2h.h5_2-32-3-3_loss.dat};
+			\addlegendentry{COIL-100 H-CNN $7^1$}
+
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_MNIST_s2s.h5_2-32-3-3_loss.dat};
+			\addlegendentry{MNIST S-CNN $3 \times 3$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_SCNN_MNIST_s2s.h5_2-32-3-2_loss.dat};
+			\addlegendentry{MNIST S-CNN $2 \times 2$}
+
+			\addplot table[x expr=\coordindex, y index=0] {S_H_CNN_Comparison/_HCNN_MNIST_s2h.h5_2-32-3-3_loss.dat};
+			\addlegendentry{MNIST H-CNN $7^1$}
+		\end{axis}
+	\end{tikzpicture}
+\end{document}
+

@@ -1,0 +1,9 @@
+*.aux
+*.dat
+*.h5
+*.log
+*.png
+*.pyc
+*.zip
+tests/tmp
+
