@@ -3,12 +3,12 @@
 
 mkdir -v USC_out
 
-for s2h_rad in $(LANG=en_US seq 0.1 0.1 2.0); do
+for s2h_rad in $(LANG=en_US seq 0.1 0.1 10.0); do
 	cnt=0
 
 	printf "> s2h-rad = ${s2h_rad}\n"
 
-	for img in ../tests/testset/USC/*.tiff; do
+	for img in testset/USC/*.tiff; do
 		printf "\t> img = ${img}\n"
 
 
@@ -18,11 +18,11 @@ for s2h_rad in $(LANG=en_US seq 0.1 0.1 2.0); do
 		wh=$(bc <<< "sqrt(${w} * ${h}) + 1")
 
 
-		convert ${img} -filter triangle -resize ${wh}x${wh} USC_out/${img##*/}_wh=${wh}.bmp
+		../Hexnet -i ${img} -o USC_out/${img##*/}_s2s-res=${wh}.bmp --s2s-res ${wh} > /dev/null
 
 		out=$( \
 			../Hexnet -i ${img} --s2h-rad ${s2h_rad} -v \
-				--compare-s2s USC_out/${img##*/}_wh=${wh}.bmp --compare-s2h --compare-metric PSNR)
+				--compare-s2s USC_out/${img##*/}_s2s-res=${wh}_s2s.bmp --compare-s2h --compare-metric PSNR)
 
 		s2s=$(echo "${out}" | awk '$1 == "[compare_s2s]" { print $4; exit; }')
 		s2h=$(echo "${out}" | awk '$1 == "[compare_s2h]" { print $4; exit; }')
@@ -45,5 +45,4 @@ done
 pdflatex Transformation_Efficiency_s2s.tex
 pdflatex Transformation_Efficiency_s2h.tex
 pdflatex Transformation_Efficiency.tex
-
 

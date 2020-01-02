@@ -20,11 +20,16 @@ obj = $(built_src:.c=.o) $(src:.c=.o)
 Hexnet: $(obj)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+Hexnet.so: CFLAGS  += -fpic
+Hexnet.so: LDFLAGS += -shared
+Hexnet.so: $(obj)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
 gui/gui.gresource.c: gui/gui.gresource.xml
 	glib-compile-resources --target=$@ --generate-source $<
 
 clean:
-	rm -f $(built_src) $(obj) Hexnet
+	rm -f $(built_src) $(obj) Hexnet Hexnet.so
 
 test:
 	./Hexnet -i tests/testset/USC/4.1.01.tiff -o 4.1.01_out.jpg --s2h-rad 1.0 --h2s-len 1.0 -d -v

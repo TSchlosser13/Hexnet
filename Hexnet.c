@@ -28,6 +28,7 @@
 #define _POSIX_C_SOURCE 199309L
 
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,29 +50,36 @@
 #include "misc/types.h"
 
 #include "tools/compare.h"
+#include "tools/Sqsamp.h"
 
 
 int main(int argc, char** argv) {
-	bool  enable_compare_s2s = false;
-	bool  enable_compare_s2h = false;
-	u32   compare_metric     = COMPARE_PSNR;
-	bool  display_results    = false;
-	bool  increase_verbosity = false;
-	char* filename_in        = NULL;
-	char* filename_in_s2     = NULL;
-	char* filename_out       = NULL;
-	char  filename_out_h2s[256];
+	bool enable_compare_s2s = false;
+	bool enable_compare_s2h = false;
+	u32  compare_metric     = COMPARE_PSNR;
+	bool display_results    = false;
+	bool increase_verbosity = false;
 
-	Array    array_in;
-	Array    array_in_s2;
-	Array    array_out;
-	float    array_out_len  = 0;
+	char* filename_in    = NULL;
+	char* filename_in_s2 = NULL;
+	char* filename_out   = NULL;
+	char  filename_out_h2s[256];
+	char  filename_out_s2s[256];
+
+	Array array_in;
+	Array array_in_s2;
+	Array array_out;
+	float array_out_len        = 0;
+	Array array_out_s2s;
+	u32   array_out_s2s_width  = 0;
+	u32   array_out_s2s_height = 0;
+
 	Hexarray hexarray;
 	float    hexarray_rad_o = 0;
 
-	int    status = 0;
-	struct timespec ts1, ts2;
 	double clock_diff;
+	struct timespec ts1, ts2;
+	int    status = 0;
 
 
 	setbuf(stdout, NULL);
@@ -96,6 +104,18 @@ int main(int argc, char** argv) {
 			hexarray_rad_o     = (float)atof(argv[++i]);
 		} else if(!strcmp(argv[i], "--h2s-len")        && i + 1 < argc) {
 			array_out_len      = (float)atof(argv[++i]);
+		} else if(!strcmp(argv[i], "--s2s-res")        && i + 1 < argc) {
+			array_out_s2s_width = (u32)atoi(argv[++i]);
+
+			if(i + 1 < argc) {
+				if(!isdigit(argv[i + 1][0])) {
+					array_out_s2s_height = array_out_s2s_width;
+				} else {
+					array_out_s2s_height = (u32)atoi(argv[++i]);
+				}
+			} else {
+				array_out_s2s_height = array_out_s2s_width;
+			}
 		} else if(!strcmp(argv[i], "--compare-s2s")    && i + 1 < argc) {
 			enable_compare_s2s = true;
 			filename_in_s2     = argv[++i];
@@ -158,6 +178,7 @@ int main(int argc, char** argv) {
 	clock_gettime(CLOCK_MONOTONIC, &ts2);
 	clock_diff = CLOCK_DIFF(ts1, ts2);
 
+
 	if(increase_verbosity)
 		Hexarray_print_info(hexarray, stringify(hexarray));
 
@@ -168,6 +189,15 @@ int main(int argc, char** argv) {
 		if(increase_verbosity) {
 			putchar('\n');
 			Array_print_info(array_out, stringify(array_out));
+		}
+	}
+
+	if(array_out_s2s_width) {
+		Array_init(&array_out_s2s, array_out_s2s_width, array_out_s2s_height, 3, 1.0f);
+
+		if(increase_verbosity) {
+			putchar('\n');
+			Array_print_info(array_out_s2s, stringify(array_out_s2s));
 		}
 	}
 
@@ -226,6 +256,17 @@ int main(int argc, char** argv) {
 	}
 
 
+	if(array_out_s2s_width) {
+		clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+		Sqsamp_s2s(array_in, &array_out_s2s, 0);
+
+		clock_gettime(CLOCK_MONOTONIC, &ts2);
+		clock_diff = CLOCK_DIFF(ts1, ts2);
+		printf("Sqsamp_s2s       : %f\n", clock_diff);
+	}
+
+
 	if(display_results) {
 		char gui_title[256];
 		sprintf(gui_title, "Hexnet " HEXNET_VERSION ", " HEXNET_YEAR_S " - %s", filename_in);
@@ -248,6 +289,12 @@ int main(int argc, char** argv) {
 		Array_to_file(array_out, filename_out_h2s);
 	}
 
+	if(filename_out && array_out_s2s_width) {
+		strcpy(filename_out_s2s, filename_out);
+		insert_string(filename_out_s2s, "_s2s", strrchr(filename_out, '.') - filename_out);
+		Array_to_file(array_out_s2s, filename_out_s2s);
+	}
+
 	Array_free(&array_in);
 
 	if(enable_compare_s2s)
@@ -255,6 +302,9 @@ int main(int argc, char** argv) {
 
 	if(array_out_len)
 		Array_free(&array_out);
+
+	if(array_out_s2s_width)
+		Array_free(&array_out_s2s);
 
 	MagickWandTerminus();
 

@@ -5,8 +5,8 @@
 *.log
 *.o
 *.png
+*.so
 Hexnet
 
 !doc/**/*.png
-
 
