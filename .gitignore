@@ -1,0 +1,12 @@
+*.aux
+*.exe
+*.gresource.c
+*.jpg
+*.log
+*.o
+*.png
+Hexnet
+
+!doc/**/*.png
+
+
