@@ -1,7 +1,3 @@
-numpy==1.16.4
-opencv-python
-requests
 tensorflow-gpu==2.0.0-beta1
 tqdm
-
 

@@ -250,6 +250,8 @@ class HConv2D(tf.keras.layers.Layer):
 							shift = kernel_shift,
 							axis  = 0,
 							name  = 'HConv2D_kernel_masked_odd_rows_roll'))
+				else:
+					kernel_masked_odd_rows.append(kernel_masked_even_rows[kernel_row])
 
 			kernel_masked_odd_rows = tf.stack(
 				values = kernel_masked_odd_rows,
@@ -407,16 +409,31 @@ class HMaxPool2D(tf.keras.layers.Layer):
 		input_offsets_padding_w = (-input_offsets_min[1] + self.pool_size2[1], input_offsets_max[1] - (input_shape_w - 1) + self.pool_size2[1])
 		self.paddings           = ((0, 0), input_offsets_padding_h, input_offsets_padding_w, (0, 0))
 
-		input_offsets_padded   = [(offset[0] + input_offsets_padding_h[0], offset[1] + input_offsets_padding_w[0]) for offset in input_offsets]
-		input_offsets_center   = (sum(input_offsets_padded[:][0]) / len(input_offsets_padded[:][0]), sum(input_offsets_padded[:][1]) / len(input_offsets_padded[:][1]))
-		input_offsets_centered = [(offset[0] - input_offsets_center[0], offset[1] - input_offsets_center[1]) for offset in input_offsets_padded]
+		input_offsets_padded = [(offset[0] + input_offsets_padding_h[0], offset[1] + input_offsets_padding_w[0]) for offset in input_offsets]
+		input_offsets_center = (sum(input_offsets_padded[:][0]) / len(input_offsets_padded[:][0]), sum(input_offsets_padded[:][1]) / len(input_offsets_padded[:][1]))
+
+		input_offsets_centered = []
+
+		for offset in input_offsets_padded:
+			if not (offset[0] - input_offsets_padding_h[0]) % 2:
+				input_offsets_centered.append(((offset[0] - input_offsets_center[0]) * 1.5, (offset[1] - input_offsets_center[1]) * math.sqrt(3)))
+			else:
+				input_offsets_centered.append(((offset[0] - input_offsets_center[0]) * 1.5, (offset[1] + 0.5 - input_offsets_center[1]) * math.sqrt(3)))
 
 		output_shape_base = math.sqrt(len(input_offsets_padded))
 		output_shape_h    = math.floor((input_shape_h / input_shape_w) * output_shape_base)
 		output_shape_w    = math.floor((input_shape_w / input_shape_h) * output_shape_base)
 		output_shape      = (input_shape[0], output_shape_h, output_shape_w, input_shape[3])
 
-		output_offsets          = [(h, w) for w in range(output_shape_w) for h in range(output_shape_h)]
+		output_offsets = []
+
+		for h in range(output_shape_h):
+			for w in range(output_shape_w):
+				if not h % 2:
+					output_offsets.append((h * 1.5, w * math.sqrt(3)))
+				else:
+					output_offsets.append((h * 1.5, (w + 0.5) * math.sqrt(3)))
+
 		output_offsets_scale    = (input_offsets_shape[0] / output_shape_h, input_offsets_shape[1] / output_shape_w)
 		output_offsets_scaled   = [(output_offsets_scale[0] * offset[0], output_offsets_scale[1] * offset[1]) for offset in output_offsets]
 		output_offsets_center   = (sum(output_offsets_scaled[:][0]) / len(output_offsets_scaled[:][0]), sum(output_offsets_scaled[:][1]) / len(output_offsets_scaled[:][1]))
@@ -438,7 +455,7 @@ class HMaxPool2D(tf.keras.layers.Layer):
 		Hexnet_print(f'(HMaxPool2D) Initialized pooling layer in {time_diff:.3f} seconds ({input_shape}->{output_shape})')
 
 		if _ENABLE_DEBUGGING:
-			costs     = cost_matrix[row_indices][col_indices]
+			costs     = cost_matrix[row_indices, col_indices]
 			costs_sum = costs.sum()
 
 			Hexnet_print('(linear_sum_assignment) '
