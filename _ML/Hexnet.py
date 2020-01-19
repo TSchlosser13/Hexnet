@@ -45,6 +45,7 @@ tests_dir          = 'tests/tmp'
 visualize_model    = None
 
 runs               = 1
+loss               = None
 epochs             = 1
 batch_size         = 32
 
@@ -77,14 +78,14 @@ import tensorflow as tf
 from datetime          import datetime
 from matplotlib.pyplot import imsave
 
-from core.Hexnet import Hexnet_init
-
 import datasets.datasets  as datasets
 import misc.augmenters    as augmenters
+import misc.losses        as losses
 import misc.visualization as visualization
 import models.models      as models
 
-from misc.misc import Hexnet_print, print_newline
+from core.Hexnet import Hexnet_init
+from misc.misc   import Hexnet_print, print_newline
 
 
 ################################################################################
@@ -121,6 +122,7 @@ def run(args):
 	show_results       = args.show_results
 
 	runs               = args.runs
+	loss_string        = args.loss
 	epochs             = args.epochs
 	batch_size         = args.batch_size
 
@@ -136,7 +138,28 @@ def run(args):
 	transform_height   = args.transform_height
 
 
-	model = None
+	if model_string is not None:
+		model_is_provided = True
+
+		model_is_custom      = True if 'custom'      in model_string else False
+		model_is_standalone  = True if 'standalone'  in model_string else False
+
+		model_is_autoencoder = True if 'autoencoder' in model_string else False
+		model_is_CNN         = True if 'CNN'         in model_string else False
+		model_is_GAN         = True if 'GAN'         in model_string else False
+	else:
+		model_is_provided = False
+
+	if augmenter_string is not None:
+		augmenter_is_custom = True if 'custom' in augmenter_string else False
+
+	if loss_string is not None:
+		loss_is_provided = True
+
+		loss_is_subpixel_loss = True if ('s2s' in loss_string or 's2h' in loss_string) else False
+	else:
+		loss_is_provided = False
+
 
 	train_classes = []
 	train_data    = []
@@ -197,7 +220,7 @@ def run(args):
 
 		augmenter = vars(augmenters)[f'augmenter_{augmenter_string}']
 
-		if 'custom' in augmenter_string:
+		if augmenter_is_custom:
 			augmenter = augmenter()
 		else:
 			augmenter = augmenter(augmentation_level)
@@ -206,7 +229,7 @@ def run(args):
 			train_data = augmenter(images=train_data)
 
 		if 'test' in augment_dataset:
-			test_data  = augmenter(images=test_data)
+			test_data = augmenter(images=test_data)
 
 		print_newline()
 
@@ -224,7 +247,7 @@ def run(args):
 			max_classes_to_display = 10)
 
 
-	if model_string is None:
+	if not model_is_provided:
 		return 0
 
 
@@ -232,30 +255,39 @@ def run(args):
 	# Prepare the dataset
 	############################################################################
 
-	train_labels  = [int(np.where(train_classes == label)[0]) for label in train_labels]
+	train_labels  = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels])
 	train_classes = list(set(train_labels))
-	test_labels   = [int(np.where(test_classes == label)[0]) for label in test_labels]
+	test_labels   = np.asarray([int(np.where(test_classes == label)[0]) for label in test_labels])
 	test_classes  = list(set(test_labels))
 
-	train_test_data_n = 255
-	train_data        = train_data / train_test_data_n
-	test_data         = test_data  / train_test_data_n
-
-	if 'autoencoder' in model_string:
-		min_size_factor = 2**5 # TODO
+	if model_is_autoencoder or model_is_GAN:
+		# TODO
+		if model_is_autoencoder:
+			min_size_factor = 2**5
+		else:
+			min_size_factor = 2**4
 
 		if train_data.shape[1] % min_size_factor:
 			padding_h = min_size_factor - train_data.shape[1] % min_size_factor
 			padding_h = (int(padding_h / 2) + padding_h % 2, int(padding_h / 2))
+		else:
+			padding_h = (0, 0)
 
 		if train_data.shape[2] % min_size_factor:
 			padding_w = min_size_factor - train_data.shape[2] % min_size_factor
 			padding_w = (int(padding_w / 2) + padding_w % 2, int(padding_w / 2))
+		else:
+			padding_w = (0, 0)
 
 		pad_width = ((0, 0), padding_h, padding_w, (0, 0))
 
 		train_data = np.pad(train_data, pad_width, mode='constant', constant_values=0)
 		test_data  = np.pad(test_data,  pad_width, mode='constant', constant_values=0)
+
+	train_test_data_n  = 255
+	train_test_data_n /= 2
+	train_data         = (train_data - train_test_data_n) / train_test_data_n
+	test_data          = (test_data  - train_test_data_n) / train_test_data_n
 
 
 	############################################################################
@@ -268,10 +300,7 @@ def run(args):
 		dataset   = os.path.basename(dataset)
 		timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
 
-		if 'CNN' in model_string and not 'custom' in model_string:
-			run_title = f'{model_string}_{dataset}_{timestamp}_{epochs}-{batch_size}-{cnn_kernel_size[0]}-{cnn_pool_size[0]}'
-		else:
-			run_title = f'{model_string}_{dataset}_{timestamp}_{epochs}-{batch_size}'
+		run_title = f'{model_string}_{dataset}_{timestamp}_epochs{epochs}-bs{batch_size}'
 
 		if runs > 1:
 			run_title = f'{run_title}_run{run}'
@@ -284,16 +313,20 @@ def run(args):
 		Hexnet_print(f'({run_string}) Model initialization')
 
 		input_shape = train_data.shape[1:4]
-		classes     = len(train_classes)
+
+		if model_is_autoencoder:
+			output_shape = test_data.shape[1:4]
+
+		classes = len(train_classes)
 
 		if load_model is None:
 			model = vars(models)[f'model_{model_string}']
 
-			if 'autoencoder' in model_string:
-				model = model(input_shape)
-			elif 'custom' in model_string:
+			if model_is_custom or model_is_standalone:
 				model = model(input_shape, classes)
-			elif 'CNN' in model_string:
+			elif model_is_autoencoder:
+				model = model(input_shape)
+			elif model_is_CNN:
 				model = model(input_shape, classes, cnn_kernel_size, cnn_pool_size)
 			else:
 				model = model(input_shape, classes)
@@ -305,105 +338,123 @@ def run(args):
 
 		print_newline()
 
-		Hexnet_print(f'({run_string}) Model summary')
-		model.summary()
-		print_newline()
+		if not model_is_standalone:
+			Hexnet_print(f'({run_string}) Model summary')
+			model.summary()
+			print_newline()
 
 
 		########################################################################
 		# Fit the model
 		########################################################################
 
-		if not 'autoencoder' in model_string:
-			loss    = 'sparse_categorical_crossentropy'
-			metrics = ['accuracy']
-		else:
-			loss    = 'mse'
-			metrics = None
+		if not model_is_standalone:
+			if not loss_is_provided:
+				if not model_is_autoencoder:
+					loss = 'sparse_categorical_crossentropy'
+				else:
+					loss = 'mse'
+			else:
+				if not loss_is_subpixel_loss:
+					loss = vars(losses)[f'loss_{loss_string}']()
+				else:
+					loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
 
-		model.compile(
-			optimizer = 'adam',
-			loss      = loss,
-			metrics   = metrics)
+			if not model_is_autoencoder:
+				metrics = ['accuracy']
+			else:
+				metrics = None
+
+			model.compile(
+				optimizer = 'adam',
+				loss      = loss,
+				metrics   = metrics)
+		else:
+			os.makedirs(tests_dir, exist_ok=True)
 
 		Hexnet_print(f'({run_string}) Training')
 
-		if not 'autoencoder' in model_string:
-			history = model.fit(train_data, train_labels, batch_size, epochs, shuffle=True)
-		else:
+		if model_is_standalone:
+			model.train(train_data, train_labels, batch_size, epochs, tests_dir, run_title)
+		elif model_is_autoencoder:
 			history = model.fit(train_data, train_data, batch_size, epochs, shuffle=True)
+		else:
+			history = model.fit(train_data, train_labels, batch_size, epochs, shuffle=True)
 
-		print_newline()
+		if not model_is_standalone:
+			print_newline()
 
 
 		########################################################################
 		# Visualize filters and feature maps for training and test results
 		########################################################################
 
-		if visualize_model is not None:
-			Hexnet_print(f'({run_string}) Visualization')
+		if not model_is_standalone:
+			if visualize_model is not None:
+				Hexnet_print(f'({run_string}) Visualization')
 
-			os.makedirs(visualize_model, exist_ok=True)
+				os.makedirs(visualize_model, exist_ok=True)
 
-			visualization.visualize_model(
-				model,
-				test_classes,
-				test_data,
-				test_labels,
-				output_dir           = visualize_model,
-				max_images_per_class = 10,
-				verbosity_level      = verbosity_level)
+				visualization.visualize_model(
+					model,
+					test_classes,
+					test_data,
+					test_labels,
+					output_dir           = visualize_model,
+					max_images_per_class = 10,
+					verbosity_level      = verbosity_level)
+
+				print_newline()
+
+			Hexnet_print(f'({run_string}) History')
+			Hexnet_print(f'({run_string}) history.history.keys()={history.history.keys()}')
+
+			if tests_dir or show_results:
+				os.makedirs(tests_dir, exist_ok=True)
+				visualization.visualize_results(history, run_title, tests_dir, show_results)
 
 			print_newline()
 
-		Hexnet_print(f'({run_string}) History')
-		Hexnet_print(f'({run_string}) history.history.keys()={history.history.keys()}')
+			Hexnet_print(f'({run_string}) Test')
 
-		if tests_dir or show_results:
-			os.makedirs(tests_dir, exist_ok=True)
-			visualization.visualize_results(history, run_title, tests_dir, show_results)
-
-		print_newline()
-
-		Hexnet_print(f'({run_string}) Test')
-
-		if not 'autoencoder' in model_string:
-			test_loss, test_acc = model.evaluate(test_data, test_labels)
-		else:
-			test_loss = model.evaluate(test_data, test_data)
-
-		predictions = model.predict(test_data)
-
-		if not 'autoencoder' in model_string:
-			predictions_classes = predictions.argmax(axis=-1)
-			Hexnet_print(f'({run_string}) test_acc={test_acc}, test_loss={test_loss}')
-		else:
-			Hexnet_print(f'({run_string}) test_loss={test_loss}')
-
-		if tests_dir is not None:
-			tests_dir_predictions = os.path.join(tests_dir, f'{run_title}_predictions')
-
-			if not 'autoencoder' in model_string:
-				np.savetxt(f'{tests_dir_predictions}.csv',         predictions,                   delimiter=',')
-				np.savetxt(f'{tests_dir_predictions}_classes.csv', predictions_classes, fmt='%i', delimiter=',')
+			if not model_is_autoencoder:
+				test_loss, test_acc = model.evaluate(test_data, test_labels)
 			else:
-				image_filename_base = os.path.basename(tests_dir_predictions)
-				os.makedirs(tests_dir_predictions, exist_ok=True)
+				test_loss = model.evaluate(test_data, test_data)
 
-				for image_counter, image in enumerate(predictions):
-					image_filename = f'{image_filename_base}_image{image_counter}.png'
-					imsave(os.path.join(tests_dir_predictions, image_filename), image)
+			predictions = model.predict(test_data)
+
+			if not model_is_autoencoder:
+				predictions_classes = predictions.argmax(axis=-1)
+				Hexnet_print(f'({run_string}) test_acc={test_acc:.8f}, test_loss={test_loss:.8f}')
+			else:
+				Hexnet_print(f'({run_string}) test_loss={test_loss:.8f}')
+
+			if tests_dir is not None:
+				run_title_predictions = f'{run_title}_predictions'
+				tests_dir_predictions = os.path.join(tests_dir, run_title_predictions)
+
+				if not model_is_autoencoder:
+					np.savetxt(f'{tests_dir_predictions}.csv',         predictions,         delimiter=',')
+					np.savetxt(f'{tests_dir_predictions}_classes.csv', predictions_classes, delimiter=',', fmt='%i')
+				else:
+					os.makedirs(tests_dir_predictions, exist_ok=True)
+
+					for image_counter, (image, label) in enumerate(zip(predictions, test_labels)):
+						image_filename = f'label{label}_image{image_counter}.png'
+						imsave(os.path.join(tests_dir_predictions, image_filename), image)
 
 
 		########################################################################
 		# Save the model
 		########################################################################
 
-		if save_model and tests_dir is not None:
-			model.save(os.path.join(tests_dir, f'{run_title}_model.h5'))
+		if not model_is_standalone and tests_dir is not None:
+			if save_model:
+				model.save(os.path.join(tests_dir, f'{run_title}_model.h5'))
 
-		if save_weights and tests_dir is not None:
-			model.save_weights(os.path.join(tests_dir, f'{run_title}_weights.h5'))
+			if save_weights:
+				model.save_weights(os.path.join(tests_dir, f'{run_title}_weights.h5'))
 
 
 		if run < runs:
@@ -422,34 +473,25 @@ def parse_args():
 	parser = argparse.ArgumentParser(description='Hexnet - The Hexagonal Image Processing Framework')
 
 
-	model_choices = [model[0][len('model_'):] for model in inspect.getmembers(
-		models, inspect.isfunction) if model[0].startswith('model_')]
+	model_choices     = [model[0][len('model_'):] for model in inspect.getmembers(models, inspect.isfunction) if model[0].startswith('model_')]
+	augmenter_choices = [augmenter[0][len('augmenter_'):] for augmenter in inspect.getmembers(augmenters, inspect.isfunction) if augmenter[0].startswith('augmenter_')]
+	loss_choices      = [loss[0][len('loss_'):] for loss in inspect.getmembers(losses, inspect.isclass) if loss[0].startswith('loss_')]
+
+	augment_dataset_choices = ['train', 'test']
 
 	parser.add_argument(
 		'--model',
 		nargs   = '?',
 		default = model,
 		choices = model_choices,
-		help    = 'model to train and test: choices are generated from models/models.py '
-		          '(providing no argument disables training and testing)')
-
-	parser.add_argument('--load-model',   default = load_model,   help = 'load model from file')
-	parser.add_argument('--load-weights', default = load_weights, help = 'load model weights from file')
-	parser.add_argument('--save-model',   action  = 'store_true', help = 'save model to file')
-	parser.add_argument('--save-weights', action  = 'store_true', help = 'save model weights to file')
-
-
-	parser.add_argument('--dataset', default = dataset, help = 'load dataset from file or directory')
+		help    = 'model to train and test: choices are generated from models/models.py (providing no argument disables training and testing)')
 
 	parser.add_argument(
 		'--augment-dataset',
 		nargs   = '+',
 		default = augment_dataset,
-		choices = ['train', 'test'],
+		choices = augment_dataset_choices,
 		help    = 'set(s) to augment')
-
-	augmenter_choices = [augmenter[0][len('augmenter_'):] for augmenter in inspect.getmembers(
-		augmenters, inspect.isfunction) if augmenter[0].startswith('augmenter_')]
 
 	parser.add_argument(
 		'--augmenter',
@@ -457,43 +499,40 @@ def parse_args():
 		choices = augmenter_choices,
 		help    = 'augmenter for augmentation: choices are generated from misc/augmenters.py')
 
-	parser.add_argument('--augmentation-level', type = int, default = augmentation_level, help = 'augmentation level')
+	parser.add_argument(
+		'--loss',
+		default = loss,
+		choices = loss_choices,
+		help    = 'custom loss for training and testing: choices are generated from misc/losses.py')
 
 
-	parser.add_argument('--tests-dir',                      nargs = '?', default = tests_dir,
-		help = 'tests output directory (providing no argument disables the tests output)')
-	parser.add_argument('--show-dataset',                                action  = 'store_true',
-		help = 'show the dataset')
-	parser.add_argument('--visualize-model',                             default = visualize_model,
-		help = 'visualize the model\'s filters and feature maps after training')
-	parser.add_argument('--show-results',                                action  = 'store_true',
-		help = 'show the test results')
+	parser.add_argument('--load-model',                                    default = load_model,         help = 'load model from file')
+	parser.add_argument('--load-weights',                                  default = load_weights,       help = 'load model weights from file')
+	parser.add_argument('--save-model',                                    action  = 'store_true',       help = 'save model to file')
+	parser.add_argument('--save-weights',                                  action  = 'store_true',       help = 'save model weights to file')
 
-	parser.add_argument('--runs',             type = int,                default = runs,
-		help = 'training runs')
-	parser.add_argument('--epochs',           type = int,                default = epochs,
-		help = 'training epochs')
-	parser.add_argument('--batch-size',       type = int,                default = batch_size,
-		help = 'training batch size')
+	parser.add_argument('--dataset',                                       default = dataset,            help = 'load dataset from file or directory')
+	parser.add_argument('--augmentation-level', type = int,                default = augmentation_level, help = 'augmentation level')
 
-	parser.add_argument('--cnn-kernel-size',  type = int,   nargs = '+', default = cnn_kernel_size,
-		help = 'CNN models kernel size')
-	parser.add_argument('--cnn-pool-size',    type = int,   nargs = '+', default = cnn_pool_size,
-		help = 'CNN models pooling size')
+	parser.add_argument('--tests-dir',                        nargs = '?', default = tests_dir,          help = 'tests output directory (providing no argument disables the tests output)')
+	parser.add_argument('--show-dataset',                                  action  = 'store_true',       help = 'show the dataset')
+	parser.add_argument('--visualize-model',                               default = visualize_model,    help = 'visualize the model\'s filters and feature maps after training')
+	parser.add_argument('--show-results',                                  action  = 'store_true',       help = 'show the test results')
 
-	parser.add_argument('--verbosity-level',  type = int,                default = verbosity_level,
-		help = 'verbosity level (default is 2, maximum is 3)')
+	parser.add_argument('--runs',               type = int,                default = runs,               help = 'training runs')
+	parser.add_argument('--epochs',             type = int,                default = epochs,             help = 'training epochs')
+	parser.add_argument('--batch-size',         type = int,                default = batch_size,         help = 'training batch size')
 
-	parser.add_argument('--transform-s2h',                  nargs = '?', default = transform_s2h,
-		help = 'enable square to hexagonal image transformation')
-	parser.add_argument('--transform-s2s',                  nargs = '?', default = transform_s2s,
-		help = 'enable square to square image transformation')
-	parser.add_argument('--transform-rad-o',  type = float,              default = transform_rad_o,
-		help = 'square to hexagonal image transformation hexagonal pixels outer radius')
-	parser.add_argument('--transform-width',  type = int,                default = transform_width,
-		help = 'square to square image transformation output width')
-	parser.add_argument('--transform-height', type = int,                default = transform_height,
-		help = 'square to square image transformation output height')
+	parser.add_argument('--cnn-kernel-size',    type = int,   nargs = '+', default = cnn_kernel_size,    help = 'CNN models kernel size')
+	parser.add_argument('--cnn-pool-size',      type = int,   nargs = '+', default = cnn_pool_size,      help = 'CNN models pooling size')
+
+	parser.add_argument('--verbosity-level',    type = int,                default = verbosity_level,    help = 'verbosity level (default is 2, maximum is 3)')
+
+	parser.add_argument('--transform-s2h',                    nargs = '?', default = transform_s2h,      help = 'enable square to hexagonal image transformation')
+	parser.add_argument('--transform-s2s',                    nargs = '?', default = transform_s2s,      help = 'enable square to square image transformation')
+	parser.add_argument('--transform-rad-o',    type = float,              default = transform_rad_o,    help = 'square to hexagonal image transformation hexagonal pixels outer radius')
+	parser.add_argument('--transform-width',    type = int,                default = transform_width,    help = 'square to square image transformation output width')
+	parser.add_argument('--transform-height',   type = int,                default = transform_height,   help = 'square to square image transformation output height')
 
 
 	return parser.parse_args()
