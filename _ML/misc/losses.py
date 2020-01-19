@@ -27,6 +27,8 @@
 
 import tensorflow as tf
 
+from tools.compare import _COMPARE_MSE, _compare_s2s, _compare_s2h
+
 
 class loss_test_MSE(tf.losses.Loss):
 	def __init__(self, **kwargs):
@@ -34,4 +36,43 @@ class loss_test_MSE(tf.losses.Loss):
 
 	def call(self, y_true, y_pred):
 		return tf.reduce_mean(tf.square(y_true - y_pred))
+
+
+
+
+class loss_s2s_MSE(tf.losses.Loss):
+	def __init__(self, input_shape, output_shape, **kwargs):
+		super().__init__(**kwargs)
+
+		self.input_shape  = input_shape
+		self.output_shape = output_shape
+
+	def call(self, y_true, y_pred):
+		loss = _compare_s2s(
+			s1       = y_true,
+			s2       = y_pred,
+			method   = _COMPARE_MSE,
+			s1_shape = self.input_shape,
+			s2_shape = self.output_shape)
+
+		return loss
+
+
+class loss_s2h_MSE(tf.losses.Loss):
+	def __init__(self, input_shape, output_shape, **kwargs):
+		super().__init__(**kwargs)
+
+		self.input_shape  = input_shape
+		self.output_shape = output_shape
+
+	def call(self, y_true, y_pred):
+		loss = _compare_s2h(
+			s       = y_true,
+			h       = y_pred,
+			method  = _COMPARE_MSE,
+			s_shape = self.input_shape,
+			h_shape = self.output_shape)
+
+		return loss
+
 
