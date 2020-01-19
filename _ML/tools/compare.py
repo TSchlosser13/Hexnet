@@ -30,7 +30,8 @@
 
 import math
 
-import numpy as np
+import numpy      as np
+import tensorflow as tf
 
 
 _COMPARE_AE    =  0
@@ -60,12 +61,22 @@ def get_compare_method(method):
 
 
 def ae(p1, p2):
-	return np.sum(np.abs(p1 - p2), axis=-1)
+	if not tf.is_tensor(p1):
+		ae = np.sum(np.abs(p1 - p2), axis=-1)
+	else:
+		ae = tf.reduce_sum(tf.abs(p1 - p2), axis=-1)
+
+	return ae
 
 def se(p1, p2):
 	diff = p1 - p2
 
-	return np.sum(np.multiply(diff, diff), axis=-1)
+	if not tf.is_tensor(p1):
+		se = np.sum(np.multiply(diff, diff), axis=-1)
+	else:
+		se = tf.reduce_sum(tf.multiply(diff, diff), axis=-1)
+
+	return se
 
 def mae(p1, p2):
 	return ae(p1, p2) / p1.size
@@ -77,7 +88,12 @@ def rmse(p1, p2):
 	return math.sqrt(mse(p1, p2, p1.size))
 
 def psnr(p1, p2):
-	return 10 * math.log(65025 / mse(p1, p2))
+	if not tf.is_tensor(p1):
+		psnr = 10 * math.log(65025 / mse(p1, p2))
+	else:
+		psnr = 10 * tf.math.log(1 / mse(p1, p2))
+
+	return psnr
 
 
 def col_changed(c1, c2):             return int(c1) != int(c2) and (c2) != int(c2)
@@ -85,7 +101,12 @@ def row_changed(r1, r2):             return int(r1) != int(r2) and (r2) != int(r
 def col_row_changed(c1, c2, r1, r2): return col_changed(c1, c2) and row_changed(r1, r2)
 
 def pixels_differ(p1, p2):
-	return np.equal(p1, p2)
+	if not tf.is_tensor(p1):
+		pixels_differ = np.equal(p1, p2)
+	else:
+		pixels_differ = tf.equal(p1, p2)
+
+	return pixels_differ
 
 def pixels_diff(p1, p2, method):
 	if method == _COMPARE_AE or method == _COMPARE_MAE:
@@ -100,12 +121,41 @@ def pixels_diff(p1, p2, method):
 
 
 def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
-	s1_height = s1.shape[1]
-	s2_height = s2.shape[1]
-	s1_width  = s1.shape[2]
-	s2_width  = s2.shape[2]
-	depth     = s1.shape[3]
-	size      = s1.size
+	s1_is_tensor = tf.is_tensor(s1)
+	s2_is_tensor = tf.is_tensor(s2)
+
+	if s1_is_tensor or s2_is_tensor:
+		if not s1_is_tensor:
+			s1 = tf.convert_to_tensor(s1, dtype=tf.float32)
+
+		if not s2_is_tensor:
+			s2 = tf.convert_to_tensor(s2, dtype=tf.float32)
+
+		s12_is_tensor = True
+	else:
+		if not type(s1) is np.ndarray:
+			s1 = np.asarray(s1)
+
+		if not type(s2) is np.ndarray:
+			s2 = np.asarray(s2)
+
+		s12_is_tensor = False
+
+
+	if type(s1) is np.ndarray:
+		s1_height = s1.shape[1]
+		s2_height = s2.shape[1]
+		s1_width  = s1.shape[2]
+		s2_width  = s2.shape[2]
+		depth     = s1.shape[3]
+		size      = s1.size
+	else:
+		s1_height = s1_shape[0]
+		s2_height = s2_shape[0]
+		s1_width  = s1_shape[1]
+		s2_width  = s2_shape[1]
+		depth     = s1_shape[2]
+		size      = depth * s1_width * s1_height
 
 	areas = []
 	diffs = []
@@ -186,9 +236,14 @@ def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 				diffs.append(pixels_diff(s1[:, p1h+p1h_cr, p1w+p1w_cr, :], s2[:, p2h+p2h_cr, p2w+p2w_cr, :], method))
 
 
-	areas  = np.asarray(areas)
-	diffs  = np.sum(np.asarray(diffs), axis=-1)
-	result = np.sum(np.multiply(areas, diffs))
+	if not s12_is_tensor:
+		areas  = np.asarray(areas)
+		diffs  = np.sum(np.asarray(diffs), axis=-1)
+		result = np.sum(np.multiply(areas, diffs))
+	else:
+		areas  = tf.convert_to_tensor(areas, dtype=tf.float32)
+		diffs  = tf.reduce_sum(tf.stack(diffs), axis=-1)
+		result = tf.reduce_sum(tf.multiply(areas, diffs))
 
 
 	result *= min(1, s1_width / s2_width) * min(1, s1_height / s2_height)
@@ -202,20 +257,53 @@ def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 	if method == _COMPARE_RMSE:
 		result = math.sqrt(result)
 	elif method == _COMPARE_PSNR:
-		result = 10 * math.log(65025 / result)
+		if not s12_is_tensor:
+			result = 10 * math.log(65025 / result)
+		else:
+			result = 10 * tf.math.log(1 / result)
 
 
 	return result
 
 
 def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
-	s_height = s.shape[1]
-	h_height = h.shape[1]
-	s_width  = s.shape[2]
-	h_width  = h.shape[2]
-	depth    = s.shape[3]
-	s_size   = s.size
-	h_size   = h.size
+	s_is_tensor = tf.is_tensor(s)
+	h_is_tensor = tf.is_tensor(h)
+
+	if s_is_tensor or h_is_tensor:
+		if not s_is_tensor:
+			s = tf.convert_to_tensor(s, dtype=tf.float32)
+
+		if not h_is_tensor:
+			h = tf.convert_to_tensor(h, dtype=tf.float32)
+
+		sh_is_tensor = True
+	else:
+		if not type(s) is np.ndarray:
+			s = np.asarray(s)
+
+		if not type(h) is np.ndarray:
+			h = np.asarray(h)
+
+		sh_is_tensor = False
+
+
+	if type(s) is np.ndarray:
+		s_height = s.shape[1]
+		h_height = h.shape[1]
+		s_width  = s.shape[2]
+		h_width  = h.shape[2]
+		depth    = s.shape[3]
+		s_size   = s.size
+		h_size   = h.size
+	else:
+		s_height = s_shape[0]
+		h_height = h_shape[0]
+		s_width  = s_shape[1]
+		h_width  = h_shape[1]
+		depth    = s_shape[2]
+		s_size   = depth * s_width * s_height
+		h_size   = depth * h_width * h_height
 
 	areas = []
 	diffs = []
@@ -359,9 +447,14 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 		hi = max(hi + hmr_min, np.nextafter(hi + hmr_min, hi + hmr_min + 1))
 
 
-	areas  = np.asarray(areas)
-	diffs  = np.sum(np.asarray(diffs), axis=-1)
-	result = np.sum(np.multiply(areas, diffs), axis=-1)
+	if not sh_is_tensor:
+		areas  = np.asarray(areas)
+		diffs  = np.sum(np.asarray(diffs), axis=-1)
+		result = np.sum(np.multiply(areas, diffs), axis=-1)
+	else:
+		areas  = tf.convert_to_tensor(areas, dtype=tf.float32)
+		diffs  = tf.reduce_sum(tf.stack(diffs), axis=-1)
+		result = tf.reduce_sum(tf.multiply(areas, diffs), axis=-1)
 
 
 	if method == _COMPARE_MAE  or \
@@ -373,7 +466,10 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 	if method == _COMPARE_RMSE:
 		result = math.sqrt(result)
 	elif method == _COMPARE_PSNR:
-		10 * math.log(65025 / result)
+		if not sh_is_tensor:
+			result = 10 * math.log(65025 / result)
+		else:
+			result = 10 * tf.math.log(1 / result)
 
 
 	return result
