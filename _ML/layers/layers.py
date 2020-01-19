@@ -631,11 +631,7 @@ class HPool2D(tf.keras.layers.Layer):
 			for w in range(cost_matrix.shape[1]):
 				cost_matrix[h][w] = np.linalg.norm(np.array(input_offsets_centered[h]) - np.array(output_offsets_centered[w]))
 
-		start_time = time()
 		row_indices, col_indices = linear_sum_assignment(cost_matrix)
-		time_diff = time() - start_time
-
-		Hexnet_print(f'(HPool2D) Initialized pooling layer in {time_diff:.3f} seconds ({input_shape}->{output_shape})')
 
 		if _ENABLE_DEBUGGING:
 			costs     = cost_matrix[row_indices, col_indices]
@@ -752,4 +748,5 @@ class HMaxPool2D(HPool2D):
 			name        = 'HMaxPool2D_output_max_pool2d')
 
 		return output
+
 

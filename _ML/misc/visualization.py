@@ -50,9 +50,9 @@ def visualize_filters(model, output_dir, verbosity_level=2):
 			Hexnet_print(f'(visualize_filters) layer={layer} (layer.name={layer.name}): filters.shape={filters.shape}')
 
 		for channel in range(filters.shape[2]):
-			filter_fname = os.path.join(output_dir, f'{layer.name}_filter{filter_to_visualize}_channel{channel}.png')
-			filter       = filters[:, :, channel, filter_to_visualize]
-			imsave(filter_fname, filter, cmap='viridis')
+			filter_filename = os.path.join(output_dir, f'{layer.name}_filter{filter_to_visualize}_channel{channel}.png')
+			filter          = filters[:, :, channel, filter_to_visualize]
+			imsave(filter_filename, filter, cmap='viridis')
 
 
 def visualize_feature_maps(
@@ -94,9 +94,9 @@ def visualize_feature_maps(
 
 		for image_counter, (feature_map, test_label) in enumerate(zip(feature_maps, test_labels)):
 			if class_counter_dict[test_label] < max_images_per_class:
-				feature_map_fname = os.path.join(output_dir, f'{layer.name}_fm{feature_map_to_visualize}_label{test_label}_image{image_counter}.png')
-				feature_map       = feature_map[:, :, feature_map_to_visualize]
-				imsave(feature_map_fname, feature_map, cmap='viridis')
+				feature_map_filename = os.path.join(output_dir, f'{layer.name}_fm{feature_map_to_visualize}_label{test_label}_image{image_counter}.png')
+				feature_map          = feature_map[:, :, feature_map_to_visualize]
+				imsave(feature_map_filename, feature_map, cmap='viridis')
 				class_counter_dict[test_label] += 1
 
 

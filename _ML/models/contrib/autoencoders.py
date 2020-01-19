@@ -112,6 +112,7 @@ def convresblock(x, nfeats=8, ksize=3, nskipped=2, elu=True):
         y = Conv2D(nfeats, 1, padding='same')(y)
     return add([y0, y])
 
+
 def getwhere(x):
     ''' Calculate the 'where' mask that contains switches indicating which
     index contained the max value when MaxPool2D was applied.  Using the
@@ -147,7 +148,6 @@ def autoencoder_SWWAE(input_shape, pool_size = 2, nfeats = [8, 16, 32, 64, 128],
 
 
 
-def model_autoencoder_SWWAE(input_shape):
-    return autoencoder_SWWAE(input_shape, pool_size = 2, nfeats = [8, 16, 32, 64, 128], ksize = 3, nlayers = 5)
-
+def model_autoencoder_SWWAE(input_shape, number_of_layers = 5, number_of_features = [8, 16, 32, 64, 128], kernel_size = 3, pool_size = 2):
+    return autoencoder_SWWAE(input_shape, pool_size, nfeats=number_of_features, ksize=kernel_size, nlayers=number_of_layers)
 
