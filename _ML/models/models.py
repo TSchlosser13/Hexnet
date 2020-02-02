@@ -37,17 +37,21 @@ from models.contrib.models import *
 
 
 def convert_model_parameters(kernel_size, pool_size):
-	if type(kernel_size) is not tuple:
+	if type(kernel_size) is int:
+		kernel_size = (kernel_size, kernel_size)
+	elif type(kernel_size) is not tuple:
 		kernel_size = tuple(kernel_size)
 
-	if type(pool_size) is not tuple:
+		if len(kernel_size) == 1:
+			kernel_size *= 2
+
+	if type(pool_size) is int:
+		pool_size = (pool_size, pool_size)
+	elif type(pool_size) is not tuple:
 		pool_size = tuple(pool_size)
 
-	if len(kernel_size) == 1:
-		kernel_size *= 2
-
-	if len(pool_size) == 1:
-		pool_size *= 2
+		if len(pool_size) == 1:
+			pool_size *= 2
 
 	return kernel_size, pool_size
 

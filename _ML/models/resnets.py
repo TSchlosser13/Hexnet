@@ -90,19 +90,31 @@ def resnet_layer(inputs,
                       kernel_initializer='he_normal',
                       kernel_regularizer=l2(1e-4))
     elif mode == 'S-ResNet':
-        if type(kernel_size) is not tuple:
+        if type(kernel_size) is int:
+            kernel_size = (kernel_size, kernel_size)
+        elif type(kernel_size) is not tuple:
             kernel_size = tuple(kernel_size)
 
-        if len(kernel_size) == 1:
-            kernel_size *= 2
+            if len(kernel_size) == 1:
+                kernel_size *= 2
 
         conv = SConv2D(filters=num_filters, kernel_size=kernel_size, strides=strides, padding='SAME')
     elif mode == 'H-ResNet':
-        if type(kernel_size) is not tuple:
+        if type(kernel_size) is int:
+            kernel_size = (kernel_size, kernel_size)
+        elif type(kernel_size) is not tuple:
             kernel_size = tuple(kernel_size)
 
-        if len(kernel_size) == 1:
-            kernel_size *= 2
+            if len(kernel_size) == 1:
+                kernel_size *= 2
+
+        if type(strides) is int:
+            strides = (strides, strides)
+        elif type(strides) is not tuple:
+            strides = tuple(strides)
+
+            if len(strides) == 1:
+                strides *= 2
 
         conv = HConv2D(filters=num_filters, kernel_size=kernel_size, strides=strides, padding='SAME')
 
@@ -191,7 +203,7 @@ def resnet_v1(input_shape, depth, num_classes=10, mode='baseline'):
     if mode == 'baseline':
         x = AveragePooling2D(pool_size=8)(x)
     elif mode == 'S-ResNet':
-        x = SAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
+        x = SAvgPool2D(pool_size=(2, 2), padding='SAME')(x)
     elif mode == 'H-ResNet':
         x = HAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
     y = Flatten()(x)
@@ -297,7 +309,7 @@ def resnet_v2(input_shape, depth, num_classes=10, mode='baseline'):
     if mode == 'baseline':
         x = AveragePooling2D(pool_size=8)(x)
     elif mode == 'S-ResNet':
-        x = SAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
+        x = SAvgPool2D(pool_size=(2, 2), padding='SAME')(x)
     elif mode == 'H-ResNet':
         x = HAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
     y = Flatten()(x)
@@ -346,5 +358,4 @@ def model_HResNet_v2(input_shape, classes, n=2):
     depth = resnet_get_depth(version=2, n=n)
 
     return resnet_v2(input_shape, depth, num_classes=classes, mode='H-ResNet')
-
 

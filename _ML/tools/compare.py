@@ -89,7 +89,7 @@ def rmse(p1, p2):
 
 def psnr(p1, p2):
 	if not tf.is_tensor(p1):
-		psnr = 10 * math.log(65025 / mse(p1, p2))
+		psnr = 10 * np.log(65025 / mse(p1, p2))
 	else:
 		psnr = 10 * tf.math.log(1 / mse(p1, p2))
 
@@ -102,9 +102,9 @@ def col_row_changed(c1, c2, r1, r2): return col_changed(c1, c2) and row_changed(
 
 def pixels_differ(p1, p2):
 	if not tf.is_tensor(p1):
-		pixels_differ = np.equal(p1, p2)
+		pixels_differ = not np.equal(p1, p2)
 	else:
-		pixels_differ = tf.equal(p1, p2)
+		pixels_differ = not tf.equal(p1, p2)
 
 	return pixels_differ
 
@@ -132,6 +132,13 @@ def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 			s2 = tf.convert_to_tensor(s2, dtype=tf.float32)
 
 		s12_is_tensor = True
+
+		s1_height = s1_shape[0]
+		s2_height = s2_shape[0]
+		s1_width  = s1_shape[1]
+		s2_width  = s2_shape[1]
+		depth     = s1_shape[2]
+		size      = depth * s1_width * s1_height
 	else:
 		if not type(s1) is np.ndarray:
 			s1 = np.asarray(s1)
@@ -141,21 +148,13 @@ def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 
 		s12_is_tensor = False
 
-
-	if type(s1) is np.ndarray:
 		s1_height = s1.shape[1]
 		s2_height = s2.shape[1]
 		s1_width  = s1.shape[2]
 		s2_width  = s2.shape[2]
 		depth     = s1.shape[3]
 		size      = s1.size
-	else:
-		s1_height = s1_shape[0]
-		s2_height = s2_shape[0]
-		s1_width  = s1_shape[1]
-		s2_width  = s2_shape[1]
-		depth     = s1_shape[2]
-		size      = depth * s1_width * s1_height
+
 
 	areas = []
 	diffs = []
@@ -278,6 +277,14 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 			h = tf.convert_to_tensor(h, dtype=tf.float32)
 
 		sh_is_tensor = True
+
+		s_height = s_shape[0]
+		h_height = h_shape[0]
+		s_width  = s_shape[1]
+		h_width  = h_shape[1]
+		depth    = s_shape[2]
+		s_size   = depth * s_width * s_height
+		h_size   = depth * h_width * h_height
 	else:
 		if not type(s) is np.ndarray:
 			s = np.asarray(s)
@@ -287,8 +294,6 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 
 		sh_is_tensor = False
 
-
-	if type(s) is np.ndarray:
 		s_height = s.shape[1]
 		h_height = h.shape[1]
 		s_width  = s.shape[2]
@@ -296,14 +301,7 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 		depth    = s.shape[3]
 		s_size   = s.size
 		h_size   = h.size
-	else:
-		s_height = s_shape[0]
-		h_height = h_shape[0]
-		s_width  = s_shape[1]
-		h_width  = h_shape[1]
-		depth    = s_shape[2]
-		s_size   = depth * s_width * s_height
-		h_size   = depth * h_width * h_height
+
 
 	areas = []
 	diffs = []
@@ -522,5 +520,4 @@ def test_compare_s2h():
 if __name__ == '__main__':
 	test_compare_s2s()
 	test_compare_s2h()
-
 
