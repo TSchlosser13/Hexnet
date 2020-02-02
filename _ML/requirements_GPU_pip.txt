@@ -1,7 +1,3 @@
-gast==0.2.2
-numpy<1.17
-opencv-python
-pillow
-tensorflow-gpu==2.0.0-beta1
+tensorflow-gpu==2.1.0
 tqdm
 
