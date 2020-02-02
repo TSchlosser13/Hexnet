@@ -64,12 +64,24 @@ disable_tensorflow_warnings = True
 
 
 ################################################################################
+# Disable TensorFlow warnings
+################################################################################
+
+import os
+
+if disable_tensorflow_warnings:
+	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+	import tensorflow.python.util.deprecation as deprecation
+	deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+
+################################################################################
 # Imports
 ################################################################################
 
 import argparse
 import inspect
-import os
 import sys
 
 import numpy      as np
@@ -86,17 +98,6 @@ import models.models      as models
 
 from core.Hexnet import Hexnet_init
 from misc.misc   import Hexnet_print, print_newline
-
-
-################################################################################
-# Disable TensorFlow warnings
-################################################################################
-
-if disable_tensorflow_warnings:
-	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-	import tensorflow.python.util.deprecation as deprecation
-	deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
 ################################################################################
@@ -312,12 +313,9 @@ def run(args):
 
 		Hexnet_print(f'({run_string}) Model initialization')
 
-		input_shape = train_data.shape[1:4]
-
-		if model_is_autoencoder:
-			output_shape = test_data.shape[1:4]
-
-		classes = len(train_classes)
+		input_shape  = train_data.shape[1:4]
+		output_shape = test_data.shape[1:4]
+		classes      = len(train_classes)
 
 		if load_model is None:
 			model = vars(models)[f'model_{model_string}']
@@ -338,51 +336,49 @@ def run(args):
 
 		print_newline()
 
-		if not model_is_standalone:
-			Hexnet_print(f'({run_string}) Model summary')
-			model.summary()
-			print_newline()
-
 
 		########################################################################
 		# Fit the model
 		########################################################################
 
-		if not model_is_standalone:
-			if not loss_is_provided:
-				if not model_is_autoencoder:
-					loss = 'sparse_categorical_crossentropy'
-				else:
-					loss = 'mse'
-			else:
-				if not loss_is_subpixel_loss:
-					loss = vars(losses)[f'loss_{loss_string}']()
-				else:
-					loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
-
+		if not loss_is_provided:
 			if not model_is_autoencoder:
-				metrics = ['accuracy']
+				loss = 'sparse_categorical_crossentropy'
 			else:
-				metrics = None
-
-			model.compile(
-				optimizer = 'adam',
-				loss      = loss,
-				metrics   = metrics)
+				loss = 'mse'
 		else:
-			os.makedirs(tests_dir, exist_ok=True)
+			if not loss_is_subpixel_loss:
+				loss = vars(losses)[f'loss_{loss_string}']()
+			else:
+				loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
+
+		if not model_is_autoencoder:
+			metrics = ['accuracy']
+		else:
+			metrics = None
+
+		if not model_is_standalone:
+			model.compile(optimizer='adam', loss=loss, metrics=metrics)
+		else:
+			model.compile()
+
+		Hexnet_print(f'({run_string}) Model summary')
+		model.summary()
+		print_newline()
 
 		Hexnet_print(f'({run_string}) Training')
 
+		if model_is_standalone and tests_dir is not None:
+			os.makedirs(tests_dir, exist_ok=True)
+
 		if model_is_standalone:
-			model.train(train_data, train_labels, batch_size, epochs, tests_dir, run_title)
+			model.fit(train_data, train_labels, batch_size, epochs, tests_dir, run_title)
 		elif model_is_autoencoder:
 			history = model.fit(train_data, train_data, batch_size, epochs, shuffle=True)
 		else:
 			history = model.fit(train_data, train_labels, batch_size, epochs, shuffle=True)
 
-		if not model_is_standalone:
-			print_newline()
+		print_newline()
 
 
 		########################################################################
@@ -415,13 +411,16 @@ def run(args):
 
 			print_newline()
 
-			Hexnet_print(f'({run_string}) Test')
+		Hexnet_print(f'({run_string}) Test')
 
-			if not model_is_autoencoder:
-				test_loss, test_acc = model.evaluate(test_data, test_labels)
-			else:
-				test_loss = model.evaluate(test_data, test_data)
+		if model_is_standalone:
+			model.evaluate(test_data, test_labels, batch_size, epochs=10, tests_dir=tests_dir, run_title=run_title)
+		elif model_is_autoencoder:
+			test_loss = model.evaluate(test_data, test_data)
+		else:
+			test_loss, test_acc = model.evaluate(test_data, test_labels)
 
+		if not model_is_standalone:
 			predictions = model.predict(test_data)
 
 			if not model_is_autoencoder:
@@ -551,5 +550,4 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
-
 
