@@ -41,7 +41,7 @@ from misc.misc import Hexnet_print
 
 
 class ACGAN():
-    def __init__(self, input_shape, classes, optimizer='adam'):
+    def __init__(self, input_shape, classes):
         # Input shape
         self.img_rows = input_shape[0]
         self.img_cols = input_shape[1]
@@ -50,17 +50,17 @@ class ACGAN():
         self.num_classes = classes
         self.latent_dim = 100
 
-        if type(optimizer) is str:
-            optimizer = tf.optimizers.get(optimizer)
 
-        losses = ['binary_crossentropy', 'sparse_categorical_crossentropy']
+    def compile(self):
+        losses    = ['binary_crossentropy', 'sparse_categorical_crossentropy']
+        optimizer = tf.optimizers.Adam(learning_rate=0.0002, beta_1=0.5)
 
         # Build and compile the discriminator
-        self.discriminator = self.build_discriminator()
+        self.discriminator, self.discriminator_summary = self.build_discriminator()
         self.discriminator.compile(loss=losses, optimizer=optimizer, metrics=['accuracy'])
 
         # Build the generator
-        self.generator = self.build_generator()
+        self.generator, self.generator_summary = self.build_generator()
 
         # The generator takes noise and the target label as input
         # and generates the corresponding digit of that label
@@ -98,8 +98,6 @@ class ACGAN():
         model.add(Conv2D(self.channels, kernel_size=3, padding='same'))
         model.add(Activation("tanh"))
 
-        model.summary()
-
         noise = Input(shape=(self.latent_dim,))
         label = Input(shape=(1,), dtype='int32')
         label_embedding = Flatten()(Embedding(self.num_classes, self.latent_dim)(label))
@@ -107,7 +105,7 @@ class ACGAN():
         model_input = multiply([noise, label_embedding])
         img = model(model_input)
 
-        return Model([noise, label], img)
+        return Model([noise, label], img), model
 
 
     def build_discriminator(self):
@@ -127,9 +125,7 @@ class ACGAN():
         model.add(Conv2D(128, kernel_size=3, strides=1, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
-
         model.add(Flatten())
-        model.summary()
 
         img = Input(shape=self.img_shape)
 
@@ -140,10 +136,10 @@ class ACGAN():
         validity = Dense(1, activation="sigmoid")(features)
         label = Dense(self.num_classes, activation="softmax")(features)
 
-        return Model(img, [validity, label])
+        return Model(img, [validity, label]), model
 
 
-    def train(self, train_data, train_labels, batch_size=128, epochs=10000, tests_dir=None, run_title=None, images_to_sample_per_class=100, sample_rate=100):
+    def fit(self, train_data, train_labels, batch_size=128, epochs=10000, tests_dir=None, run_title=None, images_to_sample_per_class=100, sample_rate=100, disable_training=False):
         # Load the dataset
         X_train, y_train = train_data, train_labels
 
@@ -168,7 +164,7 @@ class ACGAN():
 
             # The labels of the digits that the generator tries to create an
             # image representation of
-            sampled_labels = np.random.randint(0, 10, (batch_size, 1))
+            sampled_labels = np.random.randint(0, self.num_classes, (batch_size, 1))
 
             # Generate a half batch of new images
             gen_imgs = self.generator.predict([noise, sampled_labels])
@@ -177,8 +173,12 @@ class ACGAN():
             img_labels = y_train[idx]
 
             # Train the discriminator
-            d_loss_real = self.discriminator.train_on_batch(imgs, [valid, img_labels])
-            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, [fake, sampled_labels])
+            if not disable_training:
+                d_loss_real = self.discriminator.train_on_batch(imgs, [valid, img_labels])
+                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, [fake, sampled_labels])
+            else:
+                d_loss_real = self.discriminator.test_on_batch(imgs, [valid, img_labels])
+                d_loss_fake = self.discriminator.test_on_batch(gen_imgs, [fake, sampled_labels])
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # ---------------------
@@ -186,14 +186,24 @@ class ACGAN():
             # ---------------------
 
             # Train the generator
-            g_loss = self.combined.train_on_batch([noise, sampled_labels], [valid, sampled_labels])
+            if not disable_training:
+                g_loss = self.combined.train_on_batch([noise, sampled_labels], [valid, sampled_labels])
+            else:
+                g_loss = self.combined.test_on_batch([noise, sampled_labels], [valid, sampled_labels])
 
             # Plot the progress
-            Hexnet_print(f'(epoch={epoch:5}/{epochs}) [D loss={d_loss[0]:11.8f}, acc={100*d_loss[3]:6.2f}%, op_acc={100*d_loss[4]:6.2f}%] [G loss={g_loss[0]:11.8f}]')
+            Hexnet_print(f'(epoch={epoch:{len(str(epochs))}}/{epochs}) [D loss={d_loss[0]:11.8f}, acc={100*d_loss[3]:6.2f}%, op_acc={100*d_loss[4]:6.2f}%] [G loss={g_loss[0]:11.8f}]')
 
             # If at save interval => save generated image samples
-            if (not epoch or not epoch % sample_rate) and tests_dir is not None:
+            if not epoch % sample_rate and tests_dir is not None:
                 self.sample_images(epoch, tests_dir, run_title, images_to_sample_per_class)
+
+
+    def evaluate(self, train_data, train_labels, batch_size=128, epochs=10, tests_dir=None, run_title=None, images_to_sample_per_class=100, sample_rate=1, disable_training=True):
+        if not run_title is None:
+            run_title = f'{run_title}_evaluation'
+
+        self.fit(train_data, train_labels, batch_size, epochs, tests_dir, run_title, images_to_sample_per_class, sample_rate, disable_training)
 
 
     def sample_images(self, epoch, tests_dir, run_title, images_to_sample_per_class):
@@ -214,21 +224,17 @@ class ACGAN():
             imsave(os.path.join(tests_dir_samples, image_filename), image)
 
 
-    def save_model(self):
-        def save(model, model_name):
-            model_path = "saved_model/%s.json" % model_name
-            weights_path = "saved_model/%s_weights.hdf5" % model_name
-            options = {"file_arch": model_path, "file_weight": weights_path}
-            json_string = model.to_json()
-            open(options['file_arch'], 'w').write(json_string)
-            model.save_weights(options['file_weight'])
+    def summary(self):
+        Hexnet_print('Generator')
+        self.generator_summary.summary()
 
-        save(self.generator, "generator")
-        save(self.discriminator, "discriminator")
+        Hexnet_print('Discriminator')
+        self.discriminator_summary.summary()
 
 
 
 
-def model_GAN_ACGAN_standalone(input_shape, classes, optimizer='adam'):
-    return ACGAN(input_shape, classes, optimizer)
+def model_GAN_ACGAN_standalone(input_shape, classes):
+    return ACGAN(input_shape, classes)
+
 
