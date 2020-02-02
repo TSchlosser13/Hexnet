@@ -90,32 +90,8 @@ def resnet_layer(inputs,
                       kernel_initializer='he_normal',
                       kernel_regularizer=l2(1e-4))
     elif mode == 'S-ResNet':
-        if type(kernel_size) is int:
-            kernel_size = (kernel_size, kernel_size)
-        elif type(kernel_size) is not tuple:
-            kernel_size = tuple(kernel_size)
-
-            if len(kernel_size) == 1:
-                kernel_size *= 2
-
         conv = SConv2D(filters=num_filters, kernel_size=kernel_size, strides=strides, padding='SAME')
     elif mode == 'H-ResNet':
-        if type(kernel_size) is int:
-            kernel_size = (kernel_size, kernel_size)
-        elif type(kernel_size) is not tuple:
-            kernel_size = tuple(kernel_size)
-
-            if len(kernel_size) == 1:
-                kernel_size *= 2
-
-        if type(strides) is int:
-            strides = (strides, strides)
-        elif type(strides) is not tuple:
-            strides = tuple(strides)
-
-            if len(strides) == 1:
-                strides *= 2
-
         conv = HConv2D(filters=num_filters, kernel_size=kernel_size, strides=strides, padding='SAME')
 
     x = inputs
@@ -358,4 +334,5 @@ def model_HResNet_v2(input_shape, classes, n=2):
     depth = resnet_get_depth(version=2, n=n)
 
     return resnet_v2(input_shape, depth, num_classes=classes, mode='H-ResNet')
+
 

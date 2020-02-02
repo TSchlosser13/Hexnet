@@ -36,29 +36,7 @@ from models.resnets        import *
 from models.contrib.models import *
 
 
-def convert_model_parameters(kernel_size, pool_size):
-	if type(kernel_size) is int:
-		kernel_size = (kernel_size, kernel_size)
-	elif type(kernel_size) is not tuple:
-		kernel_size = tuple(kernel_size)
-
-		if len(kernel_size) == 1:
-			kernel_size *= 2
-
-	if type(pool_size) is int:
-		pool_size = (pool_size, pool_size)
-	elif type(pool_size) is not tuple:
-		pool_size = tuple(pool_size)
-
-		if len(pool_size) == 1:
-			pool_size *= 2
-
-	return kernel_size, pool_size
-
-
 def model_CNN(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(Conv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -76,8 +54,6 @@ def model_CNN(input_shape, classes, kernel_size, pool_size):
 
 
 def model_CNN_SConv2D(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -95,8 +71,6 @@ def model_CNN_SConv2D(input_shape, classes, kernel_size, pool_size):
 
 
 def model_CNN_SMaxPool2D(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(Conv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -114,8 +88,6 @@ def model_CNN_SMaxPool2D(input_shape, classes, kernel_size, pool_size):
 
 
 def model_SCNN(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -133,8 +105,6 @@ def model_SCNN(input_shape, classes, kernel_size, pool_size):
 
 
 def model_CNN_HConv2D(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(HConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -152,8 +122,6 @@ def model_CNN_HConv2D(input_shape, classes, kernel_size, pool_size):
 
 
 def model_CNN_HMaxPool2D(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(Conv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -171,8 +139,6 @@ def model_CNN_HMaxPool2D(input_shape, classes, kernel_size, pool_size):
 
 
 def model_HCNN(input_shape, classes, kernel_size, pool_size):
-	kernel_size, pool_size = convert_model_parameters(kernel_size, pool_size)
-
 	model = Sequential()
 
 	model.add(HConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
@@ -351,5 +317,4 @@ def model_HCNN_custom_v2(input_shape, classes):
 	model.add(Dense(units=classes, activation=tf.nn.softmax))
 
 	return model
-
 

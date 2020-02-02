@@ -64,8 +64,18 @@ class SConv2D(tf.keras.layers.Layer):
 
 		super().__init__(**kwargs)
 
-		self.filters              = filters
-		self.kernel_size          = kernel_size
+		self.filters = filters
+
+		if type(kernel_size) is int:
+			self.kernel_size = (kernel_size, kernel_size)
+		elif type(kernel_size) is not tuple:
+			self.kernel_size = tuple(kernel_size)
+
+			if len(kernel_size) == 1:
+				self.kernel_size *= 2
+		else:
+			self.kernel_size = kernel_size
+
 		self.strides              = strides
 		self.padding              = padding
 		self.data_format          = data_format
@@ -177,7 +187,15 @@ class SPool2D(tf.keras.layers.Layer):
 
 		super().__init__(**kwargs)
 
-		self.pool_size = pool_size
+		if type(pool_size) is int:
+			self.pool_size = (pool_size, pool_size)
+		elif type(pool_size) is not tuple:
+			self.pool_size = tuple(pool_size)
+
+			if len(pool_size) == 1:
+				self.pool_size *= 2
+		else:
+			self.pool_size = pool_size
 
 		if strides is None:
 			self.strides = pool_size
@@ -241,9 +259,28 @@ class HConv2D(tf.keras.layers.Layer):
 
 		super().__init__(**kwargs)
 
-		self.filters              = filters
-		self.kernel_size          = kernel_size
-		self.strides              = strides
+		self.filters = filters
+
+		if type(kernel_size) is int:
+			self.kernel_size = (kernel_size, kernel_size)
+		elif type(kernel_size) is not tuple:
+			self.kernel_size = tuple(kernel_size)
+
+			if len(kernel_size) == 1:
+				self.kernel_size *= 2
+		else:
+			self.kernel_size = kernel_size
+
+		if type(strides) is int:
+			self.strides = (strides, strides)
+		elif type(strides) is not tuple:
+			self.strides = tuple(strides)
+
+			if len(strides) == 1:
+				self.strides *= 2
+		else:
+			self.strides = strides
+
 		self.padding              = padding
 		self.data_format          = data_format
 		self.dilation_rate        = dilation_rate
@@ -287,13 +324,7 @@ class HConv2D(tf.keras.layers.Layer):
 			name  = 'HConv2D_kernel_mask_even_rows_convert_to_tensor')
 
 
-		if type(self.strides) is not tuple:
-			self.strides = tuple(self.strides)
-
-		if len(self.strides) == 1:
-			self.strides = (2 * self.strides, self.strides)
-		else:
-			self.strides = (2 * self.strides[0], self.strides[1])
+		self.strides = (2 * self.strides[0], self.strides[1])
 
 	def call(self, input):
 		kernel_masked_even_rows = tf.einsum('ijkl,ij->ijkl', self.kernel, self.kernel_mask_even_rows)
@@ -506,7 +537,15 @@ class HPool2D(tf.keras.layers.Layer):
 
 		super().__init__(**kwargs)
 
-		self.pool_size = pool_size
+		if type(pool_size) is int:
+			self.pool_size = (pool_size, pool_size)
+		elif type(pool_size) is not tuple:
+			self.pool_size = tuple(pool_size)
+
+			if len(pool_size) == 1:
+				self.pool_size *= 2
+		else:
+			self.pool_size = pool_size
 
 		if strides is None:
 			self.strides = pool_size
@@ -748,5 +787,4 @@ class HMaxPool2D(HPool2D):
 			name        = 'HMaxPool2D_output_max_pool2d')
 
 		return output
-
 
