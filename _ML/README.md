@@ -1,8 +1,23 @@
-Machine Learning Module
-=======================
+Hexnet: _The_ Hexagonal Machine Learning Module
+===============================================
 
-Setup
------
+
+![../doc/logo/Hexnet_logo_large.png](../doc/logo/Hexnet_logo_large.png "Hexnet logo")
+
+
+---
+
+This is **_The_ Hexagonal Machine Learning Module** of this project.
+
+For the base system of this project for hexagonal transformation and visualization see [../](../).
+
+---
+
+
+
+
+Installation
+------------
 
 ### CPU
 
@@ -24,10 +39,79 @@ pip install -r requirements_GPU_pip.txt
 
 
 
-Usage
------
+Getting started: 30 seconds to Hexnet
+-------------------------------------
+
+Implement your own square and hexagonal lattice format based models in models/models.py ...
 
 ```
-./Hexnet.py [options]
+def model_SCNN_test(input_shape, classes, kernel_size, pool_size):
+	model = Sequential()
+
+	model.add(SConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(SConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(SMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
+
+
+def model_HCNN_test(input_shape, classes, kernel_size, pool_size):
+	model = Sequential()
+
+	model.add(HConv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(HConv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(HMaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.softmax))
+
+	return model
 ```
+
+
+... or extend already implemented models ...
+
+```
+from models.resnets import model_SResNet_v2, model_HResNet_v2
+
+def model_SResNet_v2_test(input_shape, classes, n=2):
+	return model_SResNet_v2(input_shape, classes, n)
+
+def model_HResNet_v2_test(input_shape, classes, n=2):
+	return model_HResNet_v2(input_shape, classes, n)
+```
+
+
+These are then deployed using ...
+
+```
+python Hexnet.py --model HResNet_v2
+```
+
+
+For help, see ...
+
+```
+python Hexnet.py --help
+```
+
+
+
+
+License
+-------
+
+[MIT License](LICENSE.txt)
+
 
