@@ -9,7 +9,7 @@ Hexnet: _The_ Hexagonal Machine Learning Module
 
 This is **_The_ Hexagonal Machine Learning Module** of this project.
 
-For the base system of this project for hexagonal transformation and visualization see [../](../).
+For the base system of this project for hexagonal transformation and visualization see [../](../../).
 
 ---
 
@@ -113,5 +113,4 @@ License
 -------
 
 [MIT License](LICENSE.txt)
-
 
