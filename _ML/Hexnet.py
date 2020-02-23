@@ -2,7 +2,7 @@
 
 
 '''****************************************************************************
- * Hexnet.py: The Hexagonal Image Processing Framework
+ * Hexnet.py: The Hexagonal Machine Learning Module
  ******************************************************************************
  * v0.1 - 01.03.2019
  *
@@ -550,4 +550,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
