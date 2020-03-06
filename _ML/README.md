@@ -45,6 +45,14 @@ Getting started: 30 seconds to Hexnet
 Implement your own square and hexagonal lattice format based models in models/models.py ...
 
 ```
+import tensorflow as tf
+
+from tensorflow.keras        import Sequential
+from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPool2D
+
+from layers.layers import HConv2D, HMaxPool2D, SConv2D, SMaxPool2D
+
+
 def model_SCNN_test(input_shape, classes, kernel_size, pool_size):
 	model = Sequential()
 
@@ -113,4 +121,5 @@ License
 -------
 
 [MIT License](LICENSE.txt)
+
 

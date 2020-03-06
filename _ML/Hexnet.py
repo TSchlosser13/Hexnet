@@ -469,7 +469,7 @@ def run(args):
 ################################################################################
 
 def parse_args():
-	parser = argparse.ArgumentParser(description='Hexnet - The Hexagonal Image Processing Framework')
+	parser = argparse.ArgumentParser(description='Hexnet: The Hexagonal Machine Learning Module')
 
 
 	model_choices     = [model[0][len('model_'):] for model in inspect.getmembers(models, inspect.isfunction) if model[0].startswith('model_')]
