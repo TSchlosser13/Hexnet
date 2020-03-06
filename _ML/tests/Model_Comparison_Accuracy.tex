@@ -1,0 +1,37 @@
+\documentclass[border=1pt]{standalone}
+
+
+\usepackage{pgfplots}
+
+
+\begin{document}
+    \begin{tikzpicture}
+        \begin{axis}[xlabel={Epoch}, ylabel={Accuracy}, legend cell align=left, legend pos=outer north east]
+            \addplot table[x expr=\coordindex, y index=0] {tmp/HResNet_v2_CIFAR-10_s2h.h5_20200225-201036_epochs2-bs32_run1_accuracy.dat};
+            \addlegendentry{HResNet\_v2\_CIFAR-10\_s2h.h5\_20200225-201036\_epochs2-bs32\_run1\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/HResNet_v2_CIFAR-10_s2h.h5_20200225-201335_epochs2-bs32_run2_accuracy.dat};
+            \addlegendentry{HResNet\_v2\_CIFAR-10\_s2h.h5\_20200225-201335\_epochs2-bs32\_run2\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/HResNet_v2_CIFAR-10_s2s.h5_20200225-200352_epochs2-bs32_run1_accuracy.dat};
+            \addlegendentry{HResNet\_v2\_CIFAR-10\_s2s.h5\_20200225-200352\_epochs2-bs32\_run1\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/HResNet_v2_CIFAR-10_s2s.h5_20200225-200625_epochs2-bs32_run2_accuracy.dat};
+            \addlegendentry{HResNet\_v2\_CIFAR-10\_s2s.h5\_20200225-200625\_epochs2-bs32\_run2\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/SResNet_v2_CIFAR-10_s2h.h5_20200225-200904_epochs2-bs32_run1_accuracy.dat};
+            \addlegendentry{SResNet\_v2\_CIFAR-10\_s2h.h5\_20200225-200904\_epochs2-bs32\_run1\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/SResNet_v2_CIFAR-10_s2h.h5_20200225-200950_epochs2-bs32_run2_accuracy.dat};
+            \addlegendentry{SResNet\_v2\_CIFAR-10\_s2h.h5\_20200225-200950\_epochs2-bs32\_run2\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/SResNet_v2_CIFAR-10_s2s.h5_20200225-200226_epochs2-bs32_run1_accuracy.dat};
+            \addlegendentry{SResNet\_v2\_CIFAR-10\_s2s.h5\_20200225-200226\_epochs2-bs32\_run1\_accuracy.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {tmp/SResNet_v2_CIFAR-10_s2s.h5_20200225-200310_epochs2-bs32_run2_accuracy.dat};
+            \addlegendentry{SResNet\_v2\_CIFAR-10\_s2s.h5\_20200225-200310\_epochs2-bs32\_run2\_accuracy.dat}
+
+        \end{axis}
+    \end{tikzpicture}
+\end{document}
+
