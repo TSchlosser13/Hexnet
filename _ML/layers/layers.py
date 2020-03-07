@@ -255,6 +255,7 @@ class HConv2D(tf.keras.layers.Layer):
 		activity_regularizer = None,
 		kernel_constraint    = None,
 		bias_constraint      = None,
+		mode                 = 'hexagonal kernel',
 		**kwargs):
 
 		super().__init__(**kwargs)
@@ -294,6 +295,8 @@ class HConv2D(tf.keras.layers.Layer):
 		self.kernel_constraint    = kernel_constraint
 		self.bias_constraint      = bias_constraint
 
+		self.mode = mode
+
 	def build_masks(self, mask_size=(3, 3)):
 		return build_masks(mask_size)
 
@@ -316,17 +319,19 @@ class HConv2D(tf.keras.layers.Layer):
 			initializer = self.bias_initializer,
 			trainable   = True)
 
-		(kernel_mask_even_rows, _) = self.build_masks(mask_size=self.kernel_size)
+		if self.mode == 'hexagonal kernel':
+			(kernel_mask_even_rows, _) = self.build_masks(mask_size=self.kernel_size)
 
-		self.kernel_mask_even_rows = tf.convert_to_tensor(
-			value = kernel_mask_even_rows,
-			dtype = tf.float32,
-			name  = 'HConv2D_kernel_mask_even_rows_convert_to_tensor')
+			self.kernel_mask_even_rows = tf.convert_to_tensor(
+				value = kernel_mask_even_rows,
+				dtype = tf.float32,
+				name  = 'HConv2D_kernel_mask_even_rows_convert_to_tensor')
 
 
-		self.strides = (2 * self.strides[0], self.strides[1])
+		if self.mode == 'hexagonal kernel' or self.mode == 'square kernel hexagonal stride':
+			self.strides = (2 * self.strides[0], self.strides[1])
 
-	def call(self, input):
+	def call_hexagonal_kernel(self, input):
 		kernel_masked_even_rows = tf.einsum('ijkl,ij->ijkl', self.kernel, self.kernel_mask_even_rows)
 
 		if input.shape[1] > 1:
@@ -405,6 +410,120 @@ class HConv2D(tf.keras.layers.Layer):
 		output = self.activation(
 			features = output,
 			name     = 'HConv2D_output_activation')
+
+		return output
+
+	def call_square_kernel_square_stride(self, input):
+		output = tf.nn.conv2d(
+			input       = input,
+			filters     = self.kernel,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			dilations   = self.dilation_rate,
+			name        = 'HConv2D_output_conv2d')
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'HConv2D_output_bias_add')
+
+		output = self.activation(
+			features = output,
+			name     = 'HConv2D_output_activation')
+
+		return output
+
+	def call_square_kernel_hexagonal_stride(self, input):
+		kernel_even_rows = self.kernel
+
+		if input.shape[1] > 1:
+			kernel_odd_rows = []
+
+			for kernel_row in range(kernel_even_rows.shape[0]):
+				if kernel_row % 2:
+					kernel_odd_rows.append(
+						tf.pad(
+							tensor          = kernel_even_rows[kernel_row],
+							paddings        = ((1, 0), (0, 0), (0, 0)),
+							mode            = 'CONSTANT',
+							constant_values = 0,
+							name            = 'HConv2D_kernel_odd_rows_pad'))
+				else:
+					kernel_odd_rows.append(
+						tf.pad(
+							tensor          = kernel_even_rows[kernel_row],
+							paddings        = ((0, 1), (0, 0), (0, 0)),
+							mode            = 'CONSTANT',
+							constant_values = 0,
+							name            = 'HConv2D_kernel_odd_rows_pad'))
+
+			kernel_odd_rows = tf.stack(
+				values = kernel_odd_rows,
+				axis   = 0,
+				name   = 'HConv2D_kernel_odd_rows_stack')
+
+
+		output_even_rows = tf.nn.conv2d(
+			input       = input,
+			filters     = kernel_even_rows,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			dilations   = self.dilation_rate,
+			name        = 'HConv2D_output_even_rows_conv2d')
+
+		if input.shape[1] > 1:
+			output_odd_rows = tf.nn.conv2d(
+				input       = input[:, 1:, :, :],
+				filters     = kernel_odd_rows,
+				strides     = self.strides,
+				padding     = self.padding,
+				data_format = self.data_format,
+				dilations   = self.dilation_rate,
+				name        = 'HConv2D_output_odd_rows_conv2d')
+
+
+		if input.shape[1] > 1:
+			output = tf.concat(
+				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
+				axis   = 1,
+				name   = 'HConv2D_output_concat')
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output = tf.concat(
+					values = (output, output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]),
+					axis   = 1,
+					name   = 'HConv2D_output_concat')
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output = tf.concat(
+					values = (output, output_even_rows[:, -1:, :, :]),
+					axis   = 1,
+					name   = 'HConv2D_output_concat')
+		else:
+			output = output_even_rows
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'HConv2D_output_bias_add')
+
+		output = self.activation(
+			features = output,
+			name     = 'HConv2D_output_activation')
+
+		return output
+
+	def call(self, input):
+		if self.mode == 'hexagonal kernel':
+			output = self.call_hexagonal_kernel(input)
+		elif self.mode == 'square kernel square stride':
+			output = self.call_square_kernel_square_stride(input)
+		else: # 'square kernel hexagonal stride'
+			output = self.call_square_kernel_hexagonal_stride(input)
 
 		return output
 
@@ -533,6 +652,7 @@ class HPool2D(tf.keras.layers.Layer):
 		strides     = None,
 		padding     = 'SAME',
 		data_format = 'NHWC',
+		mode        = 'hexagonal kernel',
 		**kwargs):
 
 		super().__init__(**kwargs)
@@ -555,6 +675,8 @@ class HPool2D(tf.keras.layers.Layer):
 		self.padding     = padding
 		self.data_format = data_format
 
+		self.mode = mode
+
 	def build_masks(self, mask_size=(3, 3)):
 		return build_masks(mask_size)
 
@@ -565,138 +687,141 @@ class HPool2D(tf.keras.layers.Layer):
 		super().build(input_shape)
 
 
-		self.pool_size2 = (int((self.pool_size[0] - 1) / 2), int((self.pool_size[1] - 1) / 2))
+		if self.mode == 'hexagonal kernel':
+			self.pool_size2 = (int((self.pool_size[0] - 1) / 2), int((self.pool_size[1] - 1) / 2))
 
-		(kernel_mask_even_rows, kernel_mask_odd_rows)                 = self.build_masks(mask_size=self.pool_size)
-		(self.kernel_offsets_even_rows, self.kernel_offsets_odd_rows) = self.build_offsets(mask_size=self.pool_size)
+			(kernel_mask_even_rows, kernel_mask_odd_rows)                 = self.build_masks(mask_size=self.pool_size)
+			(self.kernel_offsets_even_rows, self.kernel_offsets_odd_rows) = self.build_offsets(mask_size=self.pool_size)
 
-		self.kernel_mask_even_rows = tf.convert_to_tensor(
-			value = kernel_mask_even_rows,
-			dtype = tf.float32,
-			name  = 'HPool2D_kernel_mask_even_rows_convert_to_tensor')
+			self.kernel_mask_even_rows = tf.convert_to_tensor(
+				value = kernel_mask_even_rows,
+				dtype = tf.float32,
+				name  = 'HPool2D_kernel_mask_even_rows_convert_to_tensor')
 
-		self.kernel_mask_odd_rows = tf.convert_to_tensor(
-			value = kernel_mask_odd_rows,
-			dtype = tf.float32,
-			name  = 'HPool2D_kernel_mask_odd_rows_convert_to_tensor')
-
-
-
-
-		input_offsets         = []
-		input_offsets_base    = [0, 0]
-		input_offsets_current = [0, 0]
-		input_offsets_min     = (0, 0)
-		input_offsets_max     = (0, 0)
-
-		input_shape_h = input_shape[1]
-		input_shape_w = input_shape[2]
-
-		input_offsets_shape_min = (-self.pool_size2[0], -self.pool_size2[1])
-		input_offsets_shape_max = (input_shape_h - 1 + self.pool_size2[0], input_shape_w - 1 + self.pool_size2[1])
-
-		input_offsets_shape = (input_offsets_shape_max[0] - input_offsets_shape_min[0] + 1, input_offsets_shape_max[1] - input_offsets_shape_min[1] + 1)
+			self.kernel_mask_odd_rows = tf.convert_to_tensor(
+				value = kernel_mask_odd_rows,
+				dtype = tf.float32,
+				name  = 'HPool2D_kernel_mask_odd_rows_convert_to_tensor')
 
 
-		for h in range(input_shape_h):
-			for w in range(input_shape_w):
-				if input_offsets_current[0] >= input_offsets_shape_min[0] and \
-				   input_offsets_current[0] <= input_offsets_shape_max[0] and \
-				   input_offsets_current[1] >= input_offsets_shape_min[1] and \
-				   input_offsets_current[1] <= input_offsets_shape_max[1]:
 
-					input_offsets.append((input_offsets_current[0], input_offsets_current[1]))
-					input_offsets_min = (min(input_offsets_min[0], input_offsets_current[0]), min(input_offsets_min[1], input_offsets_current[1]))
-					input_offsets_max = (max(input_offsets_max[0], input_offsets_current[0]), max(input_offsets_max[1], input_offsets_current[1]))
 
-				if not input_offsets_current[0] % 2:
+			input_offsets         = []
+			input_offsets_base    = [0, 0]
+			input_offsets_current = [0, 0]
+			input_offsets_min     = (0, 0)
+			input_offsets_max     = (0, 0)
+
+			input_shape_h = input_shape[1]
+			input_shape_w = input_shape[2]
+
+			input_offsets_shape_min = (-self.pool_size2[0], -self.pool_size2[1])
+			input_offsets_shape_max = (input_shape_h - 1 + self.pool_size2[0], input_shape_w - 1 + self.pool_size2[1])
+
+			input_offsets_shape = (input_offsets_shape_max[0] - input_offsets_shape_min[0] + 1, input_offsets_shape_max[1] - input_offsets_shape_min[1] + 1)
+
+
+			for h in range(input_shape_h):
+				for w in range(input_shape_w):
+					if input_offsets_current[0] >= input_offsets_shape_min[0] and \
+					   input_offsets_current[0] <= input_offsets_shape_max[0] and \
+					   input_offsets_current[1] >= input_offsets_shape_min[1] and \
+					   input_offsets_current[1] <= input_offsets_shape_max[1]:
+
+						input_offsets.append((input_offsets_current[0], input_offsets_current[1]))
+						input_offsets_min = (min(input_offsets_min[0], input_offsets_current[0]), min(input_offsets_min[1], input_offsets_current[1]))
+						input_offsets_max = (max(input_offsets_max[0], input_offsets_current[0]), max(input_offsets_max[1], input_offsets_current[1]))
+
+					if not input_offsets_current[0] % 2:
+						kernel_offsets = self.kernel_offsets_even_rows
+					else:
+						kernel_offsets = self.kernel_offsets_odd_rows
+
+					input_offsets_current[0] += kernel_offsets[0][1]
+					input_offsets_current[1] += kernel_offsets[0][0]
+
+				if not input_offsets_base[0] % 2:
 					kernel_offsets = self.kernel_offsets_even_rows
 				else:
 					kernel_offsets = self.kernel_offsets_odd_rows
 
-				input_offsets_current[0] += kernel_offsets[0][1]
-				input_offsets_current[1] += kernel_offsets[0][0]
-
-			if not input_offsets_base[0] % 2:
-				kernel_offsets = self.kernel_offsets_even_rows
-			else:
-				kernel_offsets = self.kernel_offsets_odd_rows
-
-			input_offsets_base[0] += kernel_offsets[1][1]
-			input_offsets_base[1] += kernel_offsets[1][0]
-			input_offsets_current  = input_offsets_base.copy()
+				input_offsets_base[0] += kernel_offsets[1][1]
+				input_offsets_base[1] += kernel_offsets[1][0]
+				input_offsets_current  = input_offsets_base.copy()
 
 
-		input_offsets_padding_h = (-input_offsets_min[0] + self.pool_size2[0], input_offsets_max[0] - (input_shape_h - 1) + self.pool_size2[0])
-		input_offsets_padding_w = (-input_offsets_min[1] + self.pool_size2[1], input_offsets_max[1] - (input_shape_w - 1) + self.pool_size2[1])
-		self.paddings           = ((0, 0), input_offsets_padding_h, input_offsets_padding_w, (0, 0))
+			input_offsets_padding_h = (-input_offsets_min[0] + self.pool_size2[0], input_offsets_max[0] - (input_shape_h - 1) + self.pool_size2[0])
+			input_offsets_padding_w = (-input_offsets_min[1] + self.pool_size2[1], input_offsets_max[1] - (input_shape_w - 1) + self.pool_size2[1])
+			self.paddings           = ((0, 0), input_offsets_padding_h, input_offsets_padding_w, (0, 0))
 
-		input_offsets_padded = [(offset[0] + input_offsets_padding_h[0], offset[1] + input_offsets_padding_w[0]) for offset in input_offsets]
-		input_offsets_center = (sum(input_offsets_padded[:][0]) / len(input_offsets_padded[:][0]), sum(input_offsets_padded[:][1]) / len(input_offsets_padded[:][1]))
+			input_offsets_padded = [(offset[0] + input_offsets_padding_h[0], offset[1] + input_offsets_padding_w[0]) for offset in input_offsets]
+			input_offsets_center = (sum(input_offsets_padded[:][0]) / len(input_offsets_padded[:][0]), sum(input_offsets_padded[:][1]) / len(input_offsets_padded[:][1]))
 
-		input_offsets_centered = []
+			input_offsets_centered = []
 
-		for offset in input_offsets_padded:
-			if not (offset[0] - input_offsets_padding_h[0]) % 2:
-				input_offsets_centered.append(((offset[0] - input_offsets_center[0]) * 1.5, (offset[1] - input_offsets_center[1]) * math.sqrt(3)))
-			else:
-				input_offsets_centered.append(((offset[0] - input_offsets_center[0]) * 1.5, (offset[1] + 0.5 - input_offsets_center[1]) * math.sqrt(3)))
-
-		output_shape_base = math.sqrt(len(input_offsets_padded))
-		output_shape_h    = math.floor((input_shape_h / input_shape_w) * output_shape_base)
-		output_shape_w    = math.floor((input_shape_w / input_shape_h) * output_shape_base)
-		output_shape      = (input_shape[0], output_shape_h, output_shape_w, input_shape[3])
-
-		output_offsets = []
-
-		for h in range(output_shape_h):
-			for w in range(output_shape_w):
-				if not h % 2:
-					output_offsets.append((h * 1.5, w * math.sqrt(3)))
+			for offset in input_offsets_padded:
+				if not (offset[0] - input_offsets_padding_h[0]) % 2:
+					input_offsets_centered.append(((offset[0] - input_offsets_center[0]) * 1.5, (offset[1] - input_offsets_center[1]) * math.sqrt(3)))
 				else:
-					output_offsets.append((h * 1.5, (w + 0.5) * math.sqrt(3)))
+					input_offsets_centered.append(((offset[0] - input_offsets_center[0]) * 1.5, (offset[1] + 0.5 - input_offsets_center[1]) * math.sqrt(3)))
 
-		output_offsets_scale    = (input_offsets_shape[0] / output_shape_h, input_offsets_shape[1] / output_shape_w)
-		output_offsets_scaled   = [(output_offsets_scale[0] * offset[0], output_offsets_scale[1] * offset[1]) for offset in output_offsets]
-		output_offsets_center   = (sum(output_offsets_scaled[:][0]) / len(output_offsets_scaled[:][0]), sum(output_offsets_scaled[:][1]) / len(output_offsets_scaled[:][1]))
-		output_offsets_centered = [(offset[0] - output_offsets_center[0], offset[1] - output_offsets_center[1]) for offset in output_offsets_scaled]
+			output_shape_base = math.sqrt(len(input_offsets_padded))
+			output_shape_h    = math.floor((input_shape_h / input_shape_w) * output_shape_base)
+			output_shape_w    = math.floor((input_shape_w / input_shape_h) * output_shape_base)
+			output_shape      = (input_shape[0], output_shape_h, output_shape_w, input_shape[3])
 
+			output_offsets = []
 
+			for h in range(output_shape_h):
+				for w in range(output_shape_w):
+					if not h % 2:
+						output_offsets.append((h * 1.5, w * math.sqrt(3)))
+					else:
+						output_offsets.append((h * 1.5, (w + 0.5) * math.sqrt(3)))
 
-
-		cost_matrix = np.full(shape=(len(input_offsets_centered), len(output_offsets_centered)), fill_value=np.inf)
-
-		for h in range(cost_matrix.shape[0]):
-			for w in range(cost_matrix.shape[1]):
-				cost_matrix[h][w] = np.linalg.norm(np.array(input_offsets_centered[h]) - np.array(output_offsets_centered[w]))
-
-		row_indices, col_indices = linear_sum_assignment(cost_matrix)
-
-		if _ENABLE_DEBUGGING:
-			costs     = cost_matrix[row_indices, col_indices]
-			costs_sum = costs.sum()
-
-			Hexnet_print('(linear_sum_assignment) '
-				f'row_indices =\n{row_indices},\n'
-				f'col_indices =\n{col_indices},\n'
-				f'costs =\n{costs},\n'
-				f'costs_sum={costs_sum}')
+			output_offsets_scale    = (input_offsets_shape[0] / output_shape_h, input_offsets_shape[1] / output_shape_w)
+			output_offsets_scaled   = [(output_offsets_scale[0] * offset[0], output_offsets_scale[1] * offset[1]) for offset in output_offsets]
+			output_offsets_center   = (sum(output_offsets_scaled[:][0]) / len(output_offsets_scaled[:][0]), sum(output_offsets_scaled[:][1]) / len(output_offsets_scaled[:][1]))
+			output_offsets_centered = [(offset[0] - output_offsets_center[0], offset[1] - output_offsets_center[1]) for offset in output_offsets_scaled]
 
 
-		self.pooling_offsets = np.empty(shape=(output_shape_h, output_shape_w, 2), dtype=np.int32)
 
-		for index_counter, col_index in enumerate(col_indices):
-			pooling_offsets_index      = (int(col_index / output_shape_w), col_index % output_shape_w)
-			input_offsets_padded_index = row_indices[index_counter]
 
-			self.pooling_offsets[pooling_offsets_index] = input_offsets_padded[input_offsets_padded_index]
+			cost_matrix = np.full(shape=(len(input_offsets_centered), len(output_offsets_centered)), fill_value=np.inf)
 
-		if _ENABLE_DEBUGGING:
-			Hexnet_print(f'pooling_offsets =\n{self.pooling_offsets}')
+			for h in range(cost_matrix.shape[0]):
+				for w in range(cost_matrix.shape[1]):
+					cost_matrix[h][w] = np.linalg.norm(np.array(input_offsets_centered[h]) - np.array(output_offsets_centered[w]))
+
+			row_indices, col_indices = linear_sum_assignment(cost_matrix)
+
+			if _ENABLE_DEBUGGING:
+				costs     = cost_matrix[row_indices, col_indices]
+				costs_sum = costs.sum()
+
+				Hexnet_print('(linear_sum_assignment) '
+					f'row_indices =\n{row_indices},\n'
+					f'col_indices =\n{col_indices},\n'
+					f'costs =\n{costs},\n'
+					f'costs_sum={costs_sum}')
+
+
+			self.pooling_offsets = np.empty(shape=(output_shape_h, output_shape_w, 2), dtype=np.int32)
+
+			for index_counter, col_index in enumerate(col_indices):
+				pooling_offsets_index      = (int(col_index / output_shape_w), col_index % output_shape_w)
+				input_offsets_padded_index = row_indices[index_counter]
+
+				self.pooling_offsets[pooling_offsets_index] = input_offsets_padded[input_offsets_padded_index]
+
+			if _ENABLE_DEBUGGING:
+				Hexnet_print(f'pooling_offsets =\n{self.pooling_offsets}')
+		elif self.mode == 'square kernel hexagonal stride':
+			self.strides = (2 * self.strides[0], self.strides[1])
 
 
 class HAvgPool2D(HPool2D):
-	def call(self, input):
+	def call_hexagonal_kernel(self, input):
 		input = tf.pad(
 			tensor          = input,
 			paddings        = self.paddings,
@@ -741,9 +866,84 @@ class HAvgPool2D(HPool2D):
 
 		return output
 
+	def call_square_kernel_square_stride(self, input):
+		output = tf.nn.avg_pool2d(
+			input       = input,
+			ksize       = self.pool_size,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			name        = 'HAvgPool2D_output_avg_pool2d')
+
+		return output
+
+	def call_square_kernel_hexagonal_stride(self, input):
+		if input.shape[1] > self.pool_size[0]:
+			input_even_rows = tf.pad(
+				tensor          = input,
+				paddings        = ((0, 0), (0, 0), (int(self.pool_size[0] / 2), 0), (0, 0)),
+				mode            = 'CONSTANT',
+				constant_values = 0,
+				name            = 'HAvgPool2D_input_even_rows_pad')
+
+			input_odd_rows = input[:, self.pool_size[0]:, :, :]
+		else:
+			input_even_rows = input
+
+
+		output_even_rows = tf.nn.max_pool2d(
+			input       = input_even_rows,
+			ksize       = self.pool_size,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			name        = 'HAvgPool2D_output_even_rows_max_pool2d')
+
+		if input.shape[1] > self.pool_size[0]:
+			output_odd_rows = tf.nn.max_pool2d(
+				input       = input_odd_rows,
+				ksize       = self.pool_size,
+				strides     = self.strides,
+				padding     = self.padding,
+				data_format = self.data_format,
+				name        = 'HAvgPool2D_output_odd_rows_max_pool2d')
+
+
+		if input.shape[1] > self.pool_size[0]:
+			output = tf.concat(
+				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
+				axis   = 1,
+				name   = 'HAvgPool2D_output_concat')
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output = tf.concat(
+					values = (output, output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]),
+					axis   = 1,
+					name   = 'HAvgPool2D_output_concat')
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output = tf.concat(
+					values = (output, output_even_rows[:, -1:, :, :]),
+					axis   = 1,
+					name   = 'HAvgPool2D_output_concat')
+		else:
+			output = output_even_rows
+
+		return output
+
+	def call(self, input):
+		if self.mode == 'hexagonal kernel':
+			output = self.call_hexagonal_kernel(input)
+		elif self.mode == 'square kernel square stride':
+			output = self.call_square_kernel_square_stride(input)
+		else: # 'square kernel hexagonal stride'
+			output = call_square_kernel_hexagonal_stride(input)
+
+		return output
+
 
 class HMaxPool2D(HPool2D):
-	def call(self, input):
+	def call_hexagonal_kernel(self, input):
 		input = tf.pad(
 			tensor          = input,
 			paddings        = self.paddings,
@@ -787,4 +987,80 @@ class HMaxPool2D(HPool2D):
 			name        = 'HMaxPool2D_output_max_pool2d')
 
 		return output
+
+	def call_square_kernel_square_stride(self, input):
+		output = tf.nn.max_pool2d(
+			input       = input,
+			ksize       = self.pool_size,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			name        = 'HMaxPool2D_output_max_pool2d')
+
+		return output
+
+	def call_square_kernel_hexagonal_stride(self, input):
+		if input.shape[1] > self.pool_size[0]:
+			input_even_rows = tf.pad(
+				tensor          = input,
+				paddings        = ((0, 0), (0, 0), (int(self.pool_size[0] / 2), 0), (0, 0)),
+				mode            = 'CONSTANT',
+				constant_values = 0,
+				name            = 'HMaxPool2D_input_even_rows_pad')
+
+			input_odd_rows = input[:, self.pool_size[0]:, :, :]
+		else:
+			input_even_rows = input
+
+
+		output_even_rows = tf.nn.max_pool2d(
+			input       = input_even_rows,
+			ksize       = self.pool_size,
+			strides     = self.strides,
+			padding     = self.padding,
+			data_format = self.data_format,
+			name        = 'HMaxPool2D_output_even_rows_max_pool2d')
+
+		if input.shape[1] > self.pool_size[0]:
+			output_odd_rows = tf.nn.max_pool2d(
+				input       = input_odd_rows,
+				ksize       = self.pool_size,
+				strides     = self.strides,
+				padding     = self.padding,
+				data_format = self.data_format,
+				name        = 'HMaxPool2D_output_odd_rows_max_pool2d')
+
+
+		if input.shape[1] > self.pool_size[0]:
+			output = tf.concat(
+				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
+				axis   = 1,
+				name   = 'HMaxPool2D_output_concat')
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output = tf.concat(
+					values = (output, output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]),
+					axis   = 1,
+					name   = 'HMaxPool2D_output_concat')
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output = tf.concat(
+					values = (output, output_even_rows[:, -1:, :, :]),
+					axis   = 1,
+					name   = 'HMaxPool2D_output_concat')
+		else:
+			output = output_even_rows
+
+		return output
+
+	def call(self, input):
+		if self.mode == 'hexagonal kernel':
+			output = self.call_hexagonal_kernel(input)
+		elif self.mode == 'square kernel square stride':
+			output = self.call_square_kernel_square_stride(input)
+		else: # 'square kernel hexagonal stride'
+			output = self.call_square_kernel_hexagonal_stride(input)
+
+		return output
+
 
