@@ -237,6 +237,52 @@ class SMaxPool2D(SPool2D):
 
 
 
+class SSampling2D(tf.keras.layers.Layer):
+	def __init__(
+		self,
+		size                  = (2, 2),
+		data_format           = 'NHWC',
+		interpolation         = 'nearest',
+		preserve_aspect_ratio = False,
+		antialias             = False,
+		**kwargs):
+
+		super().__init__(**kwargs)
+
+		if type(size) is int:
+			self.size = (size, size)
+		elif type(size) is not tuple:
+			self.size = tuple(size)
+
+			if len(size) == 1:
+				self.size *= 2
+		else:
+			self.size = size
+
+		self.data_format           = data_format
+		self.interpolation         = interpolation
+		self.preserve_aspect_ratio = preserve_aspect_ratio
+		self.antialias             = antialias
+
+	def build(self, input_shape):
+		super().build(input_shape)
+
+		self.target_size = (round(self.size[0] * input_shape[1]), round(self.size[1] * input_shape[2]))
+
+	def call(self, input):
+		output = tf.image.resize(
+			images                = input,
+			size                  = self.target_size,
+			method                = self.interpolation,
+			preserve_aspect_ratio = self.preserve_aspect_ratio,
+			antialias             = self.antialias,
+			name                  = 'SSampling2D_output_resize')
+
+		return output
+
+
+
+
 class HConv2D(tf.keras.layers.Layer):
 	def __init__(
 		self,
@@ -1060,6 +1106,52 @@ class HMaxPool2D(HPool2D):
 			output = self.call_square_kernel_square_stride(input)
 		else: # 'square kernel hexagonal stride'
 			output = self.call_square_kernel_hexagonal_stride(input)
+
+		return output
+
+
+
+
+class HSampling2D(tf.keras.layers.Layer):
+	def __init__(
+		self,
+		size                  = (2, 2),
+		data_format           = 'NHWC',
+		interpolation         = 'nearest',
+		preserve_aspect_ratio = False,
+		antialias             = False,
+		**kwargs):
+
+		super().__init__(**kwargs)
+
+		if type(size) is int:
+			self.size = (size, size)
+		elif type(size) is not tuple:
+			self.size = tuple(size)
+
+			if len(size) == 1:
+				self.size *= 2
+		else:
+			self.size = size
+
+		self.data_format           = data_format
+		self.interpolation         = interpolation
+		self.preserve_aspect_ratio = preserve_aspect_ratio
+		self.antialias             = antialias
+
+	def build(self, input_shape):
+		super().build(input_shape)
+
+		self.target_size = (round(self.size[0] * input_shape[1]), round(self.size[1] * input_shape[2]))
+
+	def call(self, input):
+		output = tf.image.resize(
+			images                = input,
+			size                  = self.target_size,
+			method                = self.interpolation,
+			preserve_aspect_ratio = self.preserve_aspect_ratio,
+			antialias             = self.antialias,
+			name                  = 'HSampling2D_output_resize')
 
 		return output
 
