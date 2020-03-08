@@ -43,6 +43,78 @@ _ENABLE_DEBUGGING = False
 
 
 class SConv2D(tf.keras.layers.Layer):
+	"""Square 2D convolution layer (e.g. spatial convolution over images).
+
+	This layer creates a convolution kernel that is convolved
+	with the layer input to produce a tensor of
+	outputs. If `use_bias` is True,
+	a bias vector is created and added to the outputs. Finally, if
+	`activation` is not `None`, it is applied to the outputs as well.
+
+	When using this layer as the first layer in a model,
+	provide the keyword argument `input_shape`
+	(tuple of integers, does not include the sample axis),
+	e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
+	in `data_format="channels_last"`.
+
+	Arguments:
+		filters: Integer, the dimensionality of the output space
+			(i.e. the number of output filters in the convolution).
+		kernel_size: An integer or tuple/list of 2 integers, specifying the
+			height and width of the 2D convolution window.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+		strides: An integer or tuple/list of 2 integers,
+			specifying the strides of the convolution along the height and width.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Specifying any stride value != 1 is incompatible with specifying
+			any `dilation_rate` value != 1.
+		padding: one of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		dilation_rate: an integer or tuple/list of 2 integers, specifying
+			the dilation rate to use for dilated convolution.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Currently, specifying any `dilation_rate` value != 1 is
+			incompatible with specifying any stride value != 1.
+		activation: Activation function to use.
+			If you don't specify anything, no activation is applied
+			(ie. "linear" activation: `a(x) = x`).
+		use_bias: Boolean, whether the layer uses a bias vector.
+		kernel_initializer: Initializer for the `kernel` weights matrix.
+		bias_initializer: Initializer for the bias vector.
+		kernel_regularizer: Regularizer function applied to
+			the `kernel` weights matrix.
+		bias_regularizer: Regularizer function applied to the bias vector.
+		activity_regularizer: Regularizer function applied to
+			the output of the layer (its "activation")..
+		kernel_constraint: Constraint function applied to the kernel matrix.
+		bias_constraint: Constraint function applied to the bias vector.
+
+	Input shape:
+		4D tensor with shape:
+		`(samples, channels, rows, cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, rows, cols, channels)` if data_format='channels_last'.
+
+	Output shape:
+		4D tensor with shape:
+		`(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+		`rows` and `cols` values might have changed due to padding.
+	"""
+
 	def __init__(
 		self,
 		filters              = 1,
@@ -132,6 +204,78 @@ class SConv2D(tf.keras.layers.Layer):
 
 
 class SGConv2D(SConv2D):
+	"""Square 2D group convolution layer (e.g. spatial convolution over images).
+
+	This layer creates a convolution kernel that is convolved
+	with the layer input to produce a tensor of
+	outputs. If `use_bias` is True,
+	a bias vector is created and added to the outputs. Finally, if
+	`activation` is not `None`, it is applied to the outputs as well.
+
+	When using this layer as the first layer in a model,
+	provide the keyword argument `input_shape`
+	(tuple of integers, does not include the sample axis),
+	e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
+	in `data_format="channels_last"`.
+
+	Arguments:
+		filters: Integer, the dimensionality of the output space
+			(i.e. the number of output filters in the convolution).
+		kernel_size: An integer or tuple/list of 2 integers, specifying the
+			height and width of the 2D convolution window.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+		strides: An integer or tuple/list of 2 integers,
+			specifying the strides of the convolution along the height and width.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Specifying any stride value != 1 is incompatible with specifying
+			any `dilation_rate` value != 1.
+		padding: one of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		dilation_rate: an integer or tuple/list of 2 integers, specifying
+			the dilation rate to use for dilated convolution.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Currently, specifying any `dilation_rate` value != 1 is
+			incompatible with specifying any stride value != 1.
+		activation: Activation function to use.
+			If you don't specify anything, no activation is applied
+			(ie. "linear" activation: `a(x) = x`).
+		use_bias: Boolean, whether the layer uses a bias vector.
+		kernel_initializer: Initializer for the `kernel` weights matrix.
+		bias_initializer: Initializer for the bias vector.
+		kernel_regularizer: Regularizer function applied to
+			the `kernel` weights matrix.
+		bias_regularizer: Regularizer function applied to the bias vector.
+		activity_regularizer: Regularizer function applied to
+			the output of the layer (its "activation")..
+		kernel_constraint: Constraint function applied to the kernel matrix.
+		bias_constraint: Constraint function applied to the bias vector.
+
+	Input shape:
+		4D tensor with shape:
+		`(samples, channels, rows, cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, rows, cols, channels)` if data_format='channels_last'.
+
+	Output shape:
+		4D tensor with shape:
+		`(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+		`rows` and `cols` values might have changed due to padding.
+	"""
+
 	def call(self, input):
 		kernel_rotated = []
 		group_size     = math.ceil(self.kernel.shape[3] / 4)
@@ -177,6 +321,42 @@ class SGConv2D(SConv2D):
 
 
 class SPool2D(tf.keras.layers.Layer):
+	"""Square pooling operation for spatial data.
+
+	Arguments:
+		pool_size: integer or tuple of 2 integers,
+			factors by which to downscale (vertical, horizontal).
+			`(2, 2)` will halve the input in both spatial dimension.
+			If only one integer is specified, the same window length
+			will be used for both dimensions.
+		strides: Integer, tuple of 2 integers, or None.
+			Strides values.
+			If None, it will default to `pool_size`.
+		padding: One of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+
+	Input shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, rows, cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, rows, cols)`.
+
+	Output shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, pooled_rows, pooled_cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
+	"""
+
 	def __init__(
 		self,
 		pool_size   = (3, 3),
@@ -210,6 +390,42 @@ class SPool2D(tf.keras.layers.Layer):
 
 
 class SAvgPool2D(SPool2D):
+	"""Square average pooling operation for spatial data.
+
+	Arguments:
+		pool_size: integer or tuple of 2 integers,
+			factors by which to downscale (vertical, horizontal).
+			`(2, 2)` will halve the input in both spatial dimension.
+			If only one integer is specified, the same window length
+			will be used for both dimensions.
+		strides: Integer, tuple of 2 integers, or None.
+			Strides values.
+			If None, it will default to `pool_size`.
+		padding: One of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+
+	Input shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, rows, cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, rows, cols)`.
+
+	Output shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, pooled_rows, pooled_cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
+	"""
+
 	def call(self, input):
 		output = tf.nn.avg_pool2d(
 			input       = input,
@@ -223,6 +439,42 @@ class SAvgPool2D(SPool2D):
 
 
 class SMaxPool2D(SPool2D):
+	"""Square max pooling operation for spatial data.
+
+	Arguments:
+		pool_size: integer or tuple of 2 integers,
+			factors by which to downscale (vertical, horizontal).
+			`(2, 2)` will halve the input in both spatial dimension.
+			If only one integer is specified, the same window length
+			will be used for both dimensions.
+		strides: Integer, tuple of 2 integers, or None.
+			Strides values.
+			If None, it will default to `pool_size`.
+		padding: One of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+
+	Input shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, rows, cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, rows, cols)`.
+
+	Output shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, pooled_rows, pooled_cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
+	"""
+
 	def call(self, input):
 		output = tf.nn.max_pool2d(
 			input       = input,
@@ -238,9 +490,94 @@ class SMaxPool2D(SPool2D):
 
 
 class SSampling2D(tf.keras.layers.Layer):
+	"""Square sampling layer for 2D inputs.
+
+	Resized images will be distorted if their original aspect ratio is not
+	the same as `target_size`. To avoid distortions see
+	`tf.image.resize_with_pad`.
+
+	When 'antialias' is true, the sampling filter will anti-alias the input image
+	as well as interpolate. When downsampling an image with [anti-aliasing](
+	https://en.wikipedia.org/wiki/Spatial_anti-aliasing) the sampling filter
+	kernel is scaled in order to properly anti-alias the input image signal.
+	'antialias' has no effect when upsampling an image.
+
+	* 	<b>`bilinear`</b>: [Bilinear interpolation.](
+		https://en.wikipedia.org/wiki/Bilinear_interpolation) If 'antialias' is
+		true, becomes a hat/tent filter function with radius 1 when downsampling.
+	* 	<b>`lanczos3`</b>: [Lanczos kernel](
+		https://en.wikipedia.org/wiki/Lanczos_resampling) with radius 3.
+		High-quality practical filter but may have some ringing especially on
+		synthetic images.
+	* 	<b>`lanczos5`</b>: [Lanczos kernel] (
+		https://en.wikipedia.org/wiki/Lanczos_resampling) with radius 5.
+		Very-high-quality filter but may have stronger ringing.
+	* 	<b>`bicubic`</b>: [Cubic interpolant](
+		https://en.wikipedia.org/wiki/Bicubic_interpolation) of Keys. Equivalent to
+		Catmull-Rom kernel. Reasonably good quality and faster than Lanczos3Kernel,
+		particularly when upsampling.
+	* 	<b>`gaussian`</b>: [Gaussian kernel](
+		https://en.wikipedia.org/wiki/Gaussian_filter) with radius 3,
+		sigma = 1.5 / 3.0.
+	* 	<b>`nearest`</b>: [Nearest neighbor interpolation.](
+		https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation)
+		'antialias' has no effect when used with nearest neighbor interpolation.
+	* 	<b>`area`</b>: Anti-aliased resampling with area interpolation.
+		'antialias' has no effect when used with area interpolation; it
+		always anti-aliases.
+	* 	<b>`mitchellcubic`</b>: Mitchell-Netravali Cubic non-interpolating filter.
+		For synthetic images (especially those lacking proper prefiltering), less
+		ringing than Keys cubic kernel but less sharp.
+
+	Note that near image edges the filtering kernel may be partially outside the
+	image boundaries. For these pixels, only input pixels inside the image will be
+	included in the filter sum, and the output value will be appropriately
+	normalized.
+
+	The return value has the same type as `images` if `interpolation` is
+	`ResizeMethod.NEAREST_NEIGHBOR`. Otherwise, the return value has type
+	`float32`.
+
+	Arguments:
+		images: 4-D Tensor of shape `[batch, height, width, channels]` or 3-D Tensor
+			of shape `[height, width, channels]`.
+		size_factor: A 1-D int32 Tensor of 2 elements:
+			`target_size = (round(size_factor[0] * height), round(size_factor[1] * width))`.
+			The new size factor for the images.
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		interpolation: ResizeMethod. Defaults to `nearest`.
+		preserve_aspect_ratio: Whether to preserve the aspect ratio. If this is set,
+			then `images` will be resized to a size that fits in `target_size` while
+			preserving the aspect ratio of the original image. Scales up the image if
+			`target_size` is bigger than the current size of the `image`. Defaults to False.
+		antialias: Whether to use an anti-aliasing filter when downsampling an
+			image.
+
+	Raises:
+		ValueError: if the shape of `images` is incompatible with the
+			shape arguments to this function
+		ValueError: if `target_size` has invalid shape or type.
+		ValueError: if an unsupported resize method is specified.
+
+	Returns:
+		If `images` was 4-D, a 4-D float Tensor of shape
+		`[batch, new_height, new_width, channels]`.
+		If `images` was 3-D, a 3-D float Tensor of shape
+		`[new_height, new_width, channels]`.
+	"""
+
 	def __init__(
 		self,
-		size                  = (2, 2),
+		size_factor           = (2, 2),
 		data_format           = 'NHWC',
 		interpolation         = 'nearest',
 		preserve_aspect_ratio = False,
@@ -249,15 +586,15 @@ class SSampling2D(tf.keras.layers.Layer):
 
 		super().__init__(**kwargs)
 
-		if type(size) is int:
-			self.size = (size, size)
-		elif type(size) is not tuple:
-			self.size = tuple(size)
+		if type(size_factor) is int:
+			self.size_factor = (size_factor, size_factor)
+		elif type(size_factor) is not tuple:
+			self.size_factor = tuple(size_factor)
 
-			if len(size) == 1:
-				self.size *= 2
+			if len(size_factor) == 1:
+				self.size_factor *= 2
 		else:
-			self.size = size
+			self.size_factor = size_factor
 
 		self.data_format           = data_format
 		self.interpolation         = interpolation
@@ -267,12 +604,12 @@ class SSampling2D(tf.keras.layers.Layer):
 	def build(self, input_shape):
 		super().build(input_shape)
 
-		self.target_size = (round(self.size[0] * input_shape[1]), round(self.size[1] * input_shape[2]))
+		self.target_size = (round(self.size_factor[0] * input_shape[1]), round(self.size_factor[1] * input_shape[2]))
 
 	def call(self, input):
 		output = tf.image.resize(
 			images                = input,
-			size                  = self.target_size,
+			size_factor           = self.target_size,
 			method                = self.interpolation,
 			preserve_aspect_ratio = self.preserve_aspect_ratio,
 			antialias             = self.antialias,
@@ -284,6 +621,81 @@ class SSampling2D(tf.keras.layers.Layer):
 
 
 class HConv2D(tf.keras.layers.Layer):
+	"""Hexagonal 2D convolution layer (e.g. spatial convolution over images).
+
+	This layer creates a convolution kernel that is convolved
+	with the layer input to produce a tensor of
+	outputs. If `use_bias` is True,
+	a bias vector is created and added to the outputs. Finally, if
+	`activation` is not `None`, it is applied to the outputs as well.
+
+	When using this layer as the first layer in a model,
+	provide the keyword argument `input_shape`
+	(tuple of integers, does not include the sample axis),
+	e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
+	in `data_format="channels_last"`.
+
+	Arguments:
+		filters: Integer, the dimensionality of the output space
+			(i.e. the number of output filters in the convolution).
+		kernel_size: An integer or tuple/list of 2 integers, specifying the
+			height and width of the 2D convolution window.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+		strides: An integer or tuple/list of 2 integers,
+			specifying the strides of the convolution along the height and width.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Specifying any stride value != 1 is incompatible with specifying
+			any `dilation_rate` value != 1.
+		padding: one of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		dilation_rate: an integer or tuple/list of 2 integers, specifying
+			the dilation rate to use for dilated convolution.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Currently, specifying any `dilation_rate` value != 1 is
+			incompatible with specifying any stride value != 1.
+		activation: Activation function to use.
+			If you don't specify anything, no activation is applied
+			(ie. "linear" activation: `a(x) = x`).
+		use_bias: Boolean, whether the layer uses a bias vector.
+		kernel_initializer: Initializer for the `kernel` weights matrix.
+		bias_initializer: Initializer for the bias vector.
+		kernel_regularizer: Regularizer function applied to
+			the `kernel` weights matrix.
+		bias_regularizer: Regularizer function applied to the bias vector.
+		activity_regularizer: Regularizer function applied to
+			the output of the layer (its "activation")..
+		kernel_constraint: Constraint function applied to the kernel matrix.
+		bias_constraint: Constraint function applied to the bias vector.
+		mode: String,
+			one of `hexagonal_kernel` (default), `square_kernel_square_stride`,
+			or `square_kernel_hexagonal_stride`.
+
+	Input shape:
+		4D tensor with shape:
+		`(samples, channels, rows, cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, rows, cols, channels)` if data_format='channels_last'.
+
+	Output shape:
+		4D tensor with shape:
+		`(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+		`rows` and `cols` values might have changed due to padding.
+	"""
+
 	def __init__(
 		self,
 		filters              = 1,
@@ -301,7 +713,7 @@ class HConv2D(tf.keras.layers.Layer):
 		activity_regularizer = None,
 		kernel_constraint    = None,
 		bias_constraint      = None,
-		mode                 = 'hexagonal kernel',
+		mode                 = 'hexagonal_kernel',
 		**kwargs):
 
 		super().__init__(**kwargs)
@@ -365,7 +777,7 @@ class HConv2D(tf.keras.layers.Layer):
 			initializer = self.bias_initializer,
 			trainable   = True)
 
-		if self.mode == 'hexagonal kernel':
+		if self.mode == 'hexagonal_kernel':
 			(kernel_mask_even_rows, _) = self.build_masks(mask_size=self.kernel_size)
 
 			self.kernel_mask_even_rows = tf.convert_to_tensor(
@@ -374,7 +786,7 @@ class HConv2D(tf.keras.layers.Layer):
 				name  = 'HConv2D_kernel_mask_even_rows_convert_to_tensor')
 
 
-		if self.mode == 'hexagonal kernel' or self.mode == 'square kernel hexagonal stride':
+		if self.mode == 'hexagonal_kernel' or self.mode == 'square_kernel_hexagonal_stride':
 			self.strides = (2 * self.strides[0], self.strides[1])
 
 	def call_hexagonal_kernel(self, input):
@@ -564,17 +976,89 @@ class HConv2D(tf.keras.layers.Layer):
 		return output
 
 	def call(self, input):
-		if self.mode == 'hexagonal kernel':
+		if self.mode == 'hexagonal_kernel':
 			output = self.call_hexagonal_kernel(input)
-		elif self.mode == 'square kernel square stride':
+		elif self.mode == 'square_kernel_square_stride':
 			output = self.call_square_kernel_square_stride(input)
-		else: # 'square kernel hexagonal stride'
+		else: # 'square_kernel_hexagonal_stride'
 			output = self.call_square_kernel_hexagonal_stride(input)
 
 		return output
 
 
 class HGConv2D(HConv2D):
+	"""Hexagonal 2D group convolution layer (e.g. spatial convolution over images).
+
+	This layer creates a convolution kernel that is convolved
+	with the layer input to produce a tensor of
+	outputs. If `use_bias` is True,
+	a bias vector is created and added to the outputs. Finally, if
+	`activation` is not `None`, it is applied to the outputs as well.
+
+	When using this layer as the first layer in a model,
+	provide the keyword argument `input_shape`
+	(tuple of integers, does not include the sample axis),
+	e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
+	in `data_format="channels_last"`.
+
+	Arguments:
+		filters: Integer, the dimensionality of the output space
+			(i.e. the number of output filters in the convolution).
+		kernel_size: An integer or tuple/list of 2 integers, specifying the
+			height and width of the 2D convolution window.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+		strides: An integer or tuple/list of 2 integers,
+			specifying the strides of the convolution along the height and width.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Specifying any stride value != 1 is incompatible with specifying
+			any `dilation_rate` value != 1.
+		padding: one of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		dilation_rate: an integer or tuple/list of 2 integers, specifying
+			the dilation rate to use for dilated convolution.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Currently, specifying any `dilation_rate` value != 1 is
+			incompatible with specifying any stride value != 1.
+		activation: Activation function to use.
+			If you don't specify anything, no activation is applied
+			(ie. "linear" activation: `a(x) = x`).
+		use_bias: Boolean, whether the layer uses a bias vector.
+		kernel_initializer: Initializer for the `kernel` weights matrix.
+		bias_initializer: Initializer for the bias vector.
+		kernel_regularizer: Regularizer function applied to
+			the `kernel` weights matrix.
+		bias_regularizer: Regularizer function applied to the bias vector.
+		activity_regularizer: Regularizer function applied to
+			the output of the layer (its "activation")..
+		kernel_constraint: Constraint function applied to the kernel matrix.
+		bias_constraint: Constraint function applied to the bias vector.
+
+	Input shape:
+		4D tensor with shape:
+		`(samples, channels, rows, cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, rows, cols, channels)` if data_format='channels_last'.
+
+	Output shape:
+		4D tensor with shape:
+		`(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+		`rows` and `cols` values might have changed due to padding.
+	"""
+
 	def call(self, input):
 		kernel_masked_even_rows = tf.einsum('ijkl,ij->ijkl', self.kernel, self.kernel_mask_even_rows)
 
@@ -692,13 +1176,52 @@ class HGConv2D(HConv2D):
 
 
 class HPool2D(tf.keras.layers.Layer):
+	"""Hexagonal pooling operation for spatial data.
+
+	Arguments:
+		pool_size: integer or tuple of 2 integers,
+			factors by which to downscale (vertical, horizontal).
+			`(2, 2)` will halve the input in both spatial dimension.
+			If only one integer is specified, the same window length
+			will be used for both dimensions.
+		strides: Integer, tuple of 2 integers, or None.
+			Strides values.
+			If None, it will default to `pool_size`.
+		padding: One of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		mode: String,
+			one of `hexagonal_kernel` (default), `square_kernel_square_stride`,
+			or `square_kernel_hexagonal_stride`.
+
+	Input shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, rows, cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, rows, cols)`.
+
+	Output shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, pooled_rows, pooled_cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
+	"""
+
 	def __init__(
 		self,
 		pool_size   = (3, 3),
 		strides     = None,
 		padding     = 'SAME',
 		data_format = 'NHWC',
-		mode        = 'hexagonal kernel',
+		mode        = 'hexagonal_kernel',
 		**kwargs):
 
 		super().__init__(**kwargs)
@@ -733,7 +1256,7 @@ class HPool2D(tf.keras.layers.Layer):
 		super().build(input_shape)
 
 
-		if self.mode == 'hexagonal kernel':
+		if self.mode == 'hexagonal_kernel':
 			self.pool_size2 = (int((self.pool_size[0] - 1) / 2), int((self.pool_size[1] - 1) / 2))
 
 			(kernel_mask_even_rows, kernel_mask_odd_rows)                 = self.build_masks(mask_size=self.pool_size)
@@ -862,11 +1385,50 @@ class HPool2D(tf.keras.layers.Layer):
 
 			if _ENABLE_DEBUGGING:
 				Hexnet_print(f'pooling_offsets =\n{self.pooling_offsets}')
-		elif self.mode == 'square kernel hexagonal stride':
+		elif self.mode == 'square_kernel_hexagonal_stride':
 			self.strides = (2 * self.strides[0], self.strides[1])
 
 
 class HAvgPool2D(HPool2D):
+	"""Hexagonal average pooling operation for spatial data.
+
+	Arguments:
+		pool_size: integer or tuple of 2 integers,
+			factors by which to downscale (vertical, horizontal).
+			`(2, 2)` will halve the input in both spatial dimension.
+			If only one integer is specified, the same window length
+			will be used for both dimensions.
+		strides: Integer, tuple of 2 integers, or None.
+			Strides values.
+			If None, it will default to `pool_size`.
+		padding: One of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		mode: String,
+			one of `hexagonal_kernel` (default), `square_kernel_square_stride`,
+			or `square_kernel_hexagonal_stride`.
+
+	Input shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, rows, cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, rows, cols)`.
+
+	Output shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, pooled_rows, pooled_cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
+	"""
+
 	def call_hexagonal_kernel(self, input):
 		input = tf.pad(
 			tensor          = input,
@@ -978,17 +1540,56 @@ class HAvgPool2D(HPool2D):
 		return output
 
 	def call(self, input):
-		if self.mode == 'hexagonal kernel':
+		if self.mode == 'hexagonal_kernel':
 			output = self.call_hexagonal_kernel(input)
-		elif self.mode == 'square kernel square stride':
+		elif self.mode == 'square_kernel_square_stride':
 			output = self.call_square_kernel_square_stride(input)
-		else: # 'square kernel hexagonal stride'
+		else: # 'square_kernel_hexagonal_stride'
 			output = call_square_kernel_hexagonal_stride(input)
 
 		return output
 
 
 class HMaxPool2D(HPool2D):
+	"""Hexagonal max pooling operation for spatial data.
+
+	Arguments:
+		pool_size: integer or tuple of 2 integers,
+			factors by which to downscale (vertical, horizontal).
+			`(2, 2)` will halve the input in both spatial dimension.
+			If only one integer is specified, the same window length
+			will be used for both dimensions.
+		strides: Integer, tuple of 2 integers, or None.
+			Strides values.
+			If None, it will default to `pool_size`.
+		padding: One of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		mode: String,
+			one of `hexagonal_kernel` (default), `square_kernel_square_stride`,
+			or `square_kernel_hexagonal_stride`.
+
+	Input shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, rows, cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, rows, cols)`.
+
+	Output shape:
+		- If `data_format='channels_last'`:
+			4D tensor with shape `(batch_size, pooled_rows, pooled_cols, channels)`.
+		- If `data_format='channels_first'`:
+			4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
+	"""
+
 	def call_hexagonal_kernel(self, input):
 		input = tf.pad(
 			tensor          = input,
@@ -1100,11 +1701,11 @@ class HMaxPool2D(HPool2D):
 		return output
 
 	def call(self, input):
-		if self.mode == 'hexagonal kernel':
+		if self.mode == 'hexagonal_kernel':
 			output = self.call_hexagonal_kernel(input)
-		elif self.mode == 'square kernel square stride':
+		elif self.mode == 'square_kernel_square_stride':
 			output = self.call_square_kernel_square_stride(input)
-		else: # 'square kernel hexagonal stride'
+		else: # 'square_kernel_hexagonal_stride'
 			output = self.call_square_kernel_hexagonal_stride(input)
 
 		return output
@@ -1113,9 +1714,94 @@ class HMaxPool2D(HPool2D):
 
 
 class HSampling2D(tf.keras.layers.Layer):
+	"""Hexagonal sampling layer for 2D inputs.
+
+	Resized images will be distorted if their original aspect ratio is not
+	the same as `target_size`. To avoid distortions see
+	`tf.image.resize_with_pad`.
+
+	When 'antialias' is true, the sampling filter will anti-alias the input image
+	as well as interpolate. When downsampling an image with [anti-aliasing](
+	https://en.wikipedia.org/wiki/Spatial_anti-aliasing) the sampling filter
+	kernel is scaled in order to properly anti-alias the input image signal.
+	'antialias' has no effect when upsampling an image.
+
+	* 	<b>`bilinear`</b>: [Bilinear interpolation.](
+		https://en.wikipedia.org/wiki/Bilinear_interpolation) If 'antialias' is
+		true, becomes a hat/tent filter function with radius 1 when downsampling.
+	* 	<b>`lanczos3`</b>: [Lanczos kernel](
+		https://en.wikipedia.org/wiki/Lanczos_resampling) with radius 3.
+		High-quality practical filter but may have some ringing especially on
+		synthetic images.
+	* 	<b>`lanczos5`</b>: [Lanczos kernel] (
+		https://en.wikipedia.org/wiki/Lanczos_resampling) with radius 5.
+		Very-high-quality filter but may have stronger ringing.
+	* 	<b>`bicubic`</b>: [Cubic interpolant](
+		https://en.wikipedia.org/wiki/Bicubic_interpolation) of Keys. Equivalent to
+		Catmull-Rom kernel. Reasonably good quality and faster than Lanczos3Kernel,
+		particularly when upsampling.
+	* 	<b>`gaussian`</b>: [Gaussian kernel](
+		https://en.wikipedia.org/wiki/Gaussian_filter) with radius 3,
+		sigma = 1.5 / 3.0.
+	* 	<b>`nearest`</b>: [Nearest neighbor interpolation.](
+		https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation)
+		'antialias' has no effect when used with nearest neighbor interpolation.
+	* 	<b>`area`</b>: Anti-aliased resampling with area interpolation.
+		'antialias' has no effect when used with area interpolation; it
+		always anti-aliases.
+	* 	<b>`mitchellcubic`</b>: Mitchell-Netravali Cubic non-interpolating filter.
+		For synthetic images (especially those lacking proper prefiltering), less
+		ringing than Keys cubic kernel but less sharp.
+
+	Note that near image edges the filtering kernel may be partially outside the
+	image boundaries. For these pixels, only input pixels inside the image will be
+	included in the filter sum, and the output value will be appropriately
+	normalized.
+
+	The return value has the same type as `images` if `interpolation` is
+	`ResizeMethod.NEAREST_NEIGHBOR`. Otherwise, the return value has type
+	`float32`.
+
+	Arguments:
+		images: 4-D Tensor of shape `[batch, height, width, channels]` or 3-D Tensor
+			of shape `[height, width, channels]`.
+		size_factor: A 1-D int32 Tensor of 2 elements:
+			`target_size = (round(size_factor[0] * height), round(size_factor[1] * width))`.
+			The new size factor for the images.
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		interpolation: ResizeMethod. Defaults to `nearest`.
+		preserve_aspect_ratio: Whether to preserve the aspect ratio. If this is set,
+			then `images` will be resized to a size that fits in `target_size` while
+			preserving the aspect ratio of the original image. Scales up the image if
+			`target_size` is bigger than the current size of the `image`. Defaults to False.
+		antialias: Whether to use an anti-aliasing filter when downsampling an
+			image.
+
+	Raises:
+		ValueError: if the shape of `images` is incompatible with the
+			shape arguments to this function
+		ValueError: if `target_size` has invalid shape or type.
+		ValueError: if an unsupported resize method is specified.
+
+	Returns:
+		If `images` was 4-D, a 4-D float Tensor of shape
+		`[batch, new_height, new_width, channels]`.
+		If `images` was 3-D, a 3-D float Tensor of shape
+		`[new_height, new_width, channels]`.
+	"""
+
 	def __init__(
 		self,
-		size                  = (2, 2),
+		size_factor           = (2, 2),
 		data_format           = 'NHWC',
 		interpolation         = 'nearest',
 		preserve_aspect_ratio = False,
@@ -1124,15 +1810,15 @@ class HSampling2D(tf.keras.layers.Layer):
 
 		super().__init__(**kwargs)
 
-		if type(size) is int:
-			self.size = (size, size)
-		elif type(size) is not tuple:
-			self.size = tuple(size)
+		if type(size_factor) is int:
+			self.size_factor = (size_factor, size_factor)
+		elif type(size_factor) is not tuple:
+			self.size_factor = tuple(size_factor)
 
-			if len(size) == 1:
-				self.size *= 2
+			if len(size_factor) == 1:
+				self.size_factor *= 2
 		else:
-			self.size = size
+			self.size_factor = size_factor
 
 		self.data_format           = data_format
 		self.interpolation         = interpolation
@@ -1142,12 +1828,12 @@ class HSampling2D(tf.keras.layers.Layer):
 	def build(self, input_shape):
 		super().build(input_shape)
 
-		self.target_size = (round(self.size[0] * input_shape[1]), round(self.size[1] * input_shape[2]))
+		self.target_size = (round(self.size_factor[0] * input_shape[1]), round(self.size_factor[1] * input_shape[2]))
 
 	def call(self, input):
 		output = tf.image.resize(
 			images                = input,
-			size                  = self.target_size,
+			size_factor           = self.target_size,
 			method                = self.interpolation,
 			preserve_aspect_ratio = self.preserve_aspect_ratio,
 			antialias             = self.antialias,
