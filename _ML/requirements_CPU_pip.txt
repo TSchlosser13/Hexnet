@@ -1,3 +1,6 @@
+natsort
+scikit-learn
 tensorflow==2.1.0
 tqdm
+
 

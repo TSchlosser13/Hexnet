@@ -27,9 +27,10 @@
 
 import os
 
-from ctypes import *
-from glob   import glob
-from tqdm   import tqdm
+from ctypes  import *
+from glob    import glob
+from natsort import natsorted
+from tqdm    import tqdm
 
 from misc.misc import print_newline
 
@@ -156,13 +157,14 @@ def _Sqsamp_s2s(filename, output_dir='.', width=64, height=None, method=0, incre
 def Hexsamp_s2h(filename_s, output_dir='.', rad_o=1.0, method=0, increase_verbosity=False):
 	print(f'Hexsamp_s2h (rad_o={rad_o}, method={method}) for filename in {filename_s} to {output_dir}')
 
-	for filename in tqdm(sorted(glob(filename_s))):
+	for filename in tqdm(natsorted(glob(filename_s))):
 		_Hexsamp_s2h(filename, output_dir, rad_o, method, increase_verbosity)
 
 
 def Sqsamp_s2s(filename_s, output_dir='.', width=64, height=None, method=0, increase_verbosity=False):
 	print(f'Sqsamp_s2s (width={width}, height={height}, method={method}) for filename in {filename_s} to {output_dir}')
 
-	for filename in tqdm(sorted(glob(filename_s))):
+	for filename in tqdm(natsorted(glob(filename_s))):
 		_Sqsamp_s2s(filename, output_dir, width, height, method, increase_verbosity)
+
 

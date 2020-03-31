@@ -37,6 +37,8 @@ load_model         = None
 load_weights       = None
 
 dataset            = 'datasets/MNIST/MNIST.h5'
+resize_dataset     = None
+crop_dataset       = None
 augment_dataset    = None
 augmenter          = 'simple'
 augmentation_level = 1
@@ -44,10 +46,11 @@ augmentation_level = 1
 tests_dir          = 'tests/tmp'
 visualize_model    = None
 
-runs               = 1
-loss               = None
-epochs             = 1
 batch_size         = 32
+epochs             =  1
+loss               = None
+runs               =  1
+validation_split   =  0.0
 
 cnn_kernel_size    = (3, 3)
 cnn_pool_size      = (3, 3)
@@ -56,7 +59,7 @@ verbosity_level    = 2
 
 transform_s2h      = False
 transform_s2s      = False
-transform_rad_o    = 1.0
+transform_rad_o    =  1.0
 transform_width    = 64
 transform_height   = None
 
@@ -82,6 +85,7 @@ if disable_tensorflow_warnings:
 
 import argparse
 import inspect
+import sklearn
 import sys
 
 import numpy      as np
@@ -113,6 +117,8 @@ def run(args):
 	save_weights       = args.save_weights
 
 	dataset            = args.dataset
+	resize_dataset     = args.resize_dataset
+	crop_dataset       = args.crop_dataset
 	augment_dataset    = args.augment_dataset
 	augmenter_string   = args.augmenter
 	augmentation_level = args.augmentation_level
@@ -122,10 +128,11 @@ def run(args):
 	visualize_model    = args.visualize_model
 	show_results       = args.show_results
 
-	runs               = args.runs
-	loss_string        = args.loss
-	epochs             = args.epochs
 	batch_size         = args.batch_size
+	epochs             = args.epochs
+	loss_string        = args.loss
+	runs               = args.runs
+	validation_split   = args.validation_split
 
 	cnn_kernel_size    = args.cnn_kernel_size
 	cnn_pool_size      = args.cnn_pool_size
@@ -206,13 +213,86 @@ def run(args):
 
 
 	############################################################################
-	# Load, augment, and show the dataset
+	# Load the dataset
 	############################################################################
 
 	((train_classes, train_data, train_labels), (test_classes, test_data, test_labels)) = datasets.load_dataset(
 		dataset         = dataset,
 		create_h5       = True,
 		verbosity_level = verbosity_level)
+
+
+	############################################################################
+	# Resize and crop the dataset
+	############################################################################
+
+	if resize_dataset is not None:
+		(train_data, test_data) = datasets.resize_dataset(dataset_s = (train_data, test_data), resize_string = resize_dataset)
+
+	if crop_dataset is not None:
+		(train_data, test_data) = datasets.crop_dataset(dataset_s = (train_data, test_data), crop_string = crop_dataset)
+
+	# TODO
+	if model_is_provided and (model_is_autoencoder or model_is_GAN):
+		if model_is_autoencoder:
+			min_size_factor = 2**5
+		else:
+			min_size_factor = 2**4
+
+		if train_data.shape[1] % min_size_factor:
+			padding_h = min_size_factor - train_data.shape[1] % min_size_factor
+			padding_h = (int(padding_h / 2) + padding_h % 2, int(padding_h / 2))
+		else:
+			padding_h = (0, 0)
+
+		if train_data.shape[2] % min_size_factor:
+			padding_w = min_size_factor - train_data.shape[2] % min_size_factor
+			padding_w = (int(padding_w / 2) + padding_w % 2, int(padding_w / 2))
+		else:
+			padding_w = (0, 0)
+
+		pad_width = ((0, 0), padding_h, padding_w, (0, 0))
+
+		train_data = np.pad(train_data, pad_width, mode='constant', constant_values=0)
+		test_data  = np.pad(test_data,  pad_width, mode='constant', constant_values=0)
+
+
+	############################################################################
+	# Prepare the dataset
+	############################################################################
+
+	class_labels_are_digits = True
+
+	for class_label in train_classes:
+		if not class_label.decode().isdigit():
+			class_labels_are_digits = False
+			break
+
+	if class_labels_are_digits:
+		train_labels = np.asarray([int(label.decode()) for label in train_labels])
+		test_labels  = np.asarray([int(label.decode()) for label in test_labels])
+	else:
+		train_labels = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels])
+		test_labels  = np.asarray([int(np.where(test_classes  == label)[0]) for label in test_labels])
+
+	train_classes = list(set(train_labels))
+	test_classes  = list(set(test_labels))
+
+	if class_labels_are_digits:
+		train_labels  -= min(train_classes)
+		test_labels   -= min(test_classes)
+		train_classes -= min(train_classes)
+		test_classes  -= min(test_classes)
+
+	train_test_data_n  = 255
+	train_test_data_n /= 2
+	train_data         = (train_data - train_test_data_n) / train_test_data_n
+	test_data          = (test_data  - train_test_data_n) / train_test_data_n
+
+
+	############################################################################
+	# Augment the dataset
+	############################################################################
 
 	print_newline()
 
@@ -236,59 +316,40 @@ def run(args):
 
 	print_newline()
 
+
+	############################################################################
+	# Show the dataset
+	############################################################################
+
 	if show_dataset:
+		train_data_for_visualization = np.clip(train_data + 0.5, 0, 1)
+		test_data_for_visualization  = np.clip(test_data  + 0.5, 0, 1)
+
 		datasets.show_dataset_classes(
 			train_classes,
-			train_data,
+			train_data_for_visualization,
 			train_labels,
 			test_classes,
-			test_data,
+			test_data_for_visualization,
 			test_labels,
 			max_images_per_class   =  1,
 			max_classes_to_display = 10)
 
 
+	############################################################################
+	# No model was provided - returning
+	############################################################################
+
 	if not model_is_provided:
+		Hexnet_print('No model provided.')
 		return 0
 
 
 	############################################################################
-	# Prepare the dataset
+	# Shuffle the dataset
 	############################################################################
 
-	train_labels  = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels])
-	train_classes = list(set(train_labels))
-	test_labels   = np.asarray([int(np.where(test_classes == label)[0]) for label in test_labels])
-	test_classes  = list(set(test_labels))
-
-	if model_is_autoencoder or model_is_GAN:
-		# TODO
-		if model_is_autoencoder:
-			min_size_factor = 2**5
-		else:
-			min_size_factor = 2**4
-
-		if train_data.shape[1] % min_size_factor:
-			padding_h = min_size_factor - train_data.shape[1] % min_size_factor
-			padding_h = (int(padding_h / 2) + padding_h % 2, int(padding_h / 2))
-		else:
-			padding_h = (0, 0)
-
-		if train_data.shape[2] % min_size_factor:
-			padding_w = min_size_factor - train_data.shape[2] % min_size_factor
-			padding_w = (int(padding_w / 2) + padding_w % 2, int(padding_w / 2))
-		else:
-			padding_w = (0, 0)
-
-		pad_width = ((0, 0), padding_h, padding_w, (0, 0))
-
-		train_data = np.pad(train_data, pad_width, mode='constant', constant_values=0)
-		test_data  = np.pad(test_data,  pad_width, mode='constant', constant_values=0)
-
-	train_test_data_n  = 255
-	train_test_data_n /= 2
-	train_data         = (train_data - train_test_data_n) / train_test_data_n
-	test_data          = (test_data  - train_test_data_n) / train_test_data_n
+	train_data, train_labels = sklearn.utils.shuffle(train_data, train_labels)
 
 
 	############################################################################
@@ -374,9 +435,9 @@ def run(args):
 		if model_is_standalone:
 			model.fit(train_data, train_labels, batch_size, epochs, tests_dir, run_title)
 		elif model_is_autoencoder:
-			history = model.fit(train_data, train_data, batch_size, epochs, shuffle=True)
+			history = model.fit(train_data, train_data, batch_size, epochs, validation_split=validation_split)
 		else:
-			history = model.fit(train_data, train_labels, batch_size, epochs, shuffle=True)
+			history = model.fit(train_data, train_labels, batch_size, epochs, validation_split=validation_split)
 
 		print_newline()
 
@@ -511,6 +572,8 @@ def parse_args():
 	parser.add_argument('--save-weights',                                  action  = 'store_true',       help = 'save model weights to file')
 
 	parser.add_argument('--dataset',                                       default = dataset,            help = 'load dataset from file or directory')
+	parser.add_argument('--resize-dataset',                                default = resize_dataset,     help = 'resize dataset using "HxW" (e.g. 32x32)')
+	parser.add_argument('--crop-dataset',                                  default = crop_dataset,       help = 'crop dataset using "HxW" with offset "+Y+X" (e.g. 32x32+2+2, 32x32, or +2+2)')
 	parser.add_argument('--augmentation-level', type = int,                default = augmentation_level, help = 'augmentation level')
 
 	parser.add_argument('--tests-dir',                        nargs = '?', default = tests_dir,          help = 'tests output directory (providing no argument disables the tests output)')
@@ -518,9 +581,10 @@ def parse_args():
 	parser.add_argument('--visualize-model',                               default = visualize_model,    help = 'visualize the model\'s filters and feature maps after training')
 	parser.add_argument('--show-results',                                  action  = 'store_true',       help = 'show the test results')
 
-	parser.add_argument('--runs',               type = int,                default = runs,               help = 'training runs')
-	parser.add_argument('--epochs',             type = int,                default = epochs,             help = 'training epochs')
 	parser.add_argument('--batch-size',         type = int,                default = batch_size,         help = 'training batch size')
+	parser.add_argument('--epochs',             type = int,                default = epochs,             help = 'training epochs')
+	parser.add_argument('--runs',               type = int,                default = runs,               help = 'training runs')
+	parser.add_argument('--validation-split',   type = float,              default = validation_split,   help = 'fraction of the training data to be used as validation data')
 
 	parser.add_argument('--cnn-kernel-size',    type = int,   nargs = '+', default = cnn_kernel_size,    help = 'CNN models kernel size')
 	parser.add_argument('--cnn-pool-size',      type = int,   nargs = '+', default = cnn_pool_size,      help = 'CNN models pooling size')

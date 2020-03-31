@@ -1,3 +1,6 @@
+natsort
+scikit-learn
 tensorflow-gpu==2.1.0
 tqdm
+
 

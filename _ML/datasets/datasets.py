@@ -31,10 +31,12 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy             as np
+import tensorflow        as tf
 
-from glob import glob
-from time import time
-from tqdm import tqdm
+from glob    import glob
+from natsort import natsorted
+from time    import time
+from tqdm    import tqdm
 
 from core.Hexnet import Hexsamp_s2h, Sqsamp_s2s
 from misc.misc   import Hexnet_print
@@ -88,13 +90,13 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 	else:
 		start_time = time()
 
-		for dataset_set in sorted(glob(os.path.join(dataset, '*'))):
+		for dataset_set in natsorted(glob(os.path.join(dataset, '*'))):
 			current_set = os.path.basename(dataset_set)
 
 			if verbosity_level >= 1:
 				Hexnet_print(f'\t> current_set={current_set}')
 
-			for set_class in sorted(glob(os.path.join(dataset_set, '*'))):
+			for set_class in natsorted(glob(os.path.join(dataset_set, '*'))):
 				current_class = os.path.basename(set_class)
 
 				if verbosity_level >= 2:
@@ -105,7 +107,7 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 				elif 'test' in current_set:
 					test_classes.append(current_class)
 
-				for class_image in sorted(glob(os.path.join(set_class, '*'))):
+				for class_image in natsorted(glob(os.path.join(set_class, '*'))):
 					if verbosity_level >= 3:
 						current_image = os.path.basename(class_image)
 						Hexnet_print(f'\t\t\t> current_image={current_image}')
@@ -145,11 +147,11 @@ def transform_dataset(
 	dataset,
 	output_dir,
 	mode            = 's2h',
-	rad_o           = 1.0,
+	rad_o           =  1.0,
 	width           = 64,
 	height          = None,
-	method          = 0,
-	verbosity_level = 2):
+	method          =  0,
+	verbosity_level =  2):
 
 	if os.path.exists(output_dir):
 		Hexnet_print(f'Dataset {output_dir} exists already (skipping transformation)')
@@ -163,7 +165,7 @@ def transform_dataset(
 
 	os.makedirs(output_dir, exist_ok=True)
 
-	for dataset_set in sorted(glob(os.path.join(dataset, '*'))):
+	for dataset_set in natsorted(glob(os.path.join(dataset, '*'))):
 		current_set = os.path.basename(dataset_set)
 
 		if verbosity_level >= 1:
@@ -172,7 +174,7 @@ def transform_dataset(
 		output_dir_current_set = os.path.join(output_dir, current_set)
 		os.makedirs(output_dir_current_set, exist_ok=True)
 
-		for set_class in sorted(glob(os.path.join(dataset_set, '*'))):
+		for set_class in natsorted(glob(os.path.join(dataset_set, '*'))):
 			current_class = os.path.basename(set_class)
 
 			if verbosity_level >= 2:
@@ -196,6 +198,52 @@ def transform_dataset(
 					height             = height,
 					method             = method,
 					increase_verbosity = True if verbosity_level >= 3 else False)
+
+
+def resize_dataset(dataset_s, resize_string, method='nearest'):
+	# HxW
+	resize_size = resize_string.split('x')
+	resize_H    = int(resize_size[0])
+	resize_W    = int(resize_size[1])
+	target_size = (resize_H, resize_W)
+
+	if not type(dataset_s) is list:
+		dataset_s = list(dataset_s)
+
+	dataset_s = [tf.image.resize(dataset, size=target_size, method=method).numpy() for dataset in dataset_s]
+
+	return dataset_s
+
+
+def crop_dataset(dataset_s, crop_string):
+	# HxW+Y+X
+	crop_offset = crop_string.split('+')
+	crop_size   = crop_offset[0].split('x')
+	crop_offset = crop_offset[1:]
+
+	if not type(dataset_s) is list:
+		dataset_s = list(dataset_s)
+
+	if not '+' in crop_string:
+		crop_Y = 0
+		crop_X = 0
+	else:
+		crop_Y = int(crop_offset[0])
+		crop_X = int(crop_offset[1])
+
+	if not 'x' in crop_string:
+		crop_H = dataset_s[0].shape[0] - crop_Y
+		crop_W = dataset_s[0].shape[1] - crop_X
+	else:
+		crop_H = int(crop_size[0])
+		crop_W = int(crop_size[1])
+
+	slice_H = slice(crop_Y, crop_Y + crop_H)
+	slice_W = slice(crop_X, crop_X + crop_W)
+
+	dataset_s = [dataset[:,slice_H,slice_W,:] for dataset in dataset_s]
+
+	return dataset_s
 
 
 def show_dataset_classes(
@@ -224,7 +272,7 @@ def show_dataset_classes(
 
 		for image_counter in range(max_images_per_class):
 			plt.subplot(nrows, ncols, index)
-			plt.title(f'train image {index}\n(class {train_class.decode()})')
+			plt.title(f'train image {index}\n(class {train_class})')
 			plt.imshow(train_data[class_label_indices[image_counter]])
 
 			index += 1
@@ -239,7 +287,7 @@ def show_dataset_classes(
 
 		for image_counter in range(max_images_per_class):
 			plt.subplot(nrows, ncols, index)
-			plt.title(f'test image {index - figsize_2}\n(class {test_class.decode()})')
+			plt.title(f'test image {index - figsize_2}\n(class {test_class})')
 			plt.imshow(test_data[class_label_indices[image_counter]])
 
 			index += 1
