@@ -28,7 +28,7 @@
 # https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py
 
 
-"""
+'''
 (...)
 
 ResNet v1:
@@ -40,7 +40,7 @@ ResNet v2:
 ](https://arxiv.org/pdf/1603.05027.pdf)
 
 (...)
-"""
+'''
 
 
 from tensorflow.keras              import Input, Model
@@ -82,6 +82,7 @@ def resnet_layer(inputs,
     # Returns
         x (tensor): tensor as input to the next layer
     """
+
     if mode == 'baseline':
         conv = Conv2D(num_filters,
                       kernel_size=kernel_size,
@@ -138,6 +139,7 @@ def resnet_v1(input_shape, depth, num_classes=10, mode='baseline'):
     # Returns
         model (Model): Keras model instance
     """
+
     if (depth - 2) % 6 != 0:
         raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
     # Start model definition.
@@ -176,12 +178,14 @@ def resnet_v1(input_shape, depth, num_classes=10, mode='baseline'):
 
     # Add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
+
     if mode == 'baseline':
         x = AveragePooling2D(pool_size=8)(x)
     elif mode == 'S-ResNet':
         x = SAvgPool2D(pool_size=(2, 2), padding='SAME')(x)
     elif mode == 'H-ResNet':
         x = HAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
+
     y = Flatten()(x)
     outputs = Dense(num_classes,
                     activation='softmax',
@@ -217,6 +221,7 @@ def resnet_v2(input_shape, depth, num_classes=10, mode='baseline'):
     # Returns
         model (Model): Keras model instance
     """
+
     if (depth - 2) % 9 != 0:
         raise ValueError('depth should be 9n+2 (eg 56 or 110 in [b])')
     # Start model definition.
@@ -282,12 +287,14 @@ def resnet_v2(input_shape, depth, num_classes=10, mode='baseline'):
     # v2 has BN-ReLU before Pooling
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
+
     if mode == 'baseline':
         x = AveragePooling2D(pool_size=8)(x)
     elif mode == 'S-ResNet':
         x = SAvgPool2D(pool_size=(2, 2), padding='SAME')(x)
     elif mode == 'H-ResNet':
         x = HAvgPool2D(pool_size=(3, 3), padding='SAME')(x)
+
     y = Flatten()(x)
     outputs = Dense(num_classes,
                     activation='softmax',
@@ -334,5 +341,4 @@ def model_HResNet_v2(input_shape, classes, n=2):
     depth = resnet_get_depth(version=2, n=n)
 
     return resnet_v2(input_shape, depth, num_classes=classes, mode='H-ResNet')
-
 

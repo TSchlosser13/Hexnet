@@ -609,7 +609,7 @@ class SSampling2D(tf.keras.layers.Layer):
 	def call(self, input):
 		output = tf.image.resize(
 			images                = input,
-			size_factor           = self.target_size,
+			size                  = self.target_size,
 			method                = self.interpolation,
 			preserve_aspect_ratio = self.preserve_aspect_ratio,
 			antialias             = self.antialias,
@@ -1833,7 +1833,7 @@ class HSampling2D(tf.keras.layers.Layer):
 	def call(self, input):
 		output = tf.image.resize(
 			images                = input,
-			size_factor           = self.target_size,
+			size                  = self.target_size,
 			method                = self.interpolation,
 			preserve_aspect_ratio = self.preserve_aspect_ratio,
 			antialias             = self.antialias,
