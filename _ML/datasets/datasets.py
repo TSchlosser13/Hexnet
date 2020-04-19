@@ -36,7 +36,6 @@ import tensorflow        as tf
 from glob    import glob
 from natsort import natsorted
 from time    import time
-from tqdm    import tqdm
 
 from core.Hexnet import Hexsamp_s2h, Sqsamp_s2s
 from misc.misc   import Hexnet_print
@@ -46,43 +45,48 @@ def create_dataset_h5(
 	dataset,
 	train_classes,
 	train_data,
+	train_filenames,
 	train_labels,
 	test_classes,
 	test_data,
+	test_filenames,
 	test_labels):
 
-	if not dataset.endswith('.h5'):
-		dataset = f'{dataset}.h5'
-
 	with h5py.File(dataset, 'w') as h5py_file:
-		h5py_file.create_dataset('train_classes', data=train_classes)
-		h5py_file.create_dataset('train_data',    data=train_data)
-		h5py_file.create_dataset('train_labels',  data=train_labels)
-		h5py_file.create_dataset('test_classes',  data=test_classes)
-		h5py_file.create_dataset('test_data',     data=test_data)
-		h5py_file.create_dataset('test_labels',   data=test_labels)
+		h5py_file.create_dataset('train_classes',   data=train_classes)
+		h5py_file.create_dataset('train_data',      data=train_data)
+		h5py_file.create_dataset('train_filenames', data=train_filenames)
+		h5py_file.create_dataset('train_labels',    data=train_labels)
+		h5py_file.create_dataset('test_classes',    data=test_classes)
+		h5py_file.create_dataset('test_data',       data=test_data)
+		h5py_file.create_dataset('test_filenames',  data=test_filenames)
+		h5py_file.create_dataset('test_labels',     data=test_labels)
 
 
 def load_dataset(dataset, create_h5=True, verbosity_level=2):
 	Hexnet_print(f'Loading dataset {dataset}')
 
-	train_classes = []
-	train_data    = []
-	train_labels  = []
-	test_classes  = []
-	test_data     = []
-	test_labels   = []
+	train_classes   = []
+	train_data      = []
+	train_filenames = []
+	train_labels    = []
+	test_classes    = []
+	test_data       = []
+	test_filenames  = []
+	test_labels     = []
 
 	if os.path.isfile(dataset) and dataset.endswith('.h5'):
 		start_time = time()
 
 		with h5py.File(dataset, 'r') as h5py_file:
-			train_classes = np.array(h5py_file['train_classes'])
-			train_data    = np.array(h5py_file['train_data'])
-			train_labels  = np.array(h5py_file['train_labels'])
-			test_classes  = np.array(h5py_file['test_classes'])
-			test_data     = np.array(h5py_file['test_data'])
-			test_labels   = np.array(h5py_file['test_labels'])
+			train_classes   = np.array(h5py_file['train_classes'])
+			train_data      = np.array(h5py_file['train_data'])
+			train_filenames = np.array(h5py_file['train_filenames'])
+			train_labels    = np.array(h5py_file['train_labels'])
+			test_classes    = np.array(h5py_file['test_classes'])
+			test_data       = np.array(h5py_file['test_data'])
+			test_filenames  = np.array(h5py_file['test_filenames'])
+			test_labels     = np.array(h5py_file['test_labels'])
 
 		time_diff = time() - start_time
 
@@ -108,15 +112,18 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 					test_classes.append(current_class)
 
 				for class_image in natsorted(glob(os.path.join(set_class, '*'))):
+					current_image = os.path.basename(class_image)
+
 					if verbosity_level >= 3:
-						current_image = os.path.basename(class_image)
 						Hexnet_print(f'\t\t\t> current_image={current_image}')
 
 					if 'train' in current_set:
 						train_data.append(cv2.imread(class_image, cv2.IMREAD_COLOR))
+						train_filenames.append(current_image)
 						train_labels.append(current_class)
 					elif 'test' in current_set:
 						test_data.append(cv2.imread(class_image, cv2.IMREAD_COLOR))
+						test_filenames.append(current_image)
 						test_labels.append(current_class)
 
 		time_diff = time() - start_time
@@ -124,23 +131,28 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 		Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
 
 		if create_h5:
-			train_classes = np.array(train_classes, dtype='string_')
-			train_data    = np.array(train_data)
-			train_labels  = np.array(train_labels,  dtype='string_')
-			test_classes  = np.array(test_classes,  dtype='string_')
-			test_data     = np.array(test_data)
-			test_labels   = np.array(test_labels,   dtype='string_')
+			dataset         = f'{dataset}.h5'
+			train_classes   = np.array(train_classes,   dtype='string_')
+			train_data      = np.array(train_data)
+			train_filenames = np.array(train_filenames, dtype='string_')
+			train_labels    = np.array(train_labels,    dtype='string_')
+			test_classes    = np.array(test_classes,    dtype='string_')
+			test_data       = np.array(test_data)
+			test_filenames  = np.array(test_filenames,  dtype='string_')
+			test_labels     = np.array(test_labels,     dtype='string_')
 
 			create_dataset_h5(
 				dataset,
 				train_classes,
 				train_data,
+				train_filenames,
 				train_labels,
 				test_classes,
 				test_data,
+				test_filenames,
 				test_labels)
 
-	return ((train_classes, train_data, train_labels), (test_classes, test_data, test_labels))
+	return ((train_classes, train_data, train_filenames, train_labels), (test_classes, test_data, test_filenames, test_labels))
 
 
 def transform_dataset(
@@ -261,8 +273,8 @@ def show_dataset_classes(
 	figsize_2 = max_images_per_class * ncols
 	index     = 1
 
-	plt.figure('Dataset Classes')
-	plt.subplots_adjust(wspace=0.5, hspace=1.5)
+	plt.figure('Dataset classes')
+	plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
 	for class_counter, train_class in enumerate(train_classes):
 		if class_counter == max_classes_to_display:
@@ -293,5 +305,7 @@ def show_dataset_classes(
 			index += 1
 
 	plt.show()
+
+	plt.close()
 
 

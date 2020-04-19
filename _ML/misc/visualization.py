@@ -30,7 +30,7 @@ import os
 import matplotlib.pyplot as plt
 
 from matplotlib.pyplot import imsave
-from tensorflow.keras  import Input, Model
+from tensorflow.keras  import Model
 
 from misc.misc import Hexnet_print
 
@@ -40,17 +40,17 @@ def visualize_filters(model, output_dir, verbosity_level=2):
 
 	os.makedirs(output_dir, exist_ok=True)
 
-	for layer in model.layers:
+	for layer_counter, layer in enumerate(model.layers):
 		if not 'conv' in layer.name:
 			continue
 
 		filters = layer.get_weights()[0]
 
 		if verbosity_level >= 2:
-			Hexnet_print(f'(visualize_filters) layer={layer} (layer.name={layer.name}): filters.shape={filters.shape}')
+			Hexnet_print(f'(visualize_filters) layer={layer} (layer_counter={layer_counter}, layer.name={layer.name}): filters.shape={filters.shape}')
 
 		for channel in range(filters.shape[2]):
-			filter_filename = os.path.join(output_dir, f'{layer.name}_filter{filter_to_visualize}_channel{channel}.png')
+			filter_filename = os.path.join(output_dir, f'layer{str(layer_counter).zfill(3)}_{layer.name}_filter{filter_to_visualize}_channel{channel}.png')
 			filter          = filters[:, :, channel, filter_to_visualize]
 			imsave(filter_filename, filter, cmap='viridis')
 
@@ -68,36 +68,36 @@ def visualize_feature_maps(
 
 	os.makedirs(output_dir, exist_ok=True)
 
-	sequential_model = model
-	functional_model = None
+	layers_outputs = [layer.output for layer in model.layers]
 
-	input_layer      = Input(batch_shape=sequential_model.layers[0].input_shape)
-	following_layers = input_layer
+	if verbosity_level >= 3:
+		Hexnet_print(f'(visualize_feature_maps) layers_outputs={layers_outputs}')
 
-	for layer in sequential_model.layers:
-		following_layers = layer(following_layers)
+	model_outputs = Model(inputs=model.input, outputs=layers_outputs)
 
-		if not 'conv' in layer.name:
+	if verbosity_level >= 3:
+		Hexnet_print(f'(visualize_feature_maps) model_outputs={model_outputs}')
+
+	predictions = model_outputs.predict(test_data)
+
+	if verbosity_level >= 3:
+		Hexnet_print(f'(visualize_feature_maps) predictions={predictions}')
+
+	for layer_counter, (layer, feature_maps) in enumerate(zip(model.layers, predictions)):
+		if feature_maps.ndim != 4:
 			continue
 
-		functional_model = Model(input_layer, following_layers)
-
-		if verbosity_level >= 3:
-			functional_model.summary()
-
-		feature_maps = functional_model.predict(test_data)
-
 		if verbosity_level >= 2:
-			Hexnet_print(f'(visualize_feature_maps) layer={layer} (layer.name={layer.name}): feature_maps.shape={feature_maps.shape}')
+			Hexnet_print(f'(visualize_feature_maps) layer={layer} (layer_counter={layer_counter}, layer.name={layer.name}): feature_maps.shape={feature_maps.shape}')
 
 		class_counter_dict = dict.fromkeys(test_classes, 0)
 
-		for image_counter, (feature_map, test_label) in enumerate(zip(feature_maps, test_labels)):
-			if class_counter_dict[test_label] < max_images_per_class:
-				feature_map_filename = os.path.join(output_dir, f'{layer.name}_fm{feature_map_to_visualize}_label{test_label}_image{image_counter}.png')
+		for feature_map_counter, (feature_map, label) in enumerate(zip(feature_maps, test_labels)):
+			if class_counter_dict[label] < max_images_per_class:
+				feature_map_filename = os.path.join(output_dir, f'layer{str(layer_counter).zfill(3)}_{layer.name}_fm{feature_map_to_visualize}_label{label}_image{feature_map_counter}.png')
 				feature_map          = feature_map[:, :, feature_map_to_visualize]
 				imsave(feature_map_filename, feature_map, cmap='viridis')
-				class_counter_dict[test_label] += 1
+				class_counter_dict[label] += 1
 
 
 def visualize_model(
@@ -124,7 +124,19 @@ def visualize_model(
 
 
 def visualize_results(history, title, output_dir, show_results):
-	for key in history.history.keys():
+	if output_dir is not None:
+		os.makedirs(output_dir, exist_ok=True)
+
+	keys = history.history.keys()
+
+	nrows = 1
+	ncols = len([None for key in keys if not 'val_' in key])
+	index = 1
+
+	plt.figure('Test results')
+	plt.subplots_adjust(wspace=0.5)
+
+	for key in keys:
 		title_key = f'{title}_{key}'
 
 		if output_dir is not None:
@@ -132,20 +144,29 @@ def visualize_results(history, title, output_dir, show_results):
 				for value in history.history[key]:
 					print(value, file=results_dat)
 
-		fig_title = f'model train {key}'
-		plt.figure(fig_title)
-		plt.title(fig_title)
+		if 'val_' in key:
+			continue
+
+		plt.subplot(nrows, ncols, index)
+		plt.title(f'model train {key}')
 		plt.xlabel('epoch')
 		plt.ylabel(key)
 
-		plt.plot(history.history[key])
+		for key_to_plot in keys:
+			if key in key_to_plot:
+				plt.plot(history.history[key_to_plot], label=key_to_plot)
 
-		if output_dir is not None:
-			results_fig = os.path.join(output_dir, title_key)
-			plt.savefig(f'{results_fig}.png')
-			plt.savefig(f'{results_fig}.pdf')
+		plt.legend()
 
-		if show_results:
-			plt.show()
+		index += 1
 
+	if output_dir is not None:
+		results_fig = os.path.join(output_dir, title)
+		plt.savefig(f'{results_fig}.png')
+		plt.savefig(f'{results_fig}.pdf')
+
+	if show_results:
+		plt.show()
+
+	plt.close()
 

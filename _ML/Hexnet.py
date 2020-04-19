@@ -169,12 +169,16 @@ def run(args):
 		loss_is_provided = False
 
 
-	train_classes = []
-	train_data    = []
-	train_labels  = []
-	test_classes  = []
-	test_data     = []
-	test_labels   = []
+	train_classes     = []
+	train_data        = []
+	train_filenames   = []
+	train_labels      = []
+	train_labels_orig = []
+	test_classes      = []
+	test_data         = []
+	test_filenames    = []
+	test_labels       = []
+	test_labels_orig  = []
 
 
 	############################################################################
@@ -216,7 +220,7 @@ def run(args):
 	# Load the dataset
 	############################################################################
 
-	((train_classes, train_data, train_labels), (test_classes, test_data, test_labels)) = datasets.load_dataset(
+	((train_classes, train_data, train_filenames, train_labels_orig), (test_classes, test_data, test_filenames, test_labels_orig)) = datasets.load_dataset(
 		dataset         = dataset,
 		create_h5       = True,
 		verbosity_level = verbosity_level)
@@ -269,11 +273,11 @@ def run(args):
 			break
 
 	if class_labels_are_digits:
-		train_labels = np.asarray([int(label.decode()) for label in train_labels])
-		test_labels  = np.asarray([int(label.decode()) for label in test_labels])
+		train_labels = np.asarray([int(label.decode()) for label in train_labels_orig])
+		test_labels  = np.asarray([int(label.decode()) for label in test_labels_orig])
 	else:
-		train_labels = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels])
-		test_labels  = np.asarray([int(np.where(test_classes  == label)[0]) for label in test_labels])
+		train_labels = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels_orig])
+		test_labels  = np.asarray([int(np.where(test_classes  == label)[0]) for label in test_labels_orig])
 
 	train_classes = list(set(train_labels))
 	test_classes  = list(set(test_labels))
@@ -429,9 +433,6 @@ def run(args):
 
 		Hexnet_print(f'({run_string}) Training')
 
-		if model_is_standalone and tests_dir is not None:
-			os.makedirs(tests_dir, exist_ok=True)
-
 		if model_is_standalone:
 			model.fit(train_data, train_labels, batch_size, epochs, tests_dir, run_title)
 		elif model_is_autoencoder:
@@ -443,14 +444,12 @@ def run(args):
 
 
 		########################################################################
-		# Visualize filters and feature maps for training and test results
+		# Visualize filters, feature maps, and training results
 		########################################################################
 
 		if not model_is_standalone:
 			if visualize_model is not None:
 				Hexnet_print(f'({run_string}) Visualization')
-
-				os.makedirs(visualize_model, exist_ok=True)
 
 				visualization.visualize_model(
 					model,
@@ -466,11 +465,15 @@ def run(args):
 			Hexnet_print(f'({run_string}) History')
 			Hexnet_print(f'({run_string}) history.history.keys()={history.history.keys()}')
 
-			if tests_dir or show_results:
-				os.makedirs(tests_dir, exist_ok=True)
+			if tests_dir is not None or show_results:
 				visualization.visualize_results(history, run_title, tests_dir, show_results)
 
 			print_newline()
+
+
+		########################################################################
+		# Evaluate the model and save test results
+		########################################################################
 
 		Hexnet_print(f'({run_string}) Test')
 
@@ -495,8 +498,12 @@ def run(args):
 				tests_dir_predictions = os.path.join(tests_dir, run_title_predictions)
 
 				if not model_is_autoencoder:
-					np.savetxt(f'{tests_dir_predictions}.csv',         predictions,         delimiter=',')
-					np.savetxt(f'{tests_dir_predictions}_classes.csv', predictions_classes, delimiter=',', fmt='%i')
+					with open(f'{tests_dir_predictions}.csv', 'w') as predictions_file:
+						print('label_orig,filename,label,prediction_class,prediction', file=predictions_file)
+
+						for label_orig, filename, label, prediction_class, prediction in zip(test_labels_orig, test_filenames, test_labels, predictions_classes, predictions):
+							prediction = [float(format(class_confidence, '.8f')) for class_confidence in prediction]
+							print(f'{label_orig.decode()},{filename.decode()},{label},{prediction_class},{prediction}', file=predictions_file)
 				else:
 					os.makedirs(tests_dir_predictions, exist_ok=True)
 
@@ -529,7 +536,7 @@ def run(args):
 # parse_args
 ################################################################################
 
-def parse_args():
+def parse_args(args=None, namespace=None):
 	parser = argparse.ArgumentParser(description='Hexnet: The Hexagonal Machine Learning Module')
 
 
@@ -598,7 +605,7 @@ def parse_args():
 	parser.add_argument('--transform-height',   type = int,                default = transform_height,   help = 'square to square image transformation output height')
 
 
-	return parser.parse_args()
+	return parser.parse_args(args, namespace)
 
 
 ################################################################################
@@ -614,5 +621,4 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
-
 
