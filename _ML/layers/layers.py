@@ -31,7 +31,6 @@ import numpy      as np
 import tensorflow as tf
 
 from scipy.optimize import linear_sum_assignment
-from time           import time
 
 from layers.kernels import rotate_hexagonal_kernels, rotate_square_kernel
 from layers.masks   import build_masks

@@ -12,6 +12,7 @@ validation_split =  0.1
 
 
 import argparse
+import copy
 import os
 
 import sys
@@ -25,7 +26,7 @@ from natsort import natsorted
 
 separator_string = 80 * '#'
 
-status = 1
+status = 0
 
 
 def parse_args():
@@ -49,12 +50,10 @@ args = parse_args()
 print(f'args={args}')
 print(separator_string)
 
-Hexnet_args = Hexnet.parse_args()
-Hexnet_args.tests_dir        = args.tests_dir
-Hexnet_args.batch_size       = args.batch_size
-Hexnet_args.epochs           = args.epochs
-Hexnet_args.runs             = args.runs
-Hexnet_args.validation_split = args.validation_split
+Hexnet_args = copy.deepcopy(args)
+Hexnet_args.model   = ''
+Hexnet_args.dataset = ''
+Hexnet_args = Hexnet.parse_args(args=[], namespace=Hexnet_args)
 
 
 for dataset in args.dataset:
@@ -66,7 +65,7 @@ for dataset in args.dataset:
 		Hexnet.Hexnet_print(f'args={Hexnet_args}')
 		Hexnet.print_newline()
 
-		status &= Hexnet.run(Hexnet_args)
+		status |= Hexnet.run(Hexnet_args)
 
 		print(separator_string)
 
