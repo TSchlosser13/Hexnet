@@ -35,6 +35,7 @@
 float Hexsamp_kernel(float x, float y, u32 method);
 void  Hexsamp_s2h(Array array, Hexarray* hexarray, u32 method);
 void  Hexsamp_h2s(Hexarray hexarray, Array* array, u32 method);
+void  Hexsamp_h2h(Hexarray h1, Hexarray* h2, u32 method);
 
 
 #endif

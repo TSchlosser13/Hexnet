@@ -31,7 +31,7 @@
 
 #define HEXNET_AUTHOR  "Tobias Schlosser (tobias@tobias-schlosser.net)"
 #define HEXNET_VERSION "0.1"
-#define HEXNET_YEAR_S  "2018-2019"
+#define HEXNET_YEAR_S  "2018-2020"
 
 
 #endif

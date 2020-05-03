@@ -182,3 +182,72 @@ void Hexsamp_h2s(Hexarray hexarray, Array* array, u32 method) {
 	}
 }
 
+void Hexsamp_h2h(Hexarray h1, Hexarray* h2, u32 method) {
+	const float r  = MAX(h1.dia_i, h2->dia_i);
+	const i32   ri = (i32)ceilf(r);
+	const float wb = ((h1.width_hex  - h1.dia_i) - (h2->width_hex  - h2->dia_i)) / 2;
+	const float hb = ((h1.height_hex - h1.dia_o) - (h2->height_hex - h2->dia_o)) / 2;
+
+	for(u32 h = 0; h < h2->height; h++) {
+		const float ht   = hb + h * h2->dist_h;
+		const float hth  = ht / h1.dist_h;
+		const i32   hthi = roundf(hth);
+
+		for(u32 w = 0; w < h2->width; w++) {
+			const float wt   = !(h    % 2) ? wb + w * h2->dia_i : wb + h2->rad_i + w * h2->dia_i;
+			const float wth  = !(hthi % 2) ? wt / h1.dia_i      : -h1.rad_i + wt / h1.dia_i;
+			const i32   wthi = roundf(wth);
+			      float o[3] = { 0.0f, 0.0f, 0.0f };
+			      float on   =   0.0f;
+
+
+			for(i32 y = hthi - ri; y <= hthi + ri; y++) {
+				const float hh = y * h1.dist_h;
+
+				for(i32 x = wthi - ri; x <= wthi + ri; x++) {
+					const float wh = !(y % 2) ? x * h1.dia_i : h1.rad_i + x * h1.dia_i;
+					const float rx = fabs(wt - wh);
+					const float ry = fabs(ht - hh);
+
+					if(x >= 0 && x < h1.width && y >= 0 && y < h1.height && rx < r && ry < r) {
+						const float k = Hexsamp_kernel(rx / r, ry / r, method);
+						const u32   p = 3 * (y * h1.width + x);
+
+						o[0] += k * h1.p[p];
+						o[1] += k * h1.p[p + 1];
+						o[2] += k * h1.p[p + 2];
+						on   += k;
+					}
+				}
+			}
+
+			if(on) {
+				o[0] /= on;
+				o[1] /= on;
+				o[2] /= on;
+			}
+
+
+			const u32 p = 3 * (h * h2->width + w);
+
+			if(o[0] < 255) {
+				h2->p[p]     = (u32)roundf(o[0]);
+			} else {
+				h2->p[p]     = 255;
+			}
+
+			if(o[1] < 255) {
+				h2->p[p + 1] = (u32)roundf(o[1]);
+			} else {
+				h2->p[p + 1] = 255;
+			}
+
+			if(o[2] < 255) {
+				h2->p[p + 2] = (u32)roundf(o[2]);
+			} else {
+				h2->p[p + 2] = 255;
+			}
+		}
+	}
+}
+

@@ -34,6 +34,7 @@
 
 void Hexarray_init(Hexarray* hexarray, u32 width, u32 height, u32 depth, float rad_o);
 void Hexarray_init_from_Array(Hexarray* hexarray, Array array, float rad_o);
+void Hexarray_init_from_Hexarray(Hexarray* h1, Hexarray h2, float rad_o);
 void Hexarray_free(Hexarray* hexarray);
 
 void Hexarray_print_info(Hexarray hexarray, char* title);

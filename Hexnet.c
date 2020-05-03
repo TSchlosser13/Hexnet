@@ -64,18 +64,21 @@ int main(int argc, char** argv) {
 	char* filename_in_s2 = NULL;
 	char* filename_out   = NULL;
 	char  filename_out_h2s[256];
+	char  filename_out_h2h[256];
 	char  filename_out_s2s[256];
 
-	Array array_in;
-	Array array_in_s2;
-	Array array_out;
-	float array_out_len        = 0;
-	Array array_out_s2s;
-	u32   array_out_s2s_width  = 0;
-	u32   array_out_s2s_height = 0;
+	Array array;
+	Array array_s2;
+	Array array_h2s;
+	float array_h2s_len    = 0;
+	Array array_s2s;
+	u32   array_s2s_width  = 0;
+	u32   array_s2s_height = 0;
 
 	Hexarray hexarray;
-	float    hexarray_rad_o = 0;
+	float    hexarray_rad_o     = 0;
+	Hexarray hexarray_h2h;
+	float    hexarray_h2h_rad_o = 0;
 
 	double clock_diff;
 	struct timespec ts1, ts2;
@@ -100,21 +103,23 @@ int main(int argc, char** argv) {
 		} else if((!strcmp(argv[i], "-o") || !strcmp(argv[i], "--output")) && i + 1 < argc) {
 			filename_out = argv[++i];
 
-		} else if(!strcmp(argv[i], "--s2h-rad")        && i + 1 < argc) {
+		} else if(!strcmp(argv[i], "--s2h-rad") && i + 1 < argc) {
 			hexarray_rad_o     = (float)atof(argv[++i]);
-		} else if(!strcmp(argv[i], "--h2s-len")        && i + 1 < argc) {
-			array_out_len      = (float)atof(argv[++i]);
-		} else if(!strcmp(argv[i], "--s2s-res")        && i + 1 < argc) {
-			array_out_s2s_width = (u32)atoi(argv[++i]);
+		} else if(!strcmp(argv[i], "--h2s-len") && i + 1 < argc) {
+			array_h2s_len      = (float)atof(argv[++i]);
+		} else if(!strcmp(argv[i], "--h2h-rad") && i + 1 < argc) {
+			hexarray_h2h_rad_o = (float)atof(argv[++i]);
+		} else if(!strcmp(argv[i], "--s2s-res") && i + 1 < argc) {
+			array_s2s_width    = (u32)atoi(argv[++i]);
 
 			if(i + 1 < argc) {
 				if(!isdigit(argv[i + 1][0])) {
-					array_out_s2s_height = array_out_s2s_width;
+					array_s2s_height = array_s2s_width;
 				} else {
-					array_out_s2s_height = (u32)atoi(argv[++i]);
+					array_s2s_height = (u32)atoi(argv[++i]);
 				}
 			} else {
-				array_out_s2s_height = array_out_s2s_width;
+				array_s2s_height = array_s2s_width;
 			}
 		} else if(!strcmp(argv[i], "--compare-s2s")    && i + 1 < argc) {
 			enable_compare_s2s = true;
@@ -144,25 +149,26 @@ int main(int argc, char** argv) {
 		return 0;
 	}
 
-	putchar('\n');
+	puts("\n");
 
 
 	MagickWandGenesis();
-	file_to_Array(filename_in, &array_in);
 
-	if(enable_compare_s2s)
-		file_to_Array(filename_in_s2, &array_in_s2);
 
-	printf("%s: %u x %u\n", filename_in, array_in.width, array_in.height);
+	if(hexarray_rad_o || enable_compare_s2s || array_s2s_width) {
+		file_to_Array(filename_in, &array);
 
-	if(increase_verbosity) {
-		puts("\n");
-		Array_print_info(array_in, stringify(array_in));
-		putchar('\n');
+		if(enable_compare_s2s)
+			file_to_Array(filename_in_s2, &array_s2);
 
-		if(enable_compare_s2s) {
-			Array_print_info(array_in_s2, stringify(array_in_s2));
+		if(increase_verbosity) {
+			Array_print_info(array, stringify(array));
 			putchar('\n');
+
+			if(enable_compare_s2s) {
+				Array_print_info(array_s2, stringify(array_s2));
+				putchar('\n');
+			}
 		}
 	}
 
@@ -170,7 +176,7 @@ int main(int argc, char** argv) {
 	clock_gettime(CLOCK_MONOTONIC, &ts1);
 
 	if(hexarray_rad_o) {
-		Hexarray_init_from_Array(&hexarray, array_in, hexarray_rad_o);
+		Hexarray_init_from_Array(&hexarray, array, hexarray_rad_o);
 	} else {
 		file_to_Hexarray(filename_in, &hexarray);
 	}
@@ -183,21 +189,30 @@ int main(int argc, char** argv) {
 		Hexarray_print_info(hexarray, stringify(hexarray));
 
 
-	if(array_out_len) {
-		Array_init_from_Hexarray(&array_out, hexarray, array_out_len);
+	if(array_h2s_len) {
+		Array_init_from_Hexarray(&array_h2s, hexarray, array_h2s_len);
 
 		if(increase_verbosity) {
 			putchar('\n');
-			Array_print_info(array_out, stringify(array_out));
+			Array_print_info(array_h2s, stringify(array_h2s));
 		}
 	}
 
-	if(array_out_s2s_width) {
-		Array_init(&array_out_s2s, array_out_s2s_width, array_out_s2s_height, 3, 1.0f);
+	if(hexarray_h2h_rad_o) {
+		Hexarray_init_from_Hexarray(&hexarray_h2h, hexarray, hexarray_h2h_rad_o);
 
 		if(increase_verbosity) {
 			putchar('\n');
-			Array_print_info(array_out_s2s, stringify(array_out_s2s));
+			Hexarray_print_info(hexarray_h2h, stringify(hexarray_h2h));
+		}
+	}
+
+	if(array_s2s_width) {
+		Array_init(&array_s2s, array_s2s_width, array_s2s_height, 3, 1.0f);
+
+		if(increase_verbosity) {
+			putchar('\n');
+			Array_print_info(array_s2s, stringify(array_s2s));
 		}
 	}
 
@@ -211,7 +226,7 @@ int main(int argc, char** argv) {
 	if(hexarray_rad_o) {
 		clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-		Hexsamp_s2h(array_in, &hexarray, 0);
+		Hexsamp_s2h(array, &hexarray, 0);
 
 		clock_gettime(CLOCK_MONOTONIC, &ts2);
 		clock_diff = CLOCK_DIFF(ts1, ts2);
@@ -224,10 +239,10 @@ int main(int argc, char** argv) {
 			putchar('\n');
 
 		if(enable_compare_s2s)
-			compare_s2s(array_in, array_in_s2, compare_metric);
+			compare_s2s(array, array_s2, compare_metric);
 
 		if(enable_compare_s2h)
-			compare_s2h(array_in, hexarray, compare_metric);
+			compare_s2h(array, hexarray, compare_metric);
 
 		if(increase_verbosity)
 			putchar('\n');
@@ -245,10 +260,10 @@ int main(int argc, char** argv) {
 	}
 
 
-	if(array_out_len) {
+	if(array_h2s_len) {
 		clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-		Hexsamp_h2s(hexarray, &array_out, 0);
+		Hexsamp_h2s(hexarray, &array_h2s, 0);
 
 		clock_gettime(CLOCK_MONOTONIC, &ts2);
 		clock_diff = CLOCK_DIFF(ts1, ts2);
@@ -256,10 +271,21 @@ int main(int argc, char** argv) {
 	}
 
 
-	if(array_out_s2s_width) {
+	if(hexarray_h2h_rad_o) {
 		clock_gettime(CLOCK_MONOTONIC, &ts1);
 
-		Sqsamp_s2s(array_in, &array_out_s2s, 0);
+		Hexsamp_h2h(hexarray, &hexarray_h2h, 0);
+
+		clock_gettime(CLOCK_MONOTONIC, &ts2);
+		clock_diff = CLOCK_DIFF(ts1, ts2);
+		printf("Hexsamp_h2h      : %f\n", clock_diff);
+	}
+
+
+	if(array_s2s_width) {
+		clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+		Sqsamp_s2s(array, &array_s2s, 0);
 
 		clock_gettime(CLOCK_MONOTONIC, &ts2);
 		clock_diff = CLOCK_DIFF(ts1, ts2);
@@ -283,32 +309,44 @@ int main(int argc, char** argv) {
 	printf("Hexarray_free    : %f\n", clock_diff);
 
 
-	if(filename_out && array_out_len) {
+	if(filename_out && array_h2s_len) {
 		strcpy(filename_out_h2s, filename_out);
 		insert_string(filename_out_h2s, "_h2s", strrchr(filename_out, '.') - filename_out);
-		Array_to_file(array_out, filename_out_h2s);
+		Array_to_file(array_h2s, filename_out_h2s);
 	}
 
-	if(filename_out && array_out_s2s_width) {
+	if(filename_out && hexarray_h2h_rad_o) {
+		strcpy(filename_out_h2h, filename_out);
+		insert_string(filename_out_h2h, "_h2h", strrchr(filename_out, '.') - filename_out);
+		Hexarray_to_file(hexarray_h2h, filename_out_h2h);
+	}
+
+	if(filename_out && array_s2s_width) {
 		strcpy(filename_out_s2s, filename_out);
 		insert_string(filename_out_s2s, "_s2s", strrchr(filename_out, '.') - filename_out);
-		Array_to_file(array_out_s2s, filename_out_s2s);
+		Array_to_file(array_s2s, filename_out_s2s);
 	}
 
-	Array_free(&array_in);
+	if(hexarray_rad_o || enable_compare_s2s || array_s2s_width)
+		Array_free(&array);
 
 	if(enable_compare_s2s)
-		Array_free(&array_in_s2);
+		Array_free(&array_s2);
 
-	if(array_out_len)
-		Array_free(&array_out);
+	if(array_h2s_len)
+		Array_free(&array_h2s);
 
-	if(array_out_s2s_width)
-		Array_free(&array_out_s2s);
+	if(hexarray_h2h_rad_o)
+		Hexarray_free(&hexarray_h2h);
+
+	if(array_s2s_width)
+		Array_free(&array_s2s);
+
 
 	MagickWandTerminus();
 
 
 	return status;
 }
+
 

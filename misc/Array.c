@@ -54,10 +54,10 @@ void Array_init_from_Hexarray(Array* array, Hexarray hexarray, float len) {
 	u32 height;
 
 	if(hexarray.height_hex - hexarray.rad_o > len) {
-		width  = floorf((hexarray.width_hex  - hexarray.rad_i) / len);
-		height = floorf((hexarray.height_hex - hexarray.rad_o) / len);
+		width  = ceilf((hexarray.width_hex  - hexarray.dia_i) / len);
+		height = ceilf((hexarray.height_hex - hexarray.rad_o) / len);
 	} else {
-		width  = floorf(hexarray.width_hex / len);
+		width  = ceilf(hexarray.width_hex / len);
 		height = 1;
 	}
 
@@ -131,5 +131,4 @@ void Array_to_file(Array array, char* filename) {
 	DestroyPixelWand(pw);
 	DestroyMagickWand(mw);
 }
-
 

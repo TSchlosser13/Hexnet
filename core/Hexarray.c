@@ -68,14 +68,29 @@ void Hexarray_init_from_Array(Hexarray* hexarray, Array array, float rad_o) {
 	u32 height;
 
 	if(array.height > rad_o) {
-		width  = ceilf(array.width  / (M_SQRT3 * rad_o) + 0.5f);
-		height = ceilf(array.height / (1.5f * rad_o)    + 1.0f / 3);
+		width  = ceilf(array.width  / (M_SQRT3 * rad_o));
+		height = ceilf(array.height / (1.5f * rad_o));
 	} else {
 		width  = ceilf(array.width / (M_SQRT3 * rad_o));
 		height = 1;
 	}
 
 	Hexarray_init(hexarray, width, height, array.depth, rad_o);
+}
+
+void Hexarray_init_from_Hexarray(Hexarray* h1, Hexarray h2, float rad_o) {
+	u32 width;
+	u32 height;
+
+	if(h2.height_hex - h2.rad_o > rad_o) {
+		width  = ceilf((h2.width_hex  - h2.dia_i) / (M_SQRT3 * rad_o));
+		height = ceilf((h2.height_hex - h2.rad_o) / (1.5f * rad_o));
+	} else {
+		width  = ceilf(h2.width_hex / (M_SQRT3 * rad_o));
+		height = 1;
+	}
+
+	Hexarray_init(h1, width, height, h2.depth, rad_o);
 }
 
 void Hexarray_free(Hexarray* hexarray) {
