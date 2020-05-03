@@ -109,11 +109,80 @@ def _Hexsamp_s2h(filename, output_dir='.', rad_o=1.0, method=0, increase_verbosi
 
 	Hexnet.Hexarray_to_file(hexarray, filename_out)
 
+
 	Hexnet.Array_free(array_p)
 	Hexnet.Hexarray_free(hexarray_p)
 
 
-def _Sqsamp_s2s(filename, output_dir='.', width=64, height=None, method=0, increase_verbosity=False):
+def _Hexsamp_h2s(filename, output_dir='.', len=1.0, method=0, increase_verbosity=False):
+	filename_in  = bytes(filename, encoding='ascii')
+	filename_out = os.path.basename(filename).split('.')
+	filename_out = '.'.join(filename_out[:-1]) + f'_h2s.{filename_out[-1]}'
+	filename_out = os.path.join(output_dir, filename_out)
+	filename_out = bytes(filename_out, encoding='ascii')
+
+	array      = Array()
+	array_p    = byref(array)
+	hexarray   = Hexarray()
+	hexarray_p = byref(hexarray)
+	len        = c_float(len)
+	method     = c_uint32(method)
+
+
+	Hexnet.file_to_Hexarray(filename_in, hexarray_p)
+
+	if increase_verbosity:
+		Hexnet.Hexarray_print_info(hexarray, b'hexarray')
+
+	Hexnet.Array_init_from_Hexarray(array_p, hexarray, len)
+
+	if increase_verbosity:
+		Hexnet.Array_print_info(array, b'array')
+
+	Hexnet.Hexsamp_h2s(hexarray, array_p, method)
+
+	Hexnet.Array_to_file(array, filename_out)
+
+
+	Hexnet.Array_free(array_p)
+	Hexnet.Hexarray_free(hexarray_p)
+
+
+def _Hexsamp_h2h(filename, output_dir='.', rad_o=1.0, method=0, increase_verbosity=False):
+	filename_in  = bytes(filename, encoding='ascii')
+	filename_out = os.path.basename(filename).split('.')
+	filename_out = '.'.join(filename_out[:-1]) + f'_h2h.{filename_out[-1]}'
+	filename_out = os.path.join(output_dir, filename_out)
+	filename_out = bytes(filename_out, encoding='ascii')
+
+	h1     = Hexarray()
+	h1_p   = byref(h1)
+	h2     = Hexarray()
+	h2_p   = byref(h2)
+	rad_o  = c_float(rad_o)
+	method = c_uint32(method)
+
+
+	Hexnet.file_to_Hexarray(filename_in, h1_p)
+
+	if increase_verbosity:
+		Hexnet.Hexarray_print_info(h1, b'h1')
+
+	Hexnet.Hexarray_init_from_Hexarray(h2_p, h1, rad_o)
+
+	if increase_verbosity:
+		Hexnet.Hexarray_print_info(h2, b'h2')
+
+	Hexnet.Hexsamp_h2h(h1, h2_p, method)
+
+	Hexnet.Hexarray_to_file(h2, filename_out)
+
+
+	Hexnet.Hexarray_free(h1_p)
+	Hexnet.Hexarray_free(h2_p)
+
+
+def _Sqsamp_s2s(filename, output_dir = '.', res = (64, 64), method = 0, increase_verbosity = False):
 	filename_in  = bytes(filename, encoding='ascii')
 	filename_out = os.path.basename(filename).split('.')
 	filename_out = '.'.join(filename_out[:-1]) + f'_s2s.{filename_out[-1]}'
@@ -124,13 +193,14 @@ def _Sqsamp_s2s(filename, output_dir='.', width=64, height=None, method=0, incre
 	s1_p   = byref(s1)
 	s2     = Array()
 	s2_p   = byref(s2)
-	width  = c_uint32(width)
 	method = c_uint32(method)
 
-	if height is None:
+	if type(res) is int:
+		width  = c_uint32(res)
 		height = width
 	else:
-		height = c_uint32(height)
+		width  = c_uint32(res[0])
+		height = c_uint32(res[1])
 
 	depth = c_uint32(3)
 	len   = c_float(1.0)
@@ -150,6 +220,7 @@ def _Sqsamp_s2s(filename, output_dir='.', width=64, height=None, method=0, incre
 
 	Hexnet.Array_to_file(s2, filename_out)
 
+
 	Hexnet.Array_free(s1_p)
 	Hexnet.Array_free(s2_p)
 
@@ -161,10 +232,24 @@ def Hexsamp_s2h(filename_s, output_dir='.', rad_o=1.0, method=0, increase_verbos
 		_Hexsamp_s2h(filename, output_dir, rad_o, method, increase_verbosity)
 
 
-def Sqsamp_s2s(filename_s, output_dir='.', width=64, height=None, method=0, increase_verbosity=False):
-	print(f'Sqsamp_s2s (width={width}, height={height}, method={method}) for filename in {filename_s} to {output_dir}')
+def Hexsamp_h2s(filename_s, output_dir='.', len=1.0, method=0, increase_verbosity=False):
+	print(f'Hexsamp_h2s (len={len}, method={method}) for filename in {filename_s} to {output_dir}')
 
 	for filename in tqdm(natsorted(glob(filename_s))):
-		_Sqsamp_s2s(filename, output_dir, width, height, method, increase_verbosity)
+		_Hexsamp_h2s(filename, output_dir, len, method, increase_verbosity)
+
+
+def Hexsamp_h2h(filename_s, output_dir='.', rad_o=1.0, method=0, increase_verbosity=False):
+	print(f'Hexsamp_h2h (rad_o={rad_o}, method={method}) for filename in {filename_s} to {output_dir}')
+
+	for filename in tqdm(natsorted(glob(filename_s))):
+		_Hexsamp_h2h(filename, output_dir, rad_o, method, increase_verbosity)
+
+
+def Sqsamp_s2s(filename_s, output_dir = '.', res = (64, 64), method = 0, increase_verbosity = False):
+	print(f'Sqsamp_s2s (res={res}, method={method}) for filename in {filename_s} to {output_dir}')
+
+	for filename in tqdm(natsorted(glob(filename_s))):
+		_Sqsamp_s2s(filename, output_dir, res, method, increase_verbosity)
 
 

@@ -37,7 +37,7 @@ from glob    import glob
 from natsort import natsorted
 from time    import time
 
-from core.Hexnet import Hexsamp_s2h, Sqsamp_s2s
+from core.Hexnet import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
 from misc.misc   import Hexnet_print
 
 
@@ -159,11 +159,11 @@ def transform_dataset(
 	dataset,
 	output_dir,
 	mode            = 's2h',
-	rad_o           =  1.0,
-	width           = 64,
-	height          = None,
-	method          =  0,
-	verbosity_level =  2):
+	rad_o           = 1.0,
+	len             = 1.0,
+	res             = (64, 64),
+	method          = 0,
+	verbosity_level = 2):
 
 	if os.path.exists(output_dir):
 		Hexnet_print(f'Dataset {output_dir} exists already (skipping transformation)')
@@ -202,12 +202,25 @@ def transform_dataset(
 					rad_o              = rad_o,
 					method             = method,
 					increase_verbosity = True if verbosity_level >= 3 else False)
-			else:
+			elif mode == 'h2s':
+				Hexsamp_h2s(
+					filename_s         = os.path.join(set_class, '*'),
+					output_dir         = output_dir_current_class,
+					len                = len,
+					method             = method,
+					increase_verbosity = True if verbosity_level >= 3 else False)
+			elif mode == 'h2h':
+				Hexsamp_h2h(
+					filename_s         = os.path.join(set_class, '*'),
+					output_dir         = output_dir_current_class,
+					rad_o              = rad_o,
+					method             = method,
+					increase_verbosity = True if verbosity_level >= 3 else False)
+			elif mode == 's2s':
 				Sqsamp_s2s(
 					filename_s         = os.path.join(set_class, '*'),
 					output_dir         = output_dir_current_class,
-					width              = width,
-					height             = height,
+					res                = res,
 					method             = method,
 					increase_verbosity = True if verbosity_level >= 3 else False)
 
@@ -219,7 +232,7 @@ def resize_dataset(dataset_s, resize_string, method='nearest'):
 	resize_W    = int(resize_size[1])
 	target_size = (resize_H, resize_W)
 
-	if not type(dataset_s) is list:
+	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
 	dataset_s = [tf.image.resize(dataset, size=target_size, method=method).numpy() for dataset in dataset_s]
@@ -233,7 +246,7 @@ def crop_dataset(dataset_s, crop_string):
 	crop_size   = crop_offset[0].split('x')
 	crop_offset = crop_offset[1:]
 
-	if not type(dataset_s) is list:
+	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
 	if not '+' in crop_string:

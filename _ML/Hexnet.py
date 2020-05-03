@@ -32,36 +32,39 @@
 # Default parameters
 ################################################################################
 
-model              = 'CNN'
-load_model         = None
-load_weights       = None
+model               = 'CNN'
+load_model          = None
+load_weights        = None
 
-dataset            = 'datasets/MNIST/MNIST.h5'
-resize_dataset     = None
-crop_dataset       = None
-augment_dataset    = None
-augmenter          = 'simple'
-augmentation_level = 1
+dataset             = 'datasets/MNIST/MNIST.h5'
+resize_dataset      = None
+crop_dataset        = None
+augment_dataset     = None
+augmenter           = 'simple'
+augmentation_level  = 1
 
-tests_dir          = 'tests/tmp'
-visualize_model    = None
+tests_dir           = 'tests/tmp'
+visualize_model     = None
 
-batch_size         = 32
-epochs             =  1
-loss               = None
-runs               =  1
-validation_split   =  0.0
+batch_size          = 32
+epochs              =  1
+loss                = None
+runs                =  1
+validation_split    =  0.0
 
-cnn_kernel_size    = (3, 3)
-cnn_pool_size      = (3, 3)
+cnn_kernel_size     = (3, 3)
+cnn_pool_size       = (3, 3)
 
-verbosity_level    = 2
+verbosity_level     = 2
 
-transform_s2h      = False
-transform_s2s      = False
-transform_rad_o    =  1.0
-transform_width    = 64
-transform_height   = None
+transform_s2h       = False
+transform_h2s       = False
+transform_h2h       = False
+transform_s2s       = False
+transform_s2h_rad_o = 1.0
+transform_h2s_len   = 1.0
+transform_h2h_rad_o = 1.0
+transform_s2s_res   = (64, 64)
 
 disable_tensorflow_warnings = True
 
@@ -110,41 +113,48 @@ from misc.misc   import Hexnet_print, print_newline
 
 def run(args):
 
-	model_string       = args.model
-	load_model         = args.load_model
-	load_weights       = args.load_weights
-	save_model         = args.save_model
-	save_weights       = args.save_weights
+	model_string        = args.model
+	load_model          = args.load_model
+	load_weights        = args.load_weights
+	save_model          = args.save_model
+	save_weights        = args.save_weights
 
-	dataset            = args.dataset
-	resize_dataset     = args.resize_dataset
-	crop_dataset       = args.crop_dataset
-	augment_dataset    = args.augment_dataset
-	augmenter_string   = args.augmenter
-	augmentation_level = args.augmentation_level
+	dataset             = args.dataset
+	resize_dataset      = args.resize_dataset
+	crop_dataset        = args.crop_dataset
+	augment_dataset     = args.augment_dataset
+	augmenter_string    = args.augmenter
+	augmentation_level  = args.augmentation_level
 
-	tests_dir          = args.tests_dir
-	show_dataset       = args.show_dataset
-	visualize_model    = args.visualize_model
-	show_results       = args.show_results
+	tests_dir           = args.tests_dir
+	show_dataset        = args.show_dataset
+	visualize_model     = args.visualize_model
+	show_results        = args.show_results
 
-	batch_size         = args.batch_size
-	epochs             = args.epochs
-	loss_string        = args.loss
-	runs               = args.runs
-	validation_split   = args.validation_split
+	batch_size          = args.batch_size
+	epochs              = args.epochs
+	loss_string         = args.loss
+	runs                = args.runs
+	validation_split    = args.validation_split
 
-	cnn_kernel_size    = args.cnn_kernel_size
-	cnn_pool_size      = args.cnn_pool_size
+	cnn_kernel_size     = args.cnn_kernel_size
+	cnn_pool_size       = args.cnn_pool_size
 
-	verbosity_level    = args.verbosity_level
+	verbosity_level     = args.verbosity_level
 
-	transform_s2h      = args.transform_s2h
-	transform_s2s      = args.transform_s2s
-	transform_rad_o    = args.transform_rad_o
-	transform_width    = args.transform_width
-	transform_height   = args.transform_height
+	transform_s2h       = args.transform_s2h
+	transform_h2s       = args.transform_h2s
+	transform_h2h       = args.transform_h2h
+	transform_s2s       = args.transform_s2s
+	transform_s2h_rad_o = args.transform_s2h_rad_o
+	transform_h2s_len   = args.transform_h2s_len
+	transform_h2h_rad_o = args.transform_h2h_rad_o
+	transform_s2s_res   = args.transform_s2s_res
 
+
+	############################################################################
+	# Initialization
+	############################################################################
 
 	if model_string is not None:
 		model_is_provided = True
@@ -168,7 +178,6 @@ def run(args):
 	else:
 		loss_is_provided = False
 
-
 	train_classes     = []
 	train_data        = []
 	train_filenames   = []
@@ -185,12 +194,12 @@ def run(args):
 	# Transform the dataset
 	############################################################################
 
-	if transform_s2h or transform_s2h is None or transform_s2s or transform_s2s is None:
+	if transform_s2h != False or transform_h2s != False or transform_h2h != False or transform_s2s != False:
 		Hexnet_init()
 
 		Hexnet_print('Dataset transformation')
 
-		if transform_s2h or transform_s2h is None:
+		if transform_s2h != False:
 			if transform_s2h is None:
 				transform_s2h = f'{dataset}_s2h'
 
@@ -198,11 +207,35 @@ def run(args):
 				dataset         = dataset,
 				output_dir      = transform_s2h,
 				mode            = 's2h',
-				rad_o           = transform_rad_o,
+				rad_o           = transform_s2h_rad_o,
 				method          = 0,
 				verbosity_level = verbosity_level)
 
-		if transform_s2s or transform_s2s is None:
+		if transform_h2s != False:
+			if transform_h2s is None:
+				transform_h2s = f'{dataset}_h2s'
+
+			datasets.transform_dataset(
+				dataset         = dataset,
+				output_dir      = transform_h2s,
+				mode            = 'h2s',
+				len             = transform_h2s_len,
+				method          = 0,
+				verbosity_level = verbosity_level)
+
+		if transform_h2h != False:
+			if transform_h2h is None:
+				transform_h2h = f'{dataset}_h2h'
+
+			datasets.transform_dataset(
+				dataset         = dataset,
+				output_dir      = transform_h2h,
+				mode            = 'h2h',
+				rad_o           = transform_h2h_rad_o,
+				method          = 0,
+				verbosity_level = verbosity_level)
+
+		if transform_s2s != False:
 			if transform_s2s is None:
 				transform_s2s = f'{dataset}_s2s'
 
@@ -210,8 +243,7 @@ def run(args):
 				dataset         = dataset,
 				output_dir      = transform_s2s,
 				mode            = 's2s',
-				width           = transform_width,
-				height          = transform_height,
+				res             = transform_s2s_res,
 				method          = 0,
 				verbosity_level = verbosity_level)
 
@@ -573,36 +605,39 @@ def parse_args(args=None, namespace=None):
 		help    = 'custom loss for training and testing: choices are generated from misc/losses.py')
 
 
-	parser.add_argument('--load-model',                                    default = load_model,         help = 'load model from file')
-	parser.add_argument('--load-weights',                                  default = load_weights,       help = 'load model weights from file')
-	parser.add_argument('--save-model',                                    action  = 'store_true',       help = 'save model to file')
-	parser.add_argument('--save-weights',                                  action  = 'store_true',       help = 'save model weights to file')
+	parser.add_argument('--load-model',                                     default = load_model,          help = 'load model from file')
+	parser.add_argument('--load-weights',                                   default = load_weights,        help = 'load model weights from file')
+	parser.add_argument('--save-model',                                     action  = 'store_true',        help = 'save model to file')
+	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights to file')
 
-	parser.add_argument('--dataset',                                       default = dataset,            help = 'load dataset from file or directory')
-	parser.add_argument('--resize-dataset',                                default = resize_dataset,     help = 'resize dataset using "HxW" (e.g. 32x32)')
-	parser.add_argument('--crop-dataset',                                  default = crop_dataset,       help = 'crop dataset using "HxW" with offset "+Y+X" (e.g. 32x32+2+2, 32x32, or +2+2)')
-	parser.add_argument('--augmentation-level', type = int,                default = augmentation_level, help = 'augmentation level')
+	parser.add_argument('--dataset',                                        default = dataset,             help = 'load dataset from file or directory')
+	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g. 32x32)')
+	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g. 32x32+2+2, 32x32, or +2+2)')
+	parser.add_argument('--augmentation-level',  type = int,                default = augmentation_level,  help = 'augmentation level')
 
-	parser.add_argument('--tests-dir',                        nargs = '?', default = tests_dir,          help = 'tests output directory (providing no argument disables the tests output)')
-	parser.add_argument('--show-dataset',                                  action  = 'store_true',       help = 'show the dataset')
-	parser.add_argument('--visualize-model',                               default = visualize_model,    help = 'visualize the model\'s filters and feature maps after training')
-	parser.add_argument('--show-results',                                  action  = 'store_true',       help = 'show the test results')
+	parser.add_argument('--tests-dir',                         nargs = '?', default = tests_dir,           help = 'tests output directory (providing no argument disables the tests output)')
+	parser.add_argument('--show-dataset',                                   action  = 'store_true',        help = 'show the dataset')
+	parser.add_argument('--visualize-model',                                default = visualize_model,     help = 'visualize the model\'s filters and feature maps after training')
+	parser.add_argument('--show-results',                                   action  = 'store_true',        help = 'show the test results')
 
-	parser.add_argument('--batch-size',         type = int,                default = batch_size,         help = 'training batch size')
-	parser.add_argument('--epochs',             type = int,                default = epochs,             help = 'training epochs')
-	parser.add_argument('--runs',               type = int,                default = runs,               help = 'training runs')
-	parser.add_argument('--validation-split',   type = float,              default = validation_split,   help = 'fraction of the training data to be used as validation data')
+	parser.add_argument('--batch-size',          type = int,                default = batch_size,          help = 'training batch size')
+	parser.add_argument('--epochs',              type = int,                default = epochs,              help = 'training epochs')
+	parser.add_argument('--runs',                type = int,                default = runs,                help = 'training runs')
+	parser.add_argument('--validation-split',    type = float,              default = validation_split,    help = 'fraction of the training data to be used as validation data')
 
-	parser.add_argument('--cnn-kernel-size',    type = int,   nargs = '+', default = cnn_kernel_size,    help = 'CNN models kernel size')
-	parser.add_argument('--cnn-pool-size',      type = int,   nargs = '+', default = cnn_pool_size,      help = 'CNN models pooling size')
+	parser.add_argument('--cnn-kernel-size',     type = int,   nargs = '+', default = cnn_kernel_size,     help = 'CNN models kernel size')
+	parser.add_argument('--cnn-pool-size',       type = int,   nargs = '+', default = cnn_pool_size,       help = 'CNN models pooling size')
 
-	parser.add_argument('--verbosity-level',    type = int,                default = verbosity_level,    help = 'verbosity level (default is 2, maximum is 3)')
+	parser.add_argument('--verbosity-level',     type = int,                default = verbosity_level,     help = 'verbosity level (default is 2, maximum is 3)')
 
-	parser.add_argument('--transform-s2h',                    nargs = '?', default = transform_s2h,      help = 'enable square to hexagonal image transformation')
-	parser.add_argument('--transform-s2s',                    nargs = '?', default = transform_s2s,      help = 'enable square to square image transformation')
-	parser.add_argument('--transform-rad-o',    type = float,              default = transform_rad_o,    help = 'square to hexagonal image transformation hexagonal pixels outer radius')
-	parser.add_argument('--transform-width',    type = int,                default = transform_width,    help = 'square to square image transformation output width')
-	parser.add_argument('--transform-height',   type = int,                default = transform_height,   help = 'square to square image transformation output height')
+	parser.add_argument('--transform-s2h',                     nargs = '?', default = transform_s2h,       help = 'enable square to hexagonal image transformation')
+	parser.add_argument('--transform-h2s',                     nargs = '?', default = transform_h2s,       help = 'enable hexagonal to square image transformation')
+	parser.add_argument('--transform-h2h',                     nargs = '?', default = transform_h2h,       help = 'enable hexagonal to hexagonal image transformation')
+	parser.add_argument('--transform-s2s',                     nargs = '?', default = transform_s2s,       help = 'enable square to square image transformation')
+	parser.add_argument('--transform-s2h-rad-o', type = float,              default = transform_s2h_rad_o, help = 'square to hexagonal image transformation hexagonal pixels outer radius')
+	parser.add_argument('--transform-h2s-len',   type = float,              default = transform_h2s_len,   help = 'hexagonal to square image transformation square pixels side length')
+	parser.add_argument('--transform-h2h-rad-o', type = float,              default = transform_h2h_rad_o, help = 'hexagonal to hexagonal image transformation hexagonal pixels outer radius')
+	parser.add_argument('--transform-s2s-res',   type = int,   nargs = '+', default = transform_s2s_res,   help = 'square to square image transformation output resolution')
 
 
 	return parser.parse_args(args, namespace)
