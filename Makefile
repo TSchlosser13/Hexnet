@@ -32,5 +32,5 @@ clean:
 	rm -f $(built_src) $(obj) Hexnet Hexnet.so
 
 test:
-	./Hexnet -i tests/testset/USC/4.1.01.tiff -o 4.1.01_out.jpg --s2h-rad 1.0 --h2s-len 1.0 -d -v
+	./Hexnet -i tests/testset/USC/4.1.01.tiff -o 4.1.01_out.png --s2h-rad 1.0 --h2s-len 1.0 -d -v
 

@@ -44,17 +44,17 @@ _COMPARE_ERROR = -1
 
 
 def get_compare_method(method):
-	if method is 'AE':
+	if method == 'AE':
 		return _COMPARE_AE
-	elif method is 'SE':
+	elif method == 'SE':
 		return _COMPARE_SE
-	elif method is 'MAE':
+	elif method == 'MAE':
 		return _COMPARE_MAE
-	elif method is 'MSE':
+	elif method == 'MSE':
 		return _COMPARE_MSE
-	elif method is 'RMSE':
+	elif method == 'RMSE':
 		return _COMPARE_RMSE
-	elif method is 'PSNR':
+	elif method == 'PSNR':
 		return _COMPARE_PSNR
 	else:
 		return _COMPARE_ERROR
@@ -140,10 +140,10 @@ def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 		depth     = s1_shape[2]
 		size      = depth * s1_width * s1_height
 	else:
-		if not type(s1) is np.ndarray:
+		if type(s1) is not np.ndarray:
 			s1 = np.asarray(s1)
 
-		if not type(s2) is np.ndarray:
+		if type(s2) is not np.ndarray:
 			s2 = np.asarray(s2)
 
 		s12_is_tensor = False
@@ -286,10 +286,10 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 		s_size   = depth * s_width * s_height
 		h_size   = depth * h_width * h_height
 	else:
-		if not type(s) is np.ndarray:
+		if type(s) is not np.ndarray:
 			s = np.asarray(s)
 
-		if not type(h) is np.ndarray:
+		if type(h) is not np.ndarray:
 			h = np.asarray(h)
 
 		sh_is_tensor = False
