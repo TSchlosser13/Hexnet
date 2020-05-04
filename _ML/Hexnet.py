@@ -249,6 +249,15 @@ def run(args):
 
 
 	############################################################################
+	# No dataset was provided - returning
+	############################################################################
+
+	if dataset is None:
+		Hexnet_print('No dataset provided.')
+		return 0
+
+
+	############################################################################
 	# Load the dataset
 	############################################################################
 
@@ -610,7 +619,7 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--save-model',                                     action  = 'store_true',        help = 'save model to file')
 	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights to file')
 
-	parser.add_argument('--dataset',                                        default = dataset,             help = 'load dataset from file or directory')
+	parser.add_argument('--dataset',                           nargs = '?', default = dataset,             help = 'load dataset from file or directory')
 	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g. 32x32)')
 	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g. 32x32+2+2, 32x32, or +2+2)')
 	parser.add_argument('--augmentation-level',  type = int,                default = augmentation_level,  help = 'augmentation level')
@@ -656,4 +665,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
