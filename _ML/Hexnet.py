@@ -329,11 +329,6 @@ def run(args):
 		train_classes -= min(train_classes)
 		test_classes  -= min(test_classes)
 
-	train_test_data_n  = 255
-	train_test_data_n /= 2
-	train_data         = (train_data - train_test_data_n) / train_test_data_n
-	test_data          = (test_data  - train_test_data_n) / train_test_data_n
-
 
 	############################################################################
 	# Augment the dataset
@@ -367,15 +362,12 @@ def run(args):
 	############################################################################
 
 	if show_dataset:
-		train_data_for_visualization = np.clip(train_data + 0.5, 0, 1)
-		test_data_for_visualization  = np.clip(test_data  + 0.5, 0, 1)
-
 		datasets.show_dataset_classes(
 			train_classes,
-			train_data_for_visualization,
+			train_data,
 			train_labels,
 			test_classes,
-			test_data_for_visualization,
+			test_data,
 			test_labels,
 			max_images_per_class   =  1,
 			max_classes_to_display = 10)
@@ -388,6 +380,19 @@ def run(args):
 	if not model_is_provided:
 		Hexnet_print('No model provided.')
 		return 0
+
+
+	############################################################################
+	# Standardize the dataset
+	############################################################################
+
+	mean_axis       = (1, 2)
+	train_data_mean = np.mean(train_data, axis=mean_axis, keepdims=True)
+	test_data_mean  = np.mean(test_data,  axis=mean_axis, keepdims=True)
+	train_data_std  = np.sqrt(((train_data - train_data_mean) ** 2).mean(axis=mean_axis, keepdims=True))
+	test_data_std   = np.sqrt(((test_data  - test_data_mean)  ** 2).mean(axis=mean_axis, keepdims=True))
+	train_data      = (train_data - train_data_mean) / train_data_std
+	test_data       = (test_data  - test_data_mean)  / test_data_std
 
 
 	############################################################################
@@ -665,5 +670,4 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
-
 

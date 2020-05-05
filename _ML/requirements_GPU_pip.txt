@@ -1,6 +1,5 @@
-natsort
+natsort==7.0.1
 scikit-learn
 tensorflow-gpu==2.1.0
-tqdm
-
+tqdm==4.46.0
 
