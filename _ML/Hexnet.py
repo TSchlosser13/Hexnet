@@ -129,6 +129,7 @@ def run(args):
 	tests_dir           = args.tests_dir
 	show_dataset        = args.show_dataset
 	visualize_model     = args.visualize_model
+	visualize_hexagonal = args.visualize_hexagonal
 	show_results        = args.show_results
 
 	batch_size          = args.batch_size
@@ -178,6 +179,9 @@ def run(args):
 	else:
 		loss_is_provided = False
 
+	if dataset is not None:
+		if any(identifier in dataset for identifier in ('_hex', '_s2h', '_h2h')): visualize_hexagonal = True
+
 	train_classes     = []
 	train_data        = []
 	train_filenames   = []
@@ -191,12 +195,25 @@ def run(args):
 
 
 	############################################################################
+	# No dataset was provided - returning
+	############################################################################
+
+	if dataset is None:
+		print_newline()
+		Hexnet_print('No dataset provided.')
+
+		return 0
+
+
+	############################################################################
 	# Transform the dataset
 	############################################################################
 
 	if transform_s2h != False or transform_h2s != False or transform_h2h != False or transform_s2s != False:
+		print_newline()
 		Hexnet_init()
 
+		print_newline()
 		Hexnet_print('Dataset transformation')
 
 		if transform_s2h != False:
@@ -249,17 +266,10 @@ def run(args):
 
 
 	############################################################################
-	# No dataset was provided - returning
-	############################################################################
-
-	if dataset is None:
-		Hexnet_print('No dataset provided.')
-		return 0
-
-
-	############################################################################
 	# Load the dataset
 	############################################################################
+
+	print_newline()
 
 	((train_classes, train_data, train_filenames, train_labels_orig), (test_classes, test_data, test_filenames, test_labels_orig)) = datasets.load_dataset(
 		dataset         = dataset,
@@ -268,8 +278,41 @@ def run(args):
 
 
 	############################################################################
+	# Prepare the dataset
+	############################################################################
+
+	print_newline()
+	Hexnet_print('Dataset preparation')
+
+	class_labels_are_digits = True
+
+	for class_label in train_classes:
+		if not class_label.decode().isdigit():
+			class_labels_are_digits = False
+			break
+
+	if class_labels_are_digits:
+		train_labels = np.asarray([int(label.decode()) for label in train_labels_orig])
+		test_labels  = np.asarray([int(label.decode()) for label in test_labels_orig])
+	else:
+		train_labels = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels_orig])
+		test_labels  = np.asarray([int(np.where(test_classes  == label)[0]) for label in test_labels_orig])
+
+	train_classes = list(set(train_labels))
+	test_classes  = list(set(test_labels))
+
+	if class_labels_are_digits:
+		train_labels  -= min(train_classes)
+		test_labels   -= min(test_classes)
+		train_classes -= min(train_classes)
+		test_classes  -= min(test_classes)
+
+
+	############################################################################
 	# Resize and crop the dataset
 	############################################################################
+
+	Hexnet_print('Dataset resizing and cropping')
 
 	if resize_dataset is not None:
 		(train_data, test_data) = datasets.resize_dataset(dataset_s = (train_data, test_data), resize_string = resize_dataset)
@@ -303,38 +346,8 @@ def run(args):
 
 
 	############################################################################
-	# Prepare the dataset
-	############################################################################
-
-	class_labels_are_digits = True
-
-	for class_label in train_classes:
-		if not class_label.decode().isdigit():
-			class_labels_are_digits = False
-			break
-
-	if class_labels_are_digits:
-		train_labels = np.asarray([int(label.decode()) for label in train_labels_orig])
-		test_labels  = np.asarray([int(label.decode()) for label in test_labels_orig])
-	else:
-		train_labels = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels_orig])
-		test_labels  = np.asarray([int(np.where(test_classes  == label)[0]) for label in test_labels_orig])
-
-	train_classes = list(set(train_labels))
-	test_classes  = list(set(test_labels))
-
-	if class_labels_are_digits:
-		train_labels  -= min(train_classes)
-		test_labels   -= min(test_classes)
-		train_classes -= min(train_classes)
-		test_classes  -= min(test_classes)
-
-
-	############################################################################
 	# Augment the dataset
 	############################################################################
-
-	print_newline()
 
 	if augment_dataset is not None:
 		Hexnet_print('Dataset augmentation')
@@ -351,10 +364,6 @@ def run(args):
 
 		if 'test' in augment_dataset:
 			test_data = augmenter(images=test_data)
-
-		print_newline()
-
-	print_newline()
 
 
 	############################################################################
@@ -378,7 +387,9 @@ def run(args):
 	############################################################################
 
 	if not model_is_provided:
+		print_newline()
 		Hexnet_print('No model provided.')
+
 		return 0
 
 
@@ -386,18 +397,28 @@ def run(args):
 	# Standardize the dataset
 	############################################################################
 
-	mean_axis       = (1, 2)
+	Hexnet_print('Dataset standardization')
+
+	mean_axis = (1, 2)
+	std_eps   = np.finfo(np.float32).eps
+
 	train_data_mean = np.mean(train_data, axis=mean_axis, keepdims=True)
 	test_data_mean  = np.mean(test_data,  axis=mean_axis, keepdims=True)
-	train_data_std  = np.sqrt(((train_data - train_data_mean) ** 2).mean(axis=mean_axis, keepdims=True))
-	test_data_std   = np.sqrt(((test_data  - test_data_mean)  ** 2).mean(axis=mean_axis, keepdims=True))
-	train_data      = (train_data - train_data_mean) / train_data_std
-	test_data       = (test_data  - test_data_mean)  / test_data_std
+
+	train_data_std = np.sqrt(((train_data - train_data_mean) ** 2).mean(axis=mean_axis, keepdims=True))
+	test_data_std  = np.sqrt(((test_data  - test_data_mean)  ** 2).mean(axis=mean_axis, keepdims=True))
+	train_data_std[train_data_std == 0] = std_eps
+	test_data_std[test_data_std   == 0] = std_eps
+
+	train_data = (train_data - train_data_mean) / train_data_std
+	test_data  = (test_data  - test_data_mean)  / test_data_std
 
 
 	############################################################################
 	# Shuffle the dataset
 	############################################################################
+
+	Hexnet_print('Dataset shuffling')
 
 	train_data, train_labels = sklearn.utils.shuffle(train_data, train_labels)
 
@@ -405,6 +426,9 @@ def run(args):
 	############################################################################
 	# Start a new run
 	############################################################################
+
+	print_newline()
+	print_newline()
 
 	for run in range(1, runs + 1):
 		run_string = f'run={run}/{runs}'
@@ -419,7 +443,7 @@ def run(args):
 
 
 		########################################################################
-		# Initialize / load the model
+		# Initialize the model
 		########################################################################
 
 		Hexnet_print(f'({run_string}) Model initialization')
@@ -445,18 +469,20 @@ def run(args):
 		if load_weights is not None:
 			model.load_weights(load_weights)
 
-		print_newline()
-
 
 		########################################################################
-		# Fit the model
+		# Initialize loss and metrics
 		########################################################################
+
+		Hexnet_print(f'({run_string}) Loss and metrics initialization')
 
 		if not loss_is_provided:
 			if not model_is_autoencoder:
 				loss = 'sparse_categorical_crossentropy'
 			else:
 				loss = 'mse'
+
+				loss = tf.losses.get(loss)
 		else:
 			if not loss_is_subpixel_loss:
 				loss = vars(losses)[f'loss_{loss_string}']()
@@ -473,11 +499,18 @@ def run(args):
 		else:
 			model.compile()
 
+
+		print_newline()
 		Hexnet_print(f'({run_string}) Model summary')
 		model.summary()
-		print_newline()
 
-		Hexnet_print(f'({run_string}) Training')
+
+		########################################################################
+		# Train the model
+		########################################################################
+
+		print_newline()
+		Hexnet_print(f'({run_string}) Model training')
 
 		if model_is_standalone:
 			model.fit(train_data, train_labels, batch_size, epochs, tests_dir, run_title)
@@ -486,15 +519,14 @@ def run(args):
 		else:
 			history = model.fit(train_data, train_labels, batch_size, epochs, validation_split=validation_split)
 
-		print_newline()
-
 
 		########################################################################
-		# Visualize filters, feature maps, and training results
+		# Visualize filters, feature maps, activations, and training results
 		########################################################################
 
 		if not model_is_standalone:
 			if visualize_model is not None:
+				print_newline()
 				Hexnet_print(f'({run_string}) Visualization')
 
 				visualization.visualize_model(
@@ -502,26 +534,25 @@ def run(args):
 					test_classes,
 					test_data,
 					test_labels,
+					visualize_hexagonal,
 					output_dir           = visualize_model,
 					max_images_per_class = 10,
 					verbosity_level      = verbosity_level)
 
-				print_newline()
-
+			print_newline()
 			Hexnet_print(f'({run_string}) History')
 			Hexnet_print(f'({run_string}) history.history.keys()={history.history.keys()}')
 
 			if tests_dir is not None or show_results:
 				visualization.visualize_results(history, run_title, tests_dir, show_results)
 
-			print_newline()
-
 
 		########################################################################
 		# Evaluate the model and save test results
 		########################################################################
 
-		Hexnet_print(f'({run_string}) Test')
+		print_newline()
+		Hexnet_print(f'({run_string}) Model evaluation')
 
 		if model_is_standalone:
 			model.evaluate(test_data, test_labels, batch_size, epochs=10, tests_dir=tests_dir, run_title=run_title)
@@ -535,8 +566,12 @@ def run(args):
 
 			if not model_is_autoencoder:
 				predictions_classes = predictions.argmax(axis=-1)
+
 				Hexnet_print(f'({run_string}) test_acc={test_acc:.8f}, test_loss={test_loss:.8f}')
 			else:
+				loss_newshape = (test_data.shape[0], -1)
+				test_losses   = loss(np.reshape(test_data, newshape=loss_newshape), np.reshape(predictions, newshape=loss_newshape))
+
 				Hexnet_print(f'({run_string}) test_loss={test_loss:.8f}')
 
 			if tests_dir is not None:
@@ -548,9 +583,16 @@ def run(args):
 						print('label_orig,filename,label,prediction_class,prediction', file=predictions_file)
 
 						for label_orig, filename, label, prediction_class, prediction in zip(test_labels_orig, test_filenames, test_labels, predictions_classes, predictions):
-							prediction = [float(format(class_confidence, '.8f')) for class_confidence in prediction]
+							prediction = [format(class_confidence, '.8f') for class_confidence in prediction]
 							print(f'{label_orig.decode()},{filename.decode()},{label},{prediction_class},{prediction}', file=predictions_file)
 				else:
+					with open(f'{tests_dir_predictions}.csv', 'w') as predictions_file:
+						print('label_orig,filename,label,loss', file=predictions_file)
+
+						for label_orig, filename, label, loss in zip(test_labels_orig, test_filenames, test_labels, test_losses):
+							loss = format(loss, '.8f')
+							print(f'{label_orig.decode()},{filename.decode()},{label},{loss}', file=predictions_file)
+
 					os.makedirs(tests_dir_predictions, exist_ok=True)
 
 					for image_counter, (image, label) in enumerate(zip(predictions, test_labels)):
@@ -631,7 +673,8 @@ def parse_args(args=None, namespace=None):
 
 	parser.add_argument('--tests-dir',                         nargs = '?', default = tests_dir,           help = 'tests output directory (providing no argument disables the tests output)')
 	parser.add_argument('--show-dataset',                                   action  = 'store_true',        help = 'show the dataset')
-	parser.add_argument('--visualize-model',                                default = visualize_model,     help = 'visualize the model\'s filters and feature maps after training')
+	parser.add_argument('--visualize-model',                                default = visualize_model,     help = 'visualize the model\'s filters, feature maps, and activations after training')
+	parser.add_argument('--visualize-hexagonal',                            action  = 'store_true',        help = 'visualize as hexagonal arrays')
 	parser.add_argument('--show-results',                                   action  = 'store_true',        help = 'show the test results')
 
 	parser.add_argument('--batch-size',          type = int,                default = batch_size,          help = 'training batch size')
@@ -665,7 +708,6 @@ if __name__ == '__main__':
 	args = parse_args()
 
 	Hexnet_print(f'args={args}')
-	print_newline()
 
 	status = run(args)
 

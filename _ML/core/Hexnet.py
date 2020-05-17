@@ -77,7 +77,6 @@ def Hexnet_load(shared_object='../Hexnet.so'):
 def Hexnet_init():
 	Hexnet_load()
 	Hexnet.print_info()
-	print_newline()
 
 
 def _Hexsamp_s2h(filename, output_dir='.', rad_o=1.0, method=0, increase_verbosity=False):
@@ -251,5 +250,4 @@ def Sqsamp_s2s(filename_s, output_dir = '.', res = (64, 64), method = 0, increas
 
 	for filename in tqdm(natsorted(glob(filename_s))):
 		_Sqsamp_s2s(filename, output_dir, res, method, increase_verbosity)
-
 

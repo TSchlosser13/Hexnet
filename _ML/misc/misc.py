@@ -27,6 +27,8 @@
 
 import sys
 
+import numpy as np
+
 
 def putchar(char):
 	sys.stdout.write(char)
@@ -37,5 +39,18 @@ def print_newline():
 
 def Hexnet_print(string, file=None):
 	print(f'[Hexnet] {string}', file=file)
+
+
+def normalize_array(array):
+	array_min   = array.min()
+	array_max   = array.max()
+	array_range = array_max - array_min
+
+	if array_range:
+		array = (array - array_min) / array_range
+	elif array_min:
+		array /= array_min
+
+	return array
 
 
