@@ -108,10 +108,14 @@ from misc.misc   import Hexnet_print, print_newline
 
 
 ################################################################################
-# Run Hexnet
+# Start Hexnet
 ################################################################################
 
 def run(args):
+
+	############################################################################
+	# Parameters
+	############################################################################
 
 	model_string        = args.model
 	load_model          = args.load_model
@@ -175,12 +179,18 @@ def run(args):
 	if loss_string is not None:
 		loss_is_provided = True
 
-		loss_is_subpixel_loss = True if ('s2s' in loss_string or 's2h' in loss_string) else False
+		subpixel_loss_identifiers = ('s2s', 's2h')
+		loss_is_subpixel_loss = True if any(identifier in loss_string for identifier in subpixel_loss_identifiers) else False
 	else:
 		loss_is_provided = False
 
 	if dataset is not None:
-		if any(identifier in dataset for identifier in ('_hex', '_s2h', '_h2h')): visualize_hexagonal = True
+		dataset_is_provided = True
+
+		visualize_hexagonal_identifiers = ('hex', 's2h', 'h2h')
+		if any(identifier in dataset for identifier in visualize_hexagonal_identifiers): visualize_hexagonal = True
+	else:
+		dataset_is_provided = False
 
 	train_classes     = []
 	train_data        = []
@@ -198,7 +208,7 @@ def run(args):
 	# No dataset was provided - returning
 	############################################################################
 
-	if dataset is None:
+	if not dataset_is_provided:
 		print_newline()
 		Hexnet_print('No dataset provided.')
 
@@ -209,7 +219,7 @@ def run(args):
 	# Transform the dataset
 	############################################################################
 
-	if transform_s2h != False or transform_h2s != False or transform_h2h != False or transform_s2s != False:
+	if any(transform != False for transform in (transform_s2h, transform_h2s, transform_h2h, transform_s2s)):
 		print_newline()
 		Hexnet_init()
 
@@ -271,7 +281,8 @@ def run(args):
 
 	print_newline()
 
-	((train_classes, train_data, train_filenames, train_labels_orig), (test_classes, test_data, test_filenames, test_labels_orig)) = datasets.load_dataset(
+	((train_classes, train_data, train_filenames, train_labels_orig),
+	 (test_classes,  test_data,  test_filenames,  test_labels_orig)) = datasets.load_dataset(
 		dataset         = dataset,
 		create_h5       = True,
 		verbosity_level = verbosity_level)
@@ -292,27 +303,29 @@ def run(args):
 			break
 
 	if class_labels_are_digits:
-		train_labels = np.asarray([int(label.decode()) for label in train_labels_orig])
-		test_labels  = np.asarray([int(label.decode()) for label in test_labels_orig])
+		train_labels = np.asarray([int(label) for label in train_labels_orig])
+		test_labels  = np.asarray([int(label) for label in test_labels_orig])
 	else:
-		train_labels = np.asarray([int(np.where(train_classes == label)[0]) for label in train_labels_orig])
-		test_labels  = np.asarray([int(np.where(test_classes  == label)[0]) for label in test_labels_orig])
+		train_labels = np.asarray([np.where(label == train_classes)[0][0] for label in train_labels_orig])
+		test_labels  = np.asarray([np.where(label == test_classes)[0][0]  for label in test_labels_orig])
 
 	train_classes = list(set(train_labels))
 	test_classes  = list(set(test_labels))
 
 	if class_labels_are_digits:
-		train_labels  -= min(train_classes)
-		test_labels   -= min(test_classes)
-		train_classes -= min(train_classes)
-		test_classes  -= min(test_classes)
+		classes_min = min(train_classes)
+
+		train_labels  -= classes_min
+		test_labels   -= classes_min
+		train_classes -= classes_min
+		test_classes  -= classes_min
 
 
 	############################################################################
-	# Resize and crop the dataset
+	# Preprocess the dataset
 	############################################################################
 
-	Hexnet_print('Dataset resizing and cropping')
+	Hexnet_print('Dataset preprocessing')
 
 	if resize_dataset is not None:
 		(train_data, test_data) = datasets.resize_dataset(dataset_s = (train_data, test_data), resize_string = resize_dataset)
@@ -320,29 +333,27 @@ def run(args):
 	if crop_dataset is not None:
 		(train_data, test_data) = datasets.crop_dataset(dataset_s = (train_data, test_data), crop_string = crop_dataset)
 
-	# TODO
+	# TODO: padding
 	if model_is_provided and (model_is_autoencoder or model_is_GAN):
-		if model_is_autoencoder:
-			min_size_factor = 2**5
-		else:
-			min_size_factor = 2**4
+		min_size_factor = 2**5
 
 		if train_data.shape[1] % min_size_factor:
 			padding_h = min_size_factor - train_data.shape[1] % min_size_factor
-			padding_h = (int(padding_h / 2) + padding_h % 2, int(padding_h / 2))
+			padding_h = (int(padding_h / 2), int(padding_h / 2) + padding_h % 2)
 		else:
 			padding_h = (0, 0)
 
 		if train_data.shape[2] % min_size_factor:
 			padding_w = min_size_factor - train_data.shape[2] % min_size_factor
-			padding_w = (int(padding_w / 2) + padding_w % 2, int(padding_w / 2))
+			padding_w = (int(padding_w / 2), int(padding_w / 2) + padding_w % 2)
 		else:
 			padding_w = (0, 0)
 
-		pad_width = ((0, 0), padding_h, padding_w, (0, 0))
+		if padding_h != (0, 0) or padding_w != (0, 0):
+			pad_width = ((0, 0), padding_h, padding_w, (0, 0))
 
-		train_data = np.pad(train_data, pad_width, mode='constant', constant_values=0)
-		test_data  = np.pad(test_data,  pad_width, mode='constant', constant_values=0)
+			train_data = np.pad(train_data, pad_width, mode='constant', constant_values=0)
+			test_data  = np.pad(test_data,  pad_width, mode='constant', constant_values=0)
 
 
 	############################################################################
@@ -354,10 +365,10 @@ def run(args):
 
 		augmenter = vars(augmenters)[f'augmenter_{augmenter_string}']
 
-		if augmenter_is_custom:
-			augmenter = augmenter()
-		else:
+		if not augmenter_is_custom:
 			augmenter = augmenter(augmentation_level)
+		else:
+			augmenter = augmenter()
 
 		if 'train' in augment_dataset:
 			train_data = augmenter(images=train_data)
@@ -420,17 +431,22 @@ def run(args):
 
 	Hexnet_print('Dataset shuffling')
 
-	train_data, train_labels = sklearn.utils.shuffle(train_data, train_labels)
+	(train_data, train_labels) = sklearn.utils.shuffle(train_data, train_labels)
 
 
 	############################################################################
-	# Start a new run
+	# Start a new training and test run
 	############################################################################
 
 	print_newline()
 	print_newline()
 
 	for run in range(1, runs + 1):
+
+		########################################################################
+		# Current run information
+		########################################################################
+
 		run_string = f'run={run}/{runs}'
 
 		dataset   = os.path.basename(dataset)
@@ -448,9 +464,8 @@ def run(args):
 
 		Hexnet_print(f'({run_string}) Model initialization')
 
-		input_shape  = train_data.shape[1:4]
-		output_shape = test_data.shape[1:4]
-		classes      = len(train_classes)
+		input_shape = train_data.shape[1:4]
+		classes     = len(train_classes)
 
 		if load_model is None:
 			model = vars(models)[f'model_{model_string}']
@@ -482,11 +497,12 @@ def run(args):
 			else:
 				loss = 'mse'
 
-				loss = tf.losses.get(loss)
+			loss = tf.losses.get(loss)
 		else:
 			if not loss_is_subpixel_loss:
 				loss = vars(losses)[f'loss_{loss_string}']()
 			else:
+				output_shape = test_data.shape[1:4]
 				loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
 
 		if not model_is_autoencoder:
@@ -494,14 +510,26 @@ def run(args):
 		else:
 			metrics = None
 
+
+		########################################################################
+		# Compile the model
+		########################################################################
+
+		Hexnet_print(f'({run_string}) Model compilation')
+
 		if not model_is_standalone:
 			model.compile(optimizer='adam', loss=loss, metrics=metrics)
 		else:
 			model.compile()
 
 
+		########################################################################
+		# Model summary
+		########################################################################
+
 		print_newline()
 		Hexnet_print(f'({run_string}) Model summary')
+
 		model.summary()
 
 
@@ -566,12 +594,10 @@ def run(args):
 
 			if not model_is_autoencoder:
 				predictions_classes = predictions.argmax(axis=-1)
-
 				Hexnet_print(f'({run_string}) test_acc={test_acc:.8f}, test_loss={test_loss:.8f}')
 			else:
 				loss_newshape = (test_data.shape[0], -1)
 				test_losses   = loss(np.reshape(test_data, newshape=loss_newshape), np.reshape(predictions, newshape=loss_newshape))
-
 				Hexnet_print(f'({run_string}) test_loss={test_loss:.8f}')
 
 			if tests_dir is not None:
@@ -604,7 +630,7 @@ def run(args):
 		# Save the model
 		########################################################################
 
-		if not model_is_standalone and tests_dir is not None:
+		if (save_model or save_weights) and tests_dir is not None and not model_is_standalone:
 			if save_model:
 				model.save(os.path.join(tests_dir, f'{run_title}_model.h5'))
 
@@ -712,4 +738,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
