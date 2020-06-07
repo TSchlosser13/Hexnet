@@ -1,9 +1,36 @@
 #!/usr/bin/env python3.7
 
 
+'''****************************************************************************
+ * Model_Comparison.py: Model Comparison Test Script
+ ******************************************************************************
+ * v0.1 - 01.03.2019
+ *
+ * Copyright (c) 2019 Tobias Schlosser (tobias@tobias-schlosser.net)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ ****************************************************************************'''
+
+
 model_s    = ['SResNet_v2', 'HResNet_v2']
 dataset_s  = ['../datasets/CIFAR/CIFAR-10_s2s.h5', '../datasets/CIFAR/CIFAR-10_s2h.h5']
-tests_dir  = 'tmp'
+output_dir = 'tmp'
 
 batch_size       = 32
 epochs           =  2
@@ -14,14 +41,13 @@ validation_split =  0.1
 import argparse
 import copy
 import os
-
 import sys
-sys.path.append('..')
-
-import Hexnet
 
 from glob    import glob
 from natsort import natsorted
+
+sys.path.append('..')
+import Hexnet
 
 
 separator_string = 80 * '#'
@@ -30,12 +56,12 @@ status = 0
 
 
 def parse_args():
-	parser = argparse.ArgumentParser(description='Hexnet: The Hexagonal Machine Learning Module - Model Comparison')
+	parser = argparse.ArgumentParser(description='Hexnet: The Hexagonal Machine Learning Module - Model Comparison Test Script')
 
 
-	parser.add_argument('--model',                          nargs = '+', default = model_s,          help = 'model(s) to train and test (providing no argument disables training and testing)')
+	parser.add_argument('--model',                          nargs = '+', default = model_s,          help = 'model(s) for training and testing (providing no argument disables training and testing)')
 	parser.add_argument('--dataset',                        nargs = '+', default = dataset_s,        help = 'load dataset(s) from file or directory')
-	parser.add_argument('--tests-dir',                      nargs = '?', default = tests_dir,        help = 'tests output directory (providing no argument disables the tests output)')
+	parser.add_argument('--output-dir',                     nargs = '?', default = output_dir,       help = 'training and test results\' output directory (providing no argument disables the output)')
 
 	parser.add_argument('--batch-size',       type = int,                default = batch_size,       help = 'training batch size')
 	parser.add_argument('--epochs',           type = int,                default = epochs,           help = 'training epochs')
@@ -74,8 +100,8 @@ for dataset in args.dataset:
 
 
 
-accuracy_dats = natsorted(glob(os.path.join(tests_dir, '*_accuracy.dat')))
-loss_dats     = natsorted(glob(os.path.join(tests_dir, '*_loss.dat')))
+accuracy_dats = natsorted(glob(os.path.join(output_dir, '*_accuracy.dat')))
+loss_dats     = natsorted(glob(os.path.join(output_dir, '*_loss.dat')))
 
 accuracy_dats_len = len(accuracy_dats)
 loss_dats_len     = len(loss_dats)

@@ -1,5 +1,5 @@
 '''****************************************************************************
- * datasets.py: Dataset Loading, Saving, Transformation, and Visualization
+ * datasets.py: Dataset IO, Transformation (e.g., Padding), and Visualization
  ******************************************************************************
  * v0.1 - 01.03.2019
  *
@@ -33,15 +33,19 @@ import matplotlib.pyplot as plt
 import numpy             as np
 import tensorflow        as tf
 
-from glob    import glob
-from natsort import natsorted
-from time    import time
+from glob              import glob
+from matplotlib.pyplot import imsave
+from natsort           import natsorted
+from shutil            import copytree
+from time              import time
+from tqdm              import tqdm
 
-from core.Hexnet import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
-from misc.misc   import Hexnet_print
+from core.Hexnet        import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
+from misc.misc          import Hexnet_print, normalize_array
+from misc.visualization import visualize_hexarray
 
 
-def create_dataset_h5(
+def create_h5(
 	dataset,
 	train_classes,
 	train_data,
@@ -51,6 +55,13 @@ def create_dataset_h5(
 	test_data,
 	test_filenames,
 	test_labels):
+
+	train_classes   = train_classes.astype('S')
+	train_filenames = train_filenames.astype('S')
+	train_labels    = train_labels.astype('S')
+	test_classes    = test_classes.astype('S')
+	test_filenames  = test_filenames.astype('S')
+	test_labels     = test_labels.astype('S')
 
 	with h5py.File(dataset, 'w') as h5py_file:
 		h5py_file.create_dataset('train_classes',   data=train_classes)
@@ -63,7 +74,11 @@ def create_dataset_h5(
 		h5py_file.create_dataset('test_labels',     data=test_labels)
 
 
-def load_dataset(dataset, create_h5=True, verbosity_level=2):
+def copytree_ignore_files(directory, files):
+	return [file for file in files if os.path.isfile(os.path.join(directory, file))]
+
+
+def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	Hexnet_print(f'Loading dataset {dataset}')
 
 	train_classes   = []
@@ -79,14 +94,14 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 		start_time = time()
 
 		with h5py.File(dataset, 'r') as h5py_file:
-			train_classes   = np.array(h5py_file['train_classes'])
-			train_data      = np.array(h5py_file['train_data'])
-			train_filenames = np.array(h5py_file['train_filenames'])
-			train_labels    = np.array(h5py_file['train_labels'])
-			test_classes    = np.array(h5py_file['test_classes'])
-			test_data       = np.array(h5py_file['test_data'])
-			test_filenames  = np.array(h5py_file['test_filenames'])
-			test_labels     = np.array(h5py_file['test_labels'])
+			train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
+			train_data      = np.asarray(h5py_file['train_data'])
+			train_filenames = np.asarray(h5py_file['train_filenames']).astype('U')
+			train_labels    = np.asarray(h5py_file['train_labels']).astype('U')
+			test_classes    = np.asarray(h5py_file['test_classes']).astype('U')
+			test_data       = np.asarray(h5py_file['test_data'])
+			test_filenames  = np.asarray(h5py_file['test_filenames']).astype('U')
+			test_labels     = np.asarray(h5py_file['test_labels']).astype('U')
 
 		time_diff = time() - start_time
 
@@ -126,22 +141,23 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 						test_filenames.append(current_image)
 						test_labels.append(current_class)
 
+		train_classes   = np.asarray(train_classes)
+		train_data      = np.asarray(train_data)
+		train_filenames = np.asarray(train_filenames)
+		train_labels    = np.asarray(train_labels)
+		test_classes    = np.asarray(test_classes)
+		test_data       = np.asarray(test_data)
+		test_filenames  = np.asarray(test_filenames)
+		test_labels     = np.asarray(test_labels)
+
 		time_diff = time() - start_time
 
 		Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
 
 		if create_h5:
-			dataset         = f'{dataset}.h5'
-			train_classes   = np.array(train_classes,   dtype='string_')
-			train_data      = np.array(train_data)
-			train_filenames = np.array(train_filenames, dtype='string_')
-			train_labels    = np.array(train_labels,    dtype='string_')
-			test_classes    = np.array(test_classes,    dtype='string_')
-			test_data       = np.array(test_data)
-			test_filenames  = np.array(test_filenames,  dtype='string_')
-			test_labels     = np.array(test_labels,     dtype='string_')
+			dataset = f'{dataset}.h5'
 
-			create_dataset_h5(
+			create_h5(
 				dataset,
 				train_classes,
 				train_data,
@@ -152,7 +168,8 @@ def load_dataset(dataset, create_h5=True, verbosity_level=2):
 				test_filenames,
 				test_labels)
 
-	return ((train_classes, train_data, train_filenames, train_labels), (test_classes, test_data, test_filenames, test_labels))
+	return ((train_classes, train_data, train_filenames, train_labels),
+	        (test_classes,  test_data,  test_filenames,  test_labels))
 
 
 def transform_dataset(
@@ -173,78 +190,86 @@ def transform_dataset(
 		Hexnet_print(f'Dataset {output_dir}.h5 exists already (skipping transformation)')
 		return
 
-	Hexnet_print(f'Transforming dataset {dataset} with mode {mode} to {output_dir}')
+	Hexnet_print(f'Transforming dataset {dataset}')
 
-	os.makedirs(output_dir, exist_ok=True)
+	start_time = time()
 
-	for dataset_set in natsorted(glob(os.path.join(dataset, '*'))):
-		current_set = os.path.basename(dataset_set)
+	increase_verbosity = True if verbosity_level >= 3 else False
 
+	copytree(dataset, output_dir, ignore=copytree_ignore_files)
+
+	for directory in natsorted(glob(os.path.join(dataset, '**/'), recursive=True)):
 		if verbosity_level >= 1:
-			print(f'\t> current_set={current_set}')
+			Hexnet_print(f'\t> directory={directory}')
 
-		output_dir_current_set = os.path.join(output_dir, current_set)
-		os.makedirs(output_dir_current_set, exist_ok=True)
+		directory_filename_s = os.path.join(directory, '*')
 
-		for set_class in natsorted(glob(os.path.join(dataset_set, '*'))):
-			current_class = os.path.basename(set_class)
+		found_file = False
 
-			if verbosity_level >= 2:
-				print(f'\t\t> current_class={current_class}')
+		for file in glob(directory_filename_s):
+			if os.path.isfile(file):
+				found_file = True
+				break
 
-			output_dir_current_class = os.path.join(output_dir_current_set, current_class)
-			os.makedirs(output_dir_current_class, exist_ok=True)
+		if not found_file:
+			continue
 
-			if mode == 's2h':
-				Hexsamp_s2h(
-					filename_s         = os.path.join(set_class, '*'),
-					output_dir         = output_dir_current_class,
-					rad_o              = rad_o,
-					method             = method,
-					increase_verbosity = True if verbosity_level >= 3 else False)
-			elif mode == 'h2s':
-				Hexsamp_h2s(
-					filename_s         = os.path.join(set_class, '*'),
-					output_dir         = output_dir_current_class,
-					len                = len,
-					method             = method,
-					increase_verbosity = True if verbosity_level >= 3 else False)
-			elif mode == 'h2h':
-				Hexsamp_h2h(
-					filename_s         = os.path.join(set_class, '*'),
-					output_dir         = output_dir_current_class,
-					rad_o              = rad_o,
-					method             = method,
-					increase_verbosity = True if verbosity_level >= 3 else False)
-			elif mode == 's2s':
-				Sqsamp_s2s(
-					filename_s         = os.path.join(set_class, '*'),
-					output_dir         = output_dir_current_class,
-					res                = res,
-					method             = method,
-					increase_verbosity = True if verbosity_level >= 3 else False)
+		directory_output_dir = os.path.join(output_dir, os.path.relpath(directory, dataset))
+
+		if mode == 's2h':
+			Hexsamp_s2h(
+				filename_s         = directory_filename_s,
+				output_dir         = directory_output_dir,
+				rad_o              = rad_o,
+				method             = method,
+				increase_verbosity = increase_verbosity)
+		elif mode == 'h2s':
+			Hexsamp_h2s(
+				filename_s         = directory_filename_s,
+				output_dir         = directory_output_dir,
+				len                = len,
+				method             = method,
+				increase_verbosity = increase_verbosity)
+		elif mode == 'h2h':
+			Hexsamp_h2h(
+				filename_s         = directory_filename_s,
+				output_dir         = directory_output_dir,
+				rad_o              = rad_o,
+				method             = method,
+				increase_verbosity = increase_verbosity)
+		elif mode == 's2s':
+			Sqsamp_s2s(
+				filename_s         = directory_filename_s,
+				output_dir         = directory_output_dir,
+				res                = res,
+				method             = method,
+				increase_verbosity = increase_verbosity)
+
+	time_diff = time() - start_time
+
+	Hexnet_print(f'Transformed dataset {dataset} in {time_diff:.3f} seconds')
 
 
 def resize_dataset(dataset_s, resize_string, method='nearest'):
 	# HxW
-	resize_size = resize_string.split('x')
-	resize_H    = int(resize_size[0])
-	resize_W    = int(resize_size[1])
-	target_size = (resize_H, resize_W)
+	resize   = resize_string.split('x')
+	resize_H = int(resize[0])
+	resize_W = int(resize[1])
+	size     = (resize_H, resize_W)
 
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
-	dataset_s = [tf.image.resize(dataset, size=target_size, method=method).numpy() for dataset in dataset_s]
+	dataset_s = [tf.image.resize(dataset, size, method).numpy() for dataset in dataset_s]
 
 	return dataset_s
 
 
 def crop_dataset(dataset_s, crop_string):
 	# HxW+Y+X
-	crop_offset = crop_string.split('+')
-	crop_size   = crop_offset[0].split('x')
-	crop_offset = crop_offset[1:]
+	crop        = crop_string.split('+')
+	crop_size   = crop[0].split('x')
+	crop_offset = crop[1:]
 
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
@@ -257,8 +282,8 @@ def crop_dataset(dataset_s, crop_string):
 		crop_X = int(crop_offset[1])
 
 	if not 'x' in crop_string:
-		crop_H = dataset_s[0].shape[0] - crop_Y
-		crop_W = dataset_s[0].shape[1] - crop_X
+		crop_H = dataset_s[0].shape[1] - crop_Y
+		crop_W = dataset_s[0].shape[2] - crop_X
 	else:
 		crop_H = int(crop_size[0])
 		crop_W = int(crop_size[1])
@@ -266,12 +291,27 @@ def crop_dataset(dataset_s, crop_string):
 	slice_H = slice(crop_Y, crop_Y + crop_H)
 	slice_W = slice(crop_X, crop_X + crop_W)
 
-	dataset_s = [dataset[:,slice_H,slice_W,:] for dataset in dataset_s]
+	dataset_s = [dataset[:, slice_H, slice_W, :] for dataset in dataset_s]
 
 	return dataset_s
 
 
-def show_dataset_classes(
+def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
+	# T,B,L,R
+	pad       = pad_string.split(',')
+	pad_H     = (int(pad[0]), int(pad[1]))
+	pad_W     = (int(pad[2]), int(pad[3]))
+	pad_width = ((0, 0), pad_H, pad_W, (0, 0))
+
+	if type(dataset_s) is not list:
+		dataset_s = list(dataset_s)
+
+	dataset_s = [np.pad(dataset, pad_width, mode, constant_values=constant_values) for dataset in dataset_s]
+
+	return dataset_s
+
+
+def show_dataset(
 	train_classes,
 	train_data,
 	train_labels,
@@ -321,4 +361,69 @@ def show_dataset_classes(
 
 	plt.close()
 
+
+def visualize_dataset(
+	dataset,
+	train_classes,
+	train_data,
+	train_filenames,
+	train_labels,
+	test_classes,
+	test_data,
+	test_filenames,
+	test_labels,
+	visualize_hexagonal,
+	create_h5       = False,
+	verbosity_level = 2):
+
+	Hexnet_print(f'Visualizing dataset {dataset}')
+
+	start_time = time()
+
+	if create_h5:
+		dataset = f'{dataset}_visualized.h5'
+
+		create_h5(
+			dataset,
+			train_classes,
+			train_data,
+			train_filenames,
+			train_labels,
+			test_classes,
+			test_data,
+			test_filenames,
+			test_labels)
+	else:
+		dataset_visualized = f'{dataset}_visualized'
+
+		if os.path.isfile(dataset) and dataset.endswith('.h5'):
+			for current_class in train_classes:
+				os.makedirs(os.path.join(dataset_visualized, 'train', current_class), exist_ok=True)
+
+			for current_class in test_classes:
+				os.makedirs(os.path.join(dataset_visualized, 'test', current_class), exist_ok=True)
+		else:
+			copytree(dataset, dataset_visualized, ignore=copytree_ignore_files)
+
+		for current_set, current_data, current_filenames, current_labels in \
+		 zip(('train', 'test'), (train_data, test_data), (train_filenames, test_filenames), (train_labels, test_labels)):
+
+			if verbosity_level >= 1:
+				Hexnet_print(f'\t> current_set={current_set}')
+
+			for image, filename, label in zip(tqdm(current_data), current_filenames, current_labels):
+				image_filename = os.path.join(dataset_visualized, current_set, label, filename)
+
+				if verbosity_level >= 3:
+					Hexnet_print(f'\t\t\t> image_filename={image_filename}')
+
+				if not visualize_hexagonal:
+					imsave(image_filename, image)
+				else:
+					image_filename = '.'.join(image_filename.split('.')[:-1])
+					visualize_hexarray(normalize_array(image), image_filename)
+
+	time_diff = time() - start_time
+
+	Hexnet_print(f'Visualized dataset {dataset} in {time_diff:.3f} seconds')
 

@@ -209,7 +209,7 @@ def test_rotate_square_kernel(kernel_size=(3, 3)):
 
 		test_kernel_rotated = rotate_square_kernel(kernel=test_kernel, angle=angle)
 
-		print(f'test_kernel_rotated =\n{np.array(test_kernel_rotated)}')
+		print(f'test_kernel_rotated =\n{np.asarray(test_kernel_rotated)}')
 
 
 def test_rotate_hexagonal_kernels(kernel_size=(3, 3)):
@@ -235,7 +235,7 @@ def test_rotate_hexagonal_kernels(kernel_size=(3, 3)):
 
 		test_kernels_rotated = rotate_hexagonal_kernels(kernels=test_kernels, angle=angle)
 
-		print(f'test_kernels_rotated[even] =\n{np.array(test_kernels_rotated[even])}\ntest_kernels_rotated[odd] =\n{np.array(test_kernels_rotated[odd])}')
+		print(f'test_kernels_rotated[even] =\n{np.asarray(test_kernels_rotated[even])}\ntest_kernels_rotated[odd] =\n{np.asarray(test_kernels_rotated[odd])}')
 
 
 if __name__ == '__main__':

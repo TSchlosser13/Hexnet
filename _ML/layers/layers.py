@@ -1359,7 +1359,7 @@ class HPool2D(tf.keras.layers.Layer):
 
 			for h in range(cost_matrix.shape[0]):
 				for w in range(cost_matrix.shape[1]):
-					cost_matrix[h][w] = np.linalg.norm(np.array(input_offsets_centered[h]) - np.array(output_offsets_centered[w]))
+					cost_matrix[h][w] = np.linalg.norm(np.asarray(input_offsets_centered[h]) - np.asarray(output_offsets_centered[w]))
 
 			row_indices, col_indices = linear_sum_assignment(cost_matrix)
 

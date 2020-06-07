@@ -1,5 +1,5 @@
 '''****************************************************************************
- * visualization.py: Filters, Feature Maps, and Results Visualization
+ * visualization.py: Model (Filters, etc.) and Results Visualization
  ******************************************************************************
  * v0.1 - 01.03.2019
  *
@@ -368,5 +368,4 @@ def visualize_results(history, title, output_dir, show_results):
 		plt.show()
 
 	plt.close()
-
 

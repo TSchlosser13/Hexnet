@@ -1,5 +1,5 @@
 natsort==7.0.1
 scikit-learn
 tensorflow==2.1.0
-tqdm==4.46.0
+tqdm==4.46.1
 
