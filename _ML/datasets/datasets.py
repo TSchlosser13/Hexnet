@@ -45,7 +45,7 @@ from misc.misc          import Hexnet_print, normalize_array
 from misc.visualization import visualize_hexarray
 
 
-def create_h5(
+def create_dataset_h5(
 	dataset,
 	train_classes,
 	train_data,
@@ -157,7 +157,7 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 		if create_h5:
 			dataset = f'{dataset}.h5'
 
-			create_h5(
+			create_dataset_h5(
 				dataset,
 				train_classes,
 				train_data,
@@ -383,7 +383,7 @@ def visualize_dataset(
 	if create_h5:
 		dataset = f'{dataset}_visualized.h5'
 
-		create_h5(
+		create_dataset_h5(
 			dataset,
 			train_classes,
 			train_data,
