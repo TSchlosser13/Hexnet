@@ -28,6 +28,9 @@
 import cv2
 import h5py
 import os
+import random
+import shutil
+import uuid
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -36,13 +39,95 @@ import tensorflow        as tf
 from glob              import glob
 from matplotlib.pyplot import imsave
 from natsort           import natsorted
-from shutil            import copytree
 from time              import time
 from tqdm              import tqdm
 
 from core.Hexnet        import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
 from misc.misc          import Hexnet_print, normalize_array
 from misc.visualization import visualize_hexarray
+
+
+def create_dataset(dataset, split_ratios, verbosity_level=2):
+	Hexnet_print(f'Creating classification dataset from dataset {dataset}')
+
+	start_time = time()
+
+	split_ratios_len       = len(split_ratios)
+	split_ratios_sets      = list(split_ratios.keys())
+	split_ratios_fractions = list(split_ratios.values())
+
+	classification_dataset = f'{dataset}_classification_dataset'
+	os.makedirs(classification_dataset, exist_ok=True)
+
+
+	for set_class in natsorted(glob(os.path.join(dataset, '*'))):
+
+		# Step 1: randomized image dataset set assignment
+
+		current_class = os.path.basename(set_class)
+
+		if verbosity_level >= 1:
+			Hexnet_print(f'\t> current_class={current_class}')
+
+		images_to_copy = glob(os.path.join(set_class, '*'))
+
+		if not images_to_copy:
+			continue
+
+		images_to_copy_len         = len(images_to_copy)
+		max_images_to_copy_per_set = [round(fraction * images_to_copy_len) for fraction in split_ratios_fractions]
+		copied_images              = []
+		copied_images_per_set      = split_ratios_len * [0]
+
+		if verbosity_level >= 2:
+			Hexnet_print(f'\t\t> max_images_to_copy_per_set={max_images_to_copy_per_set} (images_to_copy_len={images_to_copy_len})')
+
+		for current_set in split_ratios_sets:
+			os.makedirs(os.path.join(classification_dataset, current_set, current_class), exist_ok=True)
+
+		for image_to_copy in tqdm(random.sample(images_to_copy, images_to_copy_len)):
+			while True:
+				set_selector = random.randint(0, split_ratios_len - 1)
+
+				if copied_images_per_set[set_selector] < max_images_to_copy_per_set[set_selector]:
+					copy_image_to = os.path.join(classification_dataset, split_ratios_sets[set_selector], current_class, os.path.basename(image_to_copy))
+
+					shutil.copyfile(image_to_copy, copy_image_to)
+
+					copied_images.append(copy_image_to)
+					copied_images_per_set[set_selector] += 1
+
+					break
+
+		copied_images_len = len(copied_images)
+
+		if verbosity_level >= 2:
+			Hexnet_print(f'\t\t> copied_images_per_set={copied_images_per_set} (copied_images_len={copied_images_len})')
+
+
+		# Step 2: randomized image dataset set balancing: duplicate and hash assigned images
+
+		for current_set_index, current_set in enumerate(split_ratios_sets):
+			while copied_images_per_set[current_set_index] < max_images_to_copy_per_set[current_set_index]:
+				image_selector = round(random.randint(0, copied_images_len - 1))
+
+				image_to_copy = copied_images[image_selector]
+				copy_image_to = os.path.basename(image_to_copy).split('.')
+				copy_image_to = '.'.join(copy_image_to[:-1]) + '_' + str(uuid.uuid4()) + '.' + copy_image_to[-1]
+				copy_image_to = os.path.join(classification_dataset, current_set, current_class, copy_image_to)
+
+				shutil.copyfile(image_to_copy, copy_image_to)
+
+				copied_images_per_set[current_set_index] += 1
+
+		if verbosity_level >= 2:
+			copied_images_len = sum(copied_images_per_set)
+			Hexnet_print(f'\t\t> copied_images_per_set={copied_images_per_set} (copied_images_len={copied_images_len}) after balancing')
+
+
+	time_diff = time() - start_time
+
+	Hexnet_print(f'Created classification dataset from dataset {dataset} in {time_diff:.3f} seconds')
 
 
 def create_dataset_h5(
@@ -81,6 +166,8 @@ def copytree_ignore_files(directory, files):
 def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	Hexnet_print(f'Loading dataset {dataset}')
 
+	start_time = time()
+
 	train_classes   = []
 	train_data      = []
 	train_filenames = []
@@ -91,8 +178,6 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	test_labels     = []
 
 	if os.path.isfile(dataset) and dataset.endswith('.h5'):
-		start_time = time()
-
 		with h5py.File(dataset, 'r') as h5py_file:
 			train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
 			train_data      = np.asarray(h5py_file['train_data'])
@@ -102,13 +187,7 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 			test_data       = np.asarray(h5py_file['test_data'])
 			test_filenames  = np.asarray(h5py_file['test_filenames']).astype('U')
 			test_labels     = np.asarray(h5py_file['test_labels']).astype('U')
-
-		time_diff = time() - start_time
-
-		Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
 	else:
-		start_time = time()
-
 		for dataset_set in natsorted(glob(os.path.join(dataset, '*'))):
 			current_set = os.path.basename(dataset_set)
 
@@ -150,23 +229,23 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 		test_filenames  = np.asarray(test_filenames)
 		test_labels     = np.asarray(test_labels)
 
-		time_diff = time() - start_time
+	time_diff = time() - start_time
 
-		Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
+	Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
 
-		if create_h5:
-			dataset = f'{dataset}.h5'
+	if create_h5:
+		dataset = f'{dataset}.h5'
 
-			create_dataset_h5(
-				dataset,
-				train_classes,
-				train_data,
-				train_filenames,
-				train_labels,
-				test_classes,
-				test_data,
-				test_filenames,
-				test_labels)
+		create_dataset_h5(
+			dataset,
+			train_classes,
+			train_data,
+			train_filenames,
+			train_labels,
+			test_classes,
+			test_data,
+			test_filenames,
+			test_labels)
 
 	return ((train_classes, train_data, train_filenames, train_labels),
 	        (test_classes,  test_data,  test_filenames,  test_labels))
@@ -196,7 +275,7 @@ def transform_dataset(
 
 	increase_verbosity = True if verbosity_level >= 3 else False
 
-	copytree(dataset, output_dir, ignore=copytree_ignore_files)
+	shutil.copytree(dataset, output_dir, ignore=copytree_ignore_files)
 
 	for directory in natsorted(glob(os.path.join(dataset, '**/'), recursive=True)):
 		if verbosity_level >= 1:
@@ -403,7 +482,7 @@ def visualize_dataset(
 			for current_class in test_classes:
 				os.makedirs(os.path.join(dataset_visualized, 'test', current_class), exist_ok=True)
 		else:
-			copytree(dataset, dataset_visualized, ignore=copytree_ignore_files)
+			shutil.copytree(dataset, dataset_visualized, ignore=copytree_ignore_files)
 
 		for current_set, current_data, current_filenames, current_labels in \
 		 zip(('train', 'test'), (train_data, test_data), (train_filenames, test_filenames), (train_labels, test_labels)):
@@ -426,4 +505,5 @@ def visualize_dataset(
 	time_diff = time() - start_time
 
 	Hexnet_print(f'Visualized dataset {dataset} in {time_diff:.3f} seconds')
+
 

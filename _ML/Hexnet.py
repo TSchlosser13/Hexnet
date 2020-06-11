@@ -37,6 +37,7 @@ load_model          = None
 load_weights        = None
 
 dataset             = 'datasets/MNIST/MNIST.h5'
+create_dataset      = None
 resize_dataset      = None
 crop_dataset        = None
 pad_dataset         = None
@@ -87,6 +88,7 @@ if disable_tensorflow_warnings:
 ################################################################################
 
 import argparse
+import ast
 import inspect
 import sklearn
 import sys
@@ -129,6 +131,7 @@ def run(args):
 	save_weights        = args.save_weights
 
 	dataset             = args.dataset
+	create_dataset      = args.create_dataset
 	create_h5           = args.create_h5
 	resize_dataset      = args.resize_dataset
 	crop_dataset        = args.crop_dataset
@@ -196,6 +199,9 @@ def run(args):
 		dataset = dataset.rstrip('/')
 		dataset_is_provided = True
 
+		if create_dataset is not None:
+			create_dataset = ast.literal_eval(create_dataset)
+
 		visualize_hexagonal_identifiers = ('hex', 's2h', 'h2h')
 		if any(identifier in dataset for identifier in visualize_hexagonal_identifiers): visualize_hexagonal = True
 	else:
@@ -234,6 +240,18 @@ def run(args):
 		Hexnet_print('No dataset provided - returning')
 
 		return 0
+
+
+	############################################################################
+	# Create classification dataset
+	############################################################################
+
+	if create_dataset is not None:
+		print_newline()
+
+		datasets.create_dataset(dataset, split_ratios=create_dataset, verbosity_level=verbosity_level)
+
+		dataset = f'{dataset}_classification_dataset'
 
 
 	############################################################################
@@ -749,6 +767,7 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights as HDF5')
 
 	parser.add_argument('--dataset',                           nargs = '?', default = dataset,             help = 'load dataset from HDF5 or directory')
+	parser.add_argument('--create-dataset',                    nargs = '?', default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., {\'train\':0.9,\'test\':0.1})')
 	parser.add_argument('--create-h5',                                      action  = 'store_true',        help = 'save dataset as HDF5')
 	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g., 32x32)')
 	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g., 32x32+2+2, 32x32, or +2+2)')
