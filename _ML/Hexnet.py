@@ -625,7 +625,7 @@ def run(args):
 				Hexnet_print(f'({run_string}) history.history.keys()={history.history.keys()}')
 
 				if enable_output or show_results:
-					visualization.visualize_results(history, run_title, output_dir, show_results)
+					visualization.visualize_training_results(history, run_title, output_dir, show_results)
 
 
 		########################################################################
@@ -660,21 +660,20 @@ def run(args):
 
 			predictions = model.predict(test_data)
 
-			output_dir_predictions = os.path.join(output_dir, f'{run_title}_predictions')
-
 			if not model_is_autoencoder:
-				predictions_classes = predictions.argmax(axis=-1)
-
-				with open(f'{output_dir_predictions}.csv', 'w') as predictions_file:
-					print('label_orig,filename,label,prediction_class,prediction', file=predictions_file)
-
-					for label_orig, filename, label, prediction_class, prediction in zip(test_labels_orig, test_filenames, test_labels, predictions_classes, predictions):
-						prediction = [float(format(class_confidence, '.8f')) for class_confidence in prediction]
-						print(f'{label_orig},{filename},{label},{prediction_class},{prediction}', file=predictions_file)
+				visualization.visualize_test_results(
+					predictions,
+					test_classes_orig,
+					test_filenames,
+					test_labels,
+					test_labels_orig,
+					run_title,
+					output_dir)
 			else:
 				loss_newshape = (test_data.shape[0], -1)
 				test_losses = loss(np.reshape(test_data, newshape=loss_newshape), np.reshape(predictions, newshape=loss_newshape))
 
+				output_dir_predictions = os.path.join(output_dir, f'{run_title}_predictions')
 				os.makedirs(output_dir_predictions, exist_ok=True)
 
 				with open(f'{output_dir_predictions}.csv', 'w') as predictions_file:
@@ -725,7 +724,7 @@ def parse_args(args=None, namespace=None):
 
 
 	model_choices     = [model[0][len('model_'):] for model in inspect.getmembers(models, inspect.isfunction) if model[0].startswith('model_')]
-	augmenter_choices = [augmenter[0][len('augmenter_'):] for augmenter in inspect.getmembers(augmenters, inspect.isfunction) if augmenter[0].startswith('augmenter_')]
+	augmenter_choices = [augmenter[0][len('augmenter_'):] for augmenter in inspect.getmembers(augmenters) if augmenter[0].startswith('augmenter_')]
 	loss_choices      = [loss[0][len('loss_'):] for loss in inspect.getmembers(losses, inspect.isclass) if loss[0].startswith('loss_')]
 
 	augment_dataset_choices = ['train', 'test']
