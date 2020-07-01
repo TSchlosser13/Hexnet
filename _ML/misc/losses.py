@@ -30,7 +30,7 @@ import tensorflow as tf
 from tools.compare import _COMPARE_MSE, _compare_s2s, _compare_s2h
 
 
-class loss_test_MSE(tf.losses.Loss):
+class loss_MSE_test(tf.losses.Loss):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
@@ -40,7 +40,7 @@ class loss_test_MSE(tf.losses.Loss):
 
 
 
-class loss_s2s_MSE(tf.losses.Loss):
+class loss_MSE_s2s(tf.losses.Loss):
 	def __init__(self, input_shape, output_shape, **kwargs):
 		super().__init__(**kwargs)
 
@@ -58,7 +58,7 @@ class loss_s2s_MSE(tf.losses.Loss):
 		return loss
 
 
-class loss_s2h_MSE(tf.losses.Loss):
+class loss_MSE_s2h(tf.losses.Loss):
 	def __init__(self, input_shape, output_shape, **kwargs):
 		super().__init__(**kwargs)
 

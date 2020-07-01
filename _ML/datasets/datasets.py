@@ -27,6 +27,7 @@
 
 import cv2
 import h5py
+import math
 import os
 import random
 import shutil
@@ -60,6 +61,9 @@ def create_dataset(dataset, split_ratios, verbosity_level=2):
 	os.makedirs(classification_dataset, exist_ok=True)
 
 
+	max_images_to_copy         = max([len(glob(os.path.join(set_class, '*'))) for set_class in glob(os.path.join(dataset, '*'))])
+	max_images_to_copy_per_set = [math.ceil(fraction * max_images_to_copy) for fraction in split_ratios_fractions]
+
 	for set_class in natsorted(glob(os.path.join(dataset, '*'))):
 
 		# Step 1: randomized image dataset set assignment
@@ -74,10 +78,9 @@ def create_dataset(dataset, split_ratios, verbosity_level=2):
 		if not images_to_copy:
 			continue
 
-		images_to_copy_len         = len(images_to_copy)
-		max_images_to_copy_per_set = [round(fraction * images_to_copy_len) for fraction in split_ratios_fractions]
-		copied_images              = []
-		copied_images_per_set      = split_ratios_len * [0]
+		images_to_copy_len    = len(images_to_copy)
+		copied_images         = []
+		copied_images_per_set = split_ratios_len * [0]
 
 		if verbosity_level >= 2:
 			Hexnet_print(f'\t\t> max_images_to_copy_per_set={max_images_to_copy_per_set} (images_to_copy_len={images_to_copy_len})')
