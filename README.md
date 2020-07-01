@@ -84,6 +84,12 @@ Shared object for **_The_ Hexagonal Machine Learning Module** of this project
 make Hexnet.so
 ```
 
+Install Hexnet
+
+```
+make install
+```
+
 
 Usage
 -----

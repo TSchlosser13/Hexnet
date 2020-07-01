@@ -70,7 +70,7 @@ class Hexarray(Structure):
 	]
 
 
-def Hexnet_load(shared_object='../Hexnet.so'):
+def Hexnet_load(shared_object='/usr/lib/Hexnet.so'):
 	global Hexnet
 	Hexnet = CDLL(shared_object)
 
