@@ -181,6 +181,8 @@ def run(args):
 		model_is_autoencoder = True if 'autoencoder' in model_string else False
 		model_is_CNN         = True if 'CNN'         in model_string else False
 		model_is_GAN         = True if 'GAN'         in model_string else False
+
+		model_is_from_sklearn = True if 'sklearn' in model_string else False
 	else:
 		model_is_provided = False
 
@@ -400,12 +402,12 @@ def run(args):
 
 	if show_dataset:
 		datasets.show_dataset(
-			train_classes,
+			train_classes_orig,
 			train_data,
-			train_labels,
-			test_classes,
+			train_labels_orig,
+			test_classes_orig,
 			test_data,
-			test_labels,
+			test_labels_orig,
 			max_images_per_class   =  1,
 			max_classes_to_display = 10)
 
@@ -501,7 +503,10 @@ def run(args):
 		dataset   = os.path.basename(dataset)
 		timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
 
-		run_title = f'{model_string}_{dataset}_{timestamp}_epochs{epochs}-bs{batch_size}'
+		run_title = f'{model_string}_{dataset}_{timestamp}'
+
+		if not model_is_from_sklearn:
+			run_title = f'{run_title}_epochs{epochs}-bs{batch_size}'
 
 		if runs > 1:
 			run_title = f'{run_title}_run{run}'
@@ -525,12 +530,14 @@ def run(args):
 				model = model(input_shape)
 			elif model_is_CNN:
 				model = model(input_shape, classes, cnn_kernel_size, cnn_pool_size)
+			elif model_is_from_sklearn:
+				model = model()
 			else:
 				model = model(input_shape, classes)
-		else:
+		elif not (model_is_standalone or model_is_from_sklearn):
 			model = tf.keras.models.load_model(load_model)
 
-		if load_weights is not None:
+		if load_weights is not None and not (model_is_standalone or model_is_from_sklearn):
 			model.load_weights(load_weights)
 
 
@@ -538,38 +545,40 @@ def run(args):
 		# Initialize loss and metrics
 		########################################################################
 
-		Hexnet_print(f'({run_string}) Loss and metrics initialization')
+		if not model_is_from_sklearn:
+			Hexnet_print(f'({run_string}) Loss and metrics initialization')
 
-		if not loss_is_provided:
+			if not loss_is_provided:
+				if not model_is_autoencoder:
+					loss = 'sparse_categorical_crossentropy'
+				else:
+					loss = 'mse'
+
+				loss = tf.losses.get(loss)
+			else:
+				if not loss_is_subpixel_loss:
+					loss = vars(losses)[f'loss_{loss_string}']()
+				else:
+					output_shape = test_data.shape[1:4]
+					loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
+
 			if not model_is_autoencoder:
-				loss = 'sparse_categorical_crossentropy'
+				metrics = ['accuracy']
 			else:
-				loss = 'mse'
-
-			loss = tf.losses.get(loss)
-		else:
-			if not loss_is_subpixel_loss:
-				loss = vars(losses)[f'loss_{loss_string}']()
-			else:
-				output_shape = test_data.shape[1:4]
-				loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
-
-		if not model_is_autoencoder:
-			metrics = ['accuracy']
-		else:
-			metrics = None
+				metrics = None
 
 
 		########################################################################
 		# Compile the model
 		########################################################################
 
-		Hexnet_print(f'({run_string}) Model compilation')
+		if not model_is_from_sklearn:
+			Hexnet_print(f'({run_string}) Model compilation')
 
-		if not model_is_standalone:
-			model.compile(optimizer='adam', loss=loss, metrics=metrics)
-		else:
-			model.compile()
+			if not model_is_standalone:
+				model.compile(optimizer='adam', loss=loss, metrics=metrics)
+			else:
+				model.compile()
 
 
 		########################################################################
@@ -579,7 +588,10 @@ def run(args):
 		print_newline()
 		Hexnet_print(f'({run_string}) Model summary')
 
-		model.summary()
+		if not model_is_from_sklearn:
+			model.summary()
+		else:
+			Hexnet_print(model.get_params())
 
 
 		########################################################################
@@ -594,6 +606,8 @@ def run(args):
 				model.fit(train_data, train_labels, batch_size, epochs, visualize_hexagonal, output_dir, run_title)
 			elif model_is_autoencoder:
 				history = model.fit(train_data, train_data, batch_size, epochs, validation_split=validation_split)
+			elif model_is_from_sklearn:
+				model.fit(np.reshape(train_data, newshape = (train_data.shape[0], -1)), train_labels)
 			else:
 				history = model.fit(train_data, train_labels, batch_size, epochs, validation_split=validation_split)
 
@@ -602,7 +616,7 @@ def run(args):
 		# Visualize filters, feature maps, activations, and training results
 		########################################################################
 
-		if not model_is_standalone:
+		if not (model_is_standalone or model_is_from_sklearn):
 			if visualize_model and enable_output:
 				print_newline()
 				Hexnet_print(f'({run_string}) Visualization')
@@ -632,7 +646,7 @@ def run(args):
 		# Evaluate the model
 		########################################################################
 
-		if enable_testing:
+		if enable_testing and not model_is_from_sklearn:
 			print_newline()
 			Hexnet_print(f'({run_string}) Model evaluation')
 
@@ -658,7 +672,10 @@ def run(args):
 			print_newline()
 			Hexnet_print(f'({run_string}) Saving test results')
 
-			predictions = model.predict(test_data)
+			if not model_is_from_sklearn:
+				predictions = model.predict(test_data)
+			else:
+				predictions = model.predict_proba(np.reshape(test_data, newshape = (test_data.shape[0], -1)))
 
 			if not model_is_autoencoder:
 				visualization.visualize_test_results(
@@ -696,7 +713,7 @@ def run(args):
 		# Save the model
 		########################################################################
 
-		if (save_model or save_weights) and enable_output and not model_is_standalone:
+		if (save_model or save_weights) and enable_output and not (model_is_standalone or model_is_from_sklearn):
 			if model_is_autoencoder: print_newline()
 			Hexnet_print(f'({run_string}) Saving the model')
 
@@ -815,4 +832,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 

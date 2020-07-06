@@ -27,7 +27,9 @@
 
 from models.contrib.autoencoders      import *
 from models.contrib.GANs              import *
-from models.contrib.keras             import *
-from models.contrib.visual_inspection import *
 
+from models.contrib.keras             import *
+from models.contrib.sklearn           import *
+
+from models.contrib.visual_inspection import *
 
