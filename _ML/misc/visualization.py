@@ -421,3 +421,42 @@ def visualize_test_results(
 	plt.savefig(f'{output_dir_confusion_matrix_normalized}.png')
 	plt.savefig(f'{output_dir_confusion_matrix_normalized}.pdf')
 
+	plt.close()
+
+	return classification_report
+
+
+def summarize_classification_reports(classification_reports):
+	summary = {}
+
+	for key in classification_reports[0].keys():
+		if 'accuracy' in key:
+			key_values = [report[key] for report in classification_reports]
+			key_mean   = np.mean(key_values)
+			key_std    = np.sqrt(((key_values - key_mean)**2).mean())
+
+			summary[f'{key}_mean'] = key_mean
+			summary[f'{key}_std']  = key_std
+		else:
+			key_dict = {}
+
+			for subkey in classification_reports[0][key].keys():
+				subkey_values = [report[key][subkey] for report in classification_reports]
+				subkey_mean   = np.mean(subkey_values)
+				subkey_std    = np.sqrt(((subkey_values - subkey_mean)**2).mean())
+
+				key_dict[f'{subkey}_mean'] = subkey_mean
+				key_dict[f'{subkey}_std']  = subkey_std
+
+			summary[key] = key_dict
+
+	return summary
+
+def visualize_global_test_results(classification_reports, title, output_dir):
+	if output_dir is not None:
+		os.makedirs(output_dir, exist_ok=True)
+
+	with open(os.path.join(output_dir, f'{title}_classification_reports_summary.csv'), 'w') as classification_report_file:
+		pprint(summarize_classification_reports(classification_reports), stream=classification_report_file)
+
+

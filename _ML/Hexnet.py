@@ -214,10 +214,10 @@ def run(args):
 	elif output_dir is None:
 		disable_output = True
 
-	disable_training = epochs < 1
-	enable_training  = not disable_training
-	enable_testing   = not disable_testing
-	enable_output    = not disable_output
+	disable_training |= epochs < 1
+	enable_training   = not disable_training
+	enable_testing    = not disable_testing
+	enable_output     = not disable_output
 
 	train_classes      = []
 	train_classes_orig = []
@@ -231,6 +231,8 @@ def run(args):
 	test_filenames     = []
 	test_labels        = []
 	test_labels_orig   = []
+
+	classification_reports = []
 
 
 	############################################################################
@@ -489,6 +491,14 @@ def run(args):
 	# Start a new training and test run
 	############################################################################
 
+	dataset     = os.path.basename(dataset)
+	tests_title = f'{model_string}_{dataset}'
+
+	if not model_is_from_sklearn:
+		tests_title = f'{tests_title}_epochs{epochs}-bs{batch_size}'
+
+	run_title_base = tests_title
+
 	print_newline()
 	print_newline()
 
@@ -499,14 +509,8 @@ def run(args):
 		########################################################################
 
 		run_string = f'run={run}/{runs}'
-
-		dataset   = os.path.basename(dataset)
-		timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-
-		run_title = f'{model_string}_{dataset}_{timestamp}'
-
-		if not model_is_from_sklearn:
-			run_title = f'{run_title}_epochs{epochs}-bs{batch_size}'
+		timestamp  = datetime.now().strftime('%Y%m%d-%H%M%S')
+		run_title  = f'{run_title_base}_{timestamp}'
 
 		if runs > 1:
 			run_title = f'{run_title}_run{run}'
@@ -678,7 +682,7 @@ def run(args):
 				predictions = model.predict_proba(np.reshape(test_data, newshape = (test_data.shape[0], -1)))
 
 			if not model_is_autoencoder:
-				visualization.visualize_test_results(
+				classification_report = visualization.visualize_test_results(
 					predictions,
 					test_classes_orig,
 					test_filenames,
@@ -686,6 +690,8 @@ def run(args):
 					test_labels_orig,
 					run_title,
 					output_dir)
+
+				classification_reports.append(classification_report)
 			else:
 				loss_newshape = (test_data.shape[0], -1)
 				test_losses = loss(np.reshape(test_data, newshape=loss_newshape), np.reshape(predictions, newshape=loss_newshape))
@@ -727,6 +733,17 @@ def run(args):
 		if run < runs:
 			print_newline()
 			print_newline()
+
+
+	############################################################################
+	# Save global test results
+	############################################################################
+
+	if runs > 1:
+		timestamp   = datetime.now().strftime('%Y%m%d-%H%M%S')
+		tests_title = f'{tests_title}_{timestamp}'
+
+		visualization.visualize_global_test_results(classification_reports, tests_title, output_dir)
 
 
 	return 0
@@ -832,5 +849,4 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
-
 
