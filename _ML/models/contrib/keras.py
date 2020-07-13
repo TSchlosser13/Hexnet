@@ -55,6 +55,12 @@ def model_keras_NASNetLarge(input_shape, classes, weights=None, **kwargs):
 def model_keras_NASNetMobile(input_shape, classes, weights=None, **kwargs):
 	return tf.keras.applications.NASNetMobile(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
 
+def model_keras_ResNet50(input_shape, classes, weights=None, **kwargs):
+	return tf.keras.applications.ResNet50(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
+
+def model_keras_ResNet50V2(input_shape, classes, weights=None, **kwargs):
+	return tf.keras.applications.ResNet50V2(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
+
 def model_keras_ResNet101(input_shape, classes, weights=None, **kwargs):
 	return tf.keras.applications.ResNet101(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
 
@@ -66,12 +72,6 @@ def model_keras_ResNet152(input_shape, classes, weights=None, **kwargs):
 
 def model_keras_ResNet152V2(input_shape, classes, weights=None, **kwargs):
 	return tf.keras.applications.ResNet152V2(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
-
-def model_keras_ResNet50(input_shape, classes, weights=None, **kwargs):
-	return tf.keras.applications.ResNet50(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
-
-def model_keras_ResNet50V2(input_shape, classes, weights=None, **kwargs):
-	return tf.keras.applications.ResNet50V2(input_shape=input_shape, classes=classes, weights=weights, **kwargs)
 
 def model_keras_VGG16(input_shape, classes, weights=None, **kwargs):
 	return tf.keras.applications.VGG16(input_shape=input_shape, classes=classes, weights=weights, **kwargs)

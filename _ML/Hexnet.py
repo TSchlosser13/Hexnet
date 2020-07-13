@@ -549,7 +549,7 @@ def run(args):
 		# Initialize loss and metrics
 		########################################################################
 
-		if not model_is_from_sklearn:
+		if not (model_is_standalone or model_is_from_sklearn):
 			Hexnet_print(f'({run_string}) Loss and metrics initialization')
 
 			if not loss_is_provided:
@@ -739,7 +739,7 @@ def run(args):
 	# Save global test results
 	############################################################################
 
-	if runs > 1:
+	if runs > 1 and not (model_is_standalone or model_is_autoencoder):
 		timestamp   = datetime.now().strftime('%Y%m%d-%H%M%S')
 		tests_title = f'{tests_title}_{timestamp}'
 
@@ -849,4 +849,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
