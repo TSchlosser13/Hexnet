@@ -61,71 +61,73 @@ def create_dataset(dataset, split_ratios, verbosity_level=2):
 	os.makedirs(classification_dataset, exist_ok=True)
 
 
-	max_images_to_copy         = max([len(glob(os.path.join(set_class, '*'))) for set_class in glob(os.path.join(dataset, '*'))])
-	max_images_to_copy_per_set = [math.ceil(fraction * max_images_to_copy) for fraction in split_ratios_fractions]
+	max_files_to_copy         = max([len(glob(os.path.join(set_class, '*'))) for set_class in glob(os.path.join(dataset, '*'))])
+	max_files_to_copy_per_set = [math.ceil(fraction * max_files_to_copy) for fraction in split_ratios_fractions]
 
 	for set_class in natsorted(glob(os.path.join(dataset, '*'))):
 
-		# Step 1: randomized image dataset set assignment
+		# Step 1: randomized file dataset set assignment
 
 		current_class = os.path.basename(set_class)
 
 		if verbosity_level >= 1:
 			Hexnet_print(f'\t> current_class={current_class}')
 
-		images_to_copy = glob(os.path.join(set_class, '*'))
+		files_to_copy = glob(os.path.join(set_class, '*'))
 
-		if not images_to_copy:
+		if not files_to_copy:
 			continue
 
-		images_to_copy_len    = len(images_to_copy)
-		copied_images         = []
-		copied_images_per_set = split_ratios_len * [0]
+		files_to_copy_len    = len(files_to_copy)
+		copied_files         = []
+		copied_files_per_set = split_ratios_len * [0]
 
 		if verbosity_level >= 2:
-			Hexnet_print(f'\t\t> max_images_to_copy_per_set={max_images_to_copy_per_set} (images_to_copy_len={images_to_copy_len})')
+			Hexnet_print(f'\t\t> max_files_to_copy_per_set={max_files_to_copy_per_set} (files_to_copy_len={files_to_copy_len})')
 
 		for current_set in split_ratios_sets:
 			os.makedirs(os.path.join(classification_dataset, current_set, current_class), exist_ok=True)
 
-		for image_to_copy in tqdm(random.sample(images_to_copy, images_to_copy_len)):
+		files_to_copy_shuffled = random.sample(files_to_copy, files_to_copy_len)
+
+		for file_to_copy in tqdm(files_to_copy_shuffled):
 			while True:
 				set_selector = random.randint(0, split_ratios_len - 1)
 
-				if copied_images_per_set[set_selector] < max_images_to_copy_per_set[set_selector]:
-					copy_image_to = os.path.join(classification_dataset, split_ratios_sets[set_selector], current_class, os.path.basename(image_to_copy))
+				if copied_files_per_set[set_selector] < max_files_to_copy_per_set[set_selector]:
+					copy_file_to = os.path.join(classification_dataset, split_ratios_sets[set_selector], current_class, os.path.basename(file_to_copy))
 
-					shutil.copyfile(image_to_copy, copy_image_to)
+					shutil.copyfile(file_to_copy, copy_file_to)
 
-					copied_images.append(copy_image_to)
-					copied_images_per_set[set_selector] += 1
+					copied_files.append(copy_file_to)
+					copied_files_per_set[set_selector] += 1
 
 					break
 
-		copied_images_len = len(copied_images)
+		copied_files_len = len(copied_files)
 
 		if verbosity_level >= 2:
-			Hexnet_print(f'\t\t> copied_images_per_set={copied_images_per_set} (copied_images_len={copied_images_len})')
+			Hexnet_print(f'\t\t> copied_files_per_set={copied_files_per_set} (copied_files_len={copied_files_len})')
 
 
-		# Step 2: randomized image dataset set balancing: duplicate and hash assigned images
+		# Step 2: randomized file dataset set balancing: duplicate and hash assigned files
 
 		for current_set_index, current_set in enumerate(split_ratios_sets):
-			while copied_images_per_set[current_set_index] < max_images_to_copy_per_set[current_set_index]:
-				image_selector = round(random.randint(0, copied_images_len - 1))
+			while copied_files_per_set[current_set_index] < max_files_to_copy_per_set[current_set_index]:
+				file_selector = round(random.randint(0, copied_files_len - 1))
 
-				image_to_copy = copied_images[image_selector]
-				copy_image_to = os.path.basename(image_to_copy).split('.')
-				copy_image_to = '.'.join(copy_image_to[:-1]) + '_' + str(uuid.uuid4()) + '.' + copy_image_to[-1]
-				copy_image_to = os.path.join(classification_dataset, current_set, current_class, copy_image_to)
+				file_to_copy = copied_files[file_selector]
+				copy_file_to = os.path.basename(file_to_copy).split('.')
+				copy_file_to = '.'.join(copy_file_to[:-1]) + '_' + str(uuid.uuid4()) + '.' + copy_file_to[-1]
+				copy_file_to = os.path.join(classification_dataset, current_set, current_class, copy_file_to)
 
-				shutil.copyfile(image_to_copy, copy_image_to)
+				shutil.copyfile(file_to_copy, copy_file_to)
 
-				copied_images_per_set[current_set_index] += 1
+				copied_files_per_set[current_set_index] += 1
 
 		if verbosity_level >= 2:
-			copied_images_len = sum(copied_images_per_set)
-			Hexnet_print(f'\t\t> copied_images_per_set={copied_images_per_set} (copied_images_len={copied_images_len}) after balancing')
+			copied_files_len = sum(copied_files_per_set)
+			Hexnet_print(f'\t\t> copied_files_per_set={copied_files_per_set} (copied_files_len={copied_files_len}) after balancing')
 
 
 	time_diff = time() - start_time
@@ -208,19 +210,28 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 				elif 'test' in current_set:
 					test_classes.append(current_class)
 
-				for class_image in natsorted(glob(os.path.join(set_class, '*'))):
-					current_image = os.path.basename(class_image)
+				for class_file in tqdm(natsorted(glob(os.path.join(set_class, '*')))):
+					current_file = os.path.basename(class_file)
 
 					if verbosity_level >= 3:
-						Hexnet_print(f'\t\t\t> current_image={current_image}')
+						Hexnet_print(f'\t\t\t> current_file={current_file}')
+
+					current_file_lower = current_file.lower()
+
+					if current_file_lower.endswith('.npy'):
+						file_data = np.load(class_file)
+					elif current_file_lower.endswith('.csv'):
+						file_data = np.loadtxt(class_file, delimiter=',')
+					else:
+						file_data = cv2.imread(class_file, cv2.IMREAD_COLOR)
 
 					if 'train' in current_set:
-						train_data.append(cv2.imread(class_image, cv2.IMREAD_COLOR))
-						train_filenames.append(current_image)
+						train_data.append(file_data)
+						train_filenames.append(current_file)
 						train_labels.append(current_class)
 					elif 'test' in current_set:
-						test_data.append(cv2.imread(class_image, cv2.IMREAD_COLOR))
-						test_filenames.append(current_image)
+						test_data.append(file_data)
+						test_filenames.append(current_file)
 						test_labels.append(current_class)
 
 		train_classes   = np.asarray(train_classes)
@@ -342,7 +353,7 @@ def resize_dataset(dataset_s, resize_string, method='nearest'):
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
-	dataset_s = [tf.image.resize(dataset, size, method).numpy() for dataset in dataset_s]
+	dataset_s = [tf.image.resize(dataset, size, method).numpy() for dataset in dataset_s if dataset.size]
 
 	return dataset_s
 
@@ -373,7 +384,7 @@ def crop_dataset(dataset_s, crop_string):
 	slice_H = slice(crop_Y, crop_Y + crop_H)
 	slice_W = slice(crop_X, crop_X + crop_W)
 
-	dataset_s = [dataset[:, slice_H, slice_W, :] for dataset in dataset_s]
+	dataset_s = [dataset[:, slice_H, slice_W, :] for dataset in dataset_s if dataset.size]
 
 	return dataset_s
 
@@ -388,7 +399,7 @@ def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
-	dataset_s = [np.pad(dataset, pad_width, mode, constant_values=constant_values) for dataset in dataset_s]
+	dataset_s = [np.pad(dataset, pad_width, mode, constant_values=constant_values) for dataset in dataset_s if dataset.size]
 
 	return dataset_s
 
@@ -403,8 +414,13 @@ def show_dataset(
 	max_images_per_class   =  1,
 	max_classes_to_display = 10):
 
+	if train_data.size:
+		classes_len = len(train_classes)
+	elif test_data.size:
+		classes_len = len(test_classes)
+
 	nrows     = 2 * max_images_per_class
-	ncols     = min(len(train_classes), max_classes_to_display)
+	ncols     = min(classes_len, max_classes_to_display)
 	figsize_2 = max_images_per_class * ncols
 	index     = 1
 
@@ -493,17 +509,27 @@ def visualize_dataset(
 			if verbosity_level >= 1:
 				Hexnet_print(f'\t> current_set={current_set}')
 
-			for image, filename, label in zip(tqdm(current_data), current_filenames, current_labels):
-				image_filename = os.path.join(dataset_visualized, current_set, label, filename)
+			if not current_data.size:
+				continue
+
+			for file, filename, label in zip(tqdm(current_data), current_filenames, current_labels):
+				filename = os.path.join(dataset_visualized, current_set, label, filename)
 
 				if verbosity_level >= 3:
-					Hexnet_print(f'\t\t\t> image_filename={image_filename}')
+					Hexnet_print(f'\t\t\t> filename={filename}')
 
-				if not visualize_hexagonal:
-					imsave(image_filename, image)
+				filename_lower = filename.lower()
+
+				if filename_lower.endswith('.npy'):
+					np.save(filename, file)
+				elif filename_lower.endswith('.csv'):
+					np.savetxt(filename, file.reshape(1, file.shape[0]), delimiter=',')
 				else:
-					image_filename = '.'.join(image_filename.split('.')[:-1])
-					visualize_hexarray(normalize_array(image), image_filename)
+					if not visualize_hexagonal:
+						imsave(filename, file)
+					else:
+						filename = '.'.join(filename.split('.')[:-1])
+						visualize_hexarray(normalize_array(file), filename)
 
 	time_diff = time() - start_time
 

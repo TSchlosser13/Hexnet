@@ -98,6 +98,7 @@ import tensorflow as tf
 
 from datetime          import datetime
 from matplotlib.pyplot import imsave
+from pprint            import pprint
 from tqdm              import tqdm
 
 import datasets.datasets  as datasets
@@ -193,12 +194,13 @@ def run(args):
 		loss_is_provided = True
 
 		subpixel_loss_identifiers = ('s2s', 's2h')
-		loss_is_subpixel_loss = True if any(identifier in loss_string for identifier in subpixel_loss_identifiers) else False
+		loss_is_subpixel_loss     = True if any(identifier in loss_string for identifier in subpixel_loss_identifiers) else False
 	else:
 		loss_is_provided = False
 
 	if dataset is not None:
 		dataset = dataset.rstrip('/')
+
 		dataset_is_provided = True
 
 		if create_dataset is not None:
@@ -326,6 +328,14 @@ def run(args):
 	 (test_classes_orig,  test_data,  test_filenames,  test_labels_orig)) = \
 		datasets.load_dataset(dataset, create_h5, verbosity_level)
 
+	if not train_data.size:
+		disable_training = True
+		enable_training  = not disable_training
+
+	if not test_data.size:
+		disable_testing = True
+		enable_testing  = not disable_testing
+
 
 	############################################################################
 	# Prepare the dataset
@@ -336,28 +346,44 @@ def run(args):
 
 	class_labels_are_digits = True
 
-	for class_label in train_classes_orig:
-		if not class_label.isdigit():
-			class_labels_are_digits = False
-			break
+	if enable_training:
+		for class_label in train_classes_orig:
+			if not class_label.isdigit():
+				class_labels_are_digits = False
+				break
+	elif enable_testing:
+		for class_label in test_classes_orig:
+			if not class_label.isdigit():
+				class_labels_are_digits = False
+				break
 
-	if class_labels_are_digits:
-		train_labels = np.asarray([int(label) for label in train_labels_orig])
-		test_labels  = np.asarray([int(label) for label in test_labels_orig])
-	else:
-		train_labels = np.asarray([np.where(label == train_classes_orig)[0][0] for label in train_labels_orig])
-		test_labels  = np.asarray([np.where(label == test_classes_orig)[0][0]  for label in test_labels_orig])
+	if enable_training:
+		if class_labels_are_digits:
+			train_labels = np.asarray([int(label) for label in train_labels_orig])
+		else:
+			train_labels = np.asarray([np.where(label == train_classes_orig)[0][0] for label in train_labels_orig])
 
-	train_classes = list(set(train_labels))
-	test_classes  = list(set(test_labels))
+		train_classes = list(set(train_labels))
 
-	if class_labels_are_digits:
-		classes_min = min(train_classes)
+		if class_labels_are_digits:
+			train_classes_min = min(train_classes)
 
-		train_labels  -= classes_min
-		test_labels   -= classes_min
-		train_classes -= classes_min
-		test_classes  -= classes_min
+			train_classes -= train_classes_min
+			train_labels  -= train_classes_min
+
+	if enable_testing:
+		if class_labels_are_digits:
+			test_labels = np.asarray([int(label) for label in test_labels_orig])
+		else:
+			test_labels = np.asarray([np.where(label == test_classes_orig)[0][0] for label in test_labels_orig])
+
+		test_classes = list(set(test_labels))
+
+		if class_labels_are_digits:
+			test_classes_min = min(test_classes)
+
+			test_classes -= test_classes_min
+			test_labels  -= test_classes_min
 
 
 	############################################################################
@@ -455,36 +481,49 @@ def run(args):
 		if visualize_dataset: print_newline()
 		Hexnet_print('Dataset standardization')
 
-		mean_axis = (1, 2)
-		std_eps   = np.finfo(np.float32).eps
+		if train_data.ndim == 4:
+			mean_axis = (1, 2)
+		else:
+			mean_axis = 1
 
-		train_data_mean = np.mean(train_data, axis=mean_axis, keepdims=True)
-		test_data_mean  = np.mean(test_data,  axis=mean_axis, keepdims=True)
+		std_eps = np.finfo(np.float32).eps
 
-		train_data_std = np.sqrt(((train_data - train_data_mean) ** 2).mean(axis=mean_axis, keepdims=True))
-		test_data_std  = np.sqrt(((test_data  - test_data_mean)  ** 2).mean(axis=mean_axis, keepdims=True))
-		train_data_std[train_data_std == 0] = std_eps
-		test_data_std[test_data_std   == 0] = std_eps
+		if enable_training:
+			train_data_mean = np.mean(train_data, axis=mean_axis, keepdims=True)
 
-		train_data = (train_data - train_data_mean) / train_data_std
-		test_data  = (test_data  - test_data_mean)  / test_data_std
+			train_data_std = np.sqrt(((train_data - train_data_mean)**2).mean(axis=mean_axis, keepdims=True))
+			train_data_std[train_data_std == 0] = std_eps
+
+			train_data = (train_data - train_data_mean) / train_data_std
+
+		if enable_testing:
+			test_data_mean = np.mean(test_data, axis=mean_axis, keepdims=True)
+
+			test_data_std = np.sqrt(((test_data - test_data_mean)**2).mean(axis=mean_axis, keepdims=True))
+			test_data_std[test_data_std == 0] = std_eps
+
+			test_data = (test_data - test_data_mean) / test_data_std
 	else:
 		if visualize_dataset: print_newline()
 		Hexnet_print('Dataset normalization')
 
-		normalization_factor = (2**8 - 1) / 2
+		normalization_factor = max(train_data.max(), test_data.max()) - min(train_data.min(), test_data.min())
 
-		train_data = (train_data - normalization_factor) / normalization_factor
-		test_data  = (test_data  - normalization_factor) / normalization_factor
+		if enable_training:
+			train_data = (train_data - normalization_factor) / normalization_factor
+
+		if enable_testing:
+			test_data = (test_data - normalization_factor) / normalization_factor
 
 
 	############################################################################
 	# Shuffle the dataset
 	############################################################################
 
-	Hexnet_print('Dataset shuffling')
+	if enable_training:
+		Hexnet_print('Dataset shuffling')
 
-	(train_data, train_labels) = sklearn.utils.shuffle(train_data, train_labels)
+		(train_data, train_labels) = sklearn.utils.shuffle(train_data, train_labels)
 
 
 	############################################################################
@@ -497,8 +536,6 @@ def run(args):
 	if not model_is_from_sklearn:
 		tests_title = f'{tests_title}_epochs{epochs}-bs{batch_size}'
 
-	run_title_base = tests_title
-
 	print_newline()
 	print_newline()
 
@@ -510,7 +547,7 @@ def run(args):
 
 		run_string = f'run={run}/{runs}'
 		timestamp  = datetime.now().strftime('%Y%m%d-%H%M%S')
-		run_title  = f'{run_title_base}_{timestamp}'
+		run_title  = f'{tests_title}_{timestamp}'
 
 		if runs > 1:
 			run_title = f'{run_title}_run{run}'
@@ -522,8 +559,12 @@ def run(args):
 
 		Hexnet_print(f'({run_string}) Model initialization')
 
-		input_shape = train_data.shape[1:4]
-		classes     = len(train_classes)
+		if enable_training:
+			input_shape = train_data.shape[1:4]
+			classes     = len(train_classes)
+		elif enable_testing:
+			input_shape = test_data.shape[1:4]
+			classes     = len(test_classes)
 
 		if load_model is None:
 			model = vars(models)[f'model_{model_string}']
@@ -564,7 +605,7 @@ def run(args):
 					loss = vars(losses)[f'loss_{loss_string}']()
 				else:
 					output_shape = test_data.shape[1:4]
-					loss = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
+					loss         = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
 
 			if not model_is_autoencoder:
 				metrics = ['accuracy']
@@ -691,10 +732,14 @@ def run(args):
 					run_title,
 					output_dir)
 
+				print_newline()
+				Hexnet_print(f'({run_string}) Classification report')
+				pprint(classification_report)
+
 				classification_reports.append(classification_report)
 			else:
 				loss_newshape = (test_data.shape[0], -1)
-				test_losses = loss(np.reshape(test_data, newshape=loss_newshape), np.reshape(predictions, newshape=loss_newshape))
+				test_losses   = loss(np.reshape(test_data, newshape=loss_newshape), np.reshape(predictions, newshape=loss_newshape))
 
 				output_dir_predictions = os.path.join(output_dir, f'{run_title}_predictions')
 				os.makedirs(output_dir_predictions, exist_ok=True)
@@ -720,7 +765,7 @@ def run(args):
 		########################################################################
 
 		if (save_model or save_weights) and enable_output and not (model_is_standalone or model_is_from_sklearn):
-			if model_is_autoencoder: print_newline()
+			print_newline()
 			Hexnet_print(f'({run_string}) Saving the model')
 
 			if save_model:
@@ -739,7 +784,7 @@ def run(args):
 	# Save global test results
 	############################################################################
 
-	if runs > 1 and not (model_is_standalone or model_is_autoencoder):
+	if enable_testing and enable_output and runs > 1 and not (model_is_standalone or model_is_autoencoder):
 		timestamp   = datetime.now().strftime('%Y%m%d-%H%M%S')
 		tests_title = f'{tests_title}_{timestamp}'
 
