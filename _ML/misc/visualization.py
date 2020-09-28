@@ -128,7 +128,7 @@ def visualize_filters(model, visualize_hexagonal, output_dir, verbosity_level=2)
 	os.makedirs(output_dir, exist_ok=True)
 
 	for layer_counter, layer in enumerate(model.layers):
-		if not 'conv' in layer.name:
+		if 'conv' not in layer.name:
 			continue
 
 		filters = layer.get_weights()[0]
@@ -239,7 +239,7 @@ def visualize_activations(
 
 
 	for layer_counter, layer in enumerate(model.layers):
-		if not 'conv' in layer.name:
+		if 'conv' not in layer.name:
 			continue
 
 		if verbosity_level >= 2:
@@ -333,7 +333,7 @@ def visualize_training_results(history, title, output_dir, show_results):
 	keys = history.history.keys()
 
 	nrows = 1
-	ncols = len([None for key in keys if not 'val_' in key])
+	ncols = len([None for key in keys if 'val_' not in key])
 	index = 1
 
 	plt.figure('Test results')
@@ -386,13 +386,22 @@ def visualize_test_results(
 	if output_dir is not None:
 		os.makedirs(output_dir, exist_ok=True)
 
-	predictions_classes         = predictions.argmax(axis=-1)
-	classification_report       = sklearn.metrics.classification_report(test_labels, predictions_classes, target_names=test_classes_orig, output_dict=True)
-	confusion_matrix            = sklearn.metrics.confusion_matrix(test_labels, predictions_classes)
-	confusion_matrix_normalized = confusion_matrix / confusion_matrix.sum(axis=0)
+	set_is_multilabel_set = test_labels.ndim > 1
 
-	output_dir_confusion_matrix            = os.path.join(output_dir, f'{title}_confusion_matrix')
-	output_dir_confusion_matrix_normalized = f'{output_dir_confusion_matrix}_normalized'
+	if not set_is_multilabel_set:
+		predictions_classes = predictions.argmax(axis=-1)
+	else:
+		predictions_classes = (predictions > 0.5).astype(np.uint8)
+
+	classification_report = sklearn.metrics.classification_report(test_labels, predictions_classes, target_names=test_classes_orig, output_dict=True)
+
+	# TODO: multi-label confusion matrices
+	if not set_is_multilabel_set:
+		confusion_matrix            = sklearn.metrics.confusion_matrix(test_labels, predictions_classes)
+		confusion_matrix_normalized = confusion_matrix / confusion_matrix.sum(axis=0)
+
+		output_dir_confusion_matrix            = os.path.join(output_dir, f'{title}_confusion_matrix')
+		output_dir_confusion_matrix_normalized = f'{output_dir_confusion_matrix}_normalized'
 
 	with open(os.path.join(output_dir, f'{title}_predictions.csv'), 'w') as predictions_file:
 		print('label_orig,filename,label,prediction_class,prediction', file=predictions_file)
@@ -404,22 +413,24 @@ def visualize_test_results(
 	with open(os.path.join(output_dir, f'{title}_classification_report.csv'), 'w') as classification_report_file:
 		pprint(classification_report, stream=classification_report_file)
 
-	np.savetxt(f'{output_dir_confusion_matrix}.csv',            confusion_matrix,            fmt='%d',   delimiter=',')
-	np.savetxt(f'{output_dir_confusion_matrix_normalized}.csv', confusion_matrix_normalized, fmt='%.8f', delimiter=',')
+	# TODO: multi-label confusion matrices
+	if not set_is_multilabel_set:
+		np.savetxt(f'{output_dir_confusion_matrix}.csv',            confusion_matrix,            fmt='%d',   delimiter=',')
+		np.savetxt(f'{output_dir_confusion_matrix_normalized}.csv', confusion_matrix_normalized, fmt='%.8f', delimiter=',')
 
-	confusion_matrix_dataframe            = pd.DataFrame(confusion_matrix,            test_classes_orig, test_classes_orig)
-	confusion_matrix_normalized_dataframe = pd.DataFrame(confusion_matrix_normalized, test_classes_orig, test_classes_orig)
+		confusion_matrix_dataframe            = pd.DataFrame(confusion_matrix,            test_classes_orig, test_classes_orig)
+		confusion_matrix_normalized_dataframe = pd.DataFrame(confusion_matrix_normalized, test_classes_orig, test_classes_orig)
 
-	ax = sn.heatmap(confusion_matrix_dataframe, cmap='viridis', annot=True, fmt='d')
-	ax.set(title='model test confusion matrix', xlabel='predicted label', ylabel='true label')
-	plt.savefig(f'{output_dir_confusion_matrix}.png')
-	plt.savefig(f'{output_dir_confusion_matrix}.pdf')
-	plt.clf()
+		ax = sn.heatmap(confusion_matrix_dataframe, cmap='viridis', annot=True, fmt='d')
+		ax.set(title='model test confusion matrix', xlabel='predicted label', ylabel='true label')
+		plt.savefig(f'{output_dir_confusion_matrix}.png')
+		plt.savefig(f'{output_dir_confusion_matrix}.pdf')
+		plt.clf()
 
-	ax = sn.heatmap(confusion_matrix_normalized_dataframe, cmap='viridis', annot=True, fmt='.2f')
-	ax.set(title='model test normalized confusion matrix', xlabel='predicted label', ylabel='true label')
-	plt.savefig(f'{output_dir_confusion_matrix_normalized}.png')
-	plt.savefig(f'{output_dir_confusion_matrix_normalized}.pdf')
+		ax = sn.heatmap(confusion_matrix_normalized_dataframe, cmap='viridis', annot=True, fmt='.2f')
+		ax.set(title='model test normalized confusion matrix', xlabel='predicted label', ylabel='true label')
+		plt.savefig(f'{output_dir_confusion_matrix_normalized}.png')
+		plt.savefig(f'{output_dir_confusion_matrix_normalized}.pdf')
 
 	plt.close()
 

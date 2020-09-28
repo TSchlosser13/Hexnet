@@ -35,6 +35,7 @@ import uuid
 
 import matplotlib.pyplot as plt
 import numpy             as np
+import pandas            as pd
 import tensorflow        as tf
 
 from glob              import glob
@@ -44,7 +45,7 @@ from time              import time
 from tqdm              import tqdm
 
 from core.Hexnet        import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
-from misc.misc          import Hexnet_print, normalize_array
+from misc.misc          import Hexnet_print, Hexnet_print_warning, normalize_array
 from misc.visualization import visualize_hexarray
 
 
@@ -173,6 +174,8 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 
 	start_time = time()
 
+	loaded_dataset = False
+
 	train_classes   = []
 	train_data      = []
 	train_filenames = []
@@ -182,7 +185,43 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	test_filenames  = []
 	test_labels     = []
 
-	if os.path.isfile(dataset) and dataset.endswith('.h5'):
+
+	# Determine the type of dataset
+
+	dataset_is_file         = False
+	dataset_is_dir_of_files = False
+	dataset_is_dir_of_dirs  = False
+
+	dataset_has_allowed_filetype = False
+
+	allowed_dataset_filetypes       = ('.h5')
+	allowed_dataset_set_filetypes   = ('.csv', '.h5', '.npy')
+	dataset_set_filetypes_to_ignore = ('.log', '.md', '.txt')
+
+	if os.path.isfile(dataset):
+		dataset_is_file = True
+
+		if dataset.lower().endswith(allowed_dataset_filetypes): dataset_has_allowed_filetype = True
+	else:
+		for dataset_set in glob(os.path.join(dataset, '*')):
+			if os.path.isfile(dataset_set):
+				dataset_set_lower = dataset_set.lower()
+
+				if dataset_set_lower.endswith(allowed_dataset_set_filetypes) and not dataset_set_lower.endswith(dataset_set_filetypes_to_ignore):
+					dataset_is_dir_of_files = True
+					dataset_is_dir_of_dirs  = False
+
+					dataset_has_allowed_filetype = True
+
+					break
+			else:
+				dataset_is_dir_of_dirs = True
+
+
+	# Load the dataset
+
+	# Dataset is file
+	if dataset_is_file and dataset_has_allowed_filetype:
 		with h5py.File(dataset, 'r') as h5py_file:
 			train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
 			train_data      = np.asarray(h5py_file['train_data'])
@@ -192,7 +231,78 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 			test_data       = np.asarray(h5py_file['test_data'])
 			test_filenames  = np.asarray(h5py_file['test_filenames']).astype('U')
 			test_labels     = np.asarray(h5py_file['test_labels']).astype('U')
-	else:
+
+		loaded_dataset = True
+
+	# Dataset is directory of files
+	elif dataset_is_dir_of_files and dataset_has_allowed_filetype:
+		for dataset_set in glob(os.path.join(dataset, '*')):
+			current_set = os.path.basename(dataset_set)
+
+			if verbosity_level >= 1:
+				Hexnet_print(f'\t> current_set={current_set}')
+
+			current_set_lower = current_set.lower()
+
+			if 'train' in current_set:
+				if current_set_lower.endswith('.csv'):
+					file_data = pd.read_csv(dataset_set)
+
+					set_is_multilabel_set = type(file_data['label'][0]) is str
+
+					if not set_is_multilabel_set:
+						train_labels = np.asarray(file_data['label']).astype('U')
+					else:
+						train_labels = np.asarray([row.split(',') for row in file_data['label']]).astype('U')
+
+					train_classes   = np.unique(train_labels)
+					train_data      = np.asarray([np.fromstring(row, sep=',') for row in file_data['data']])
+					train_filenames = np.asarray(file_data['filename']).astype('U')
+				elif current_set_lower.endswith('.h5'):
+					with h5py.File(dataset_set, 'r') as h5py_file:
+						train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
+						train_data      = np.asarray(h5py_file['train_data'])
+						train_filenames = np.asarray(h5py_file['train_filenames']).astype('U')
+						train_labels    = np.asarray(h5py_file['train_labels']).astype('U')
+				else: # npy
+					file_data = np.load(dataset_set, allow_pickle=True)
+
+					train_labels    = np.asarray(file_data[0]).astype('U')
+					train_classes   = np.unique(train_labels)
+					train_data      = np.stack(file_data[2])
+					train_filenames = np.asarray(file_data[1]).astype('U')
+			elif 'test' in current_set:
+				if current_set_lower.endswith('.csv'):
+					file_data = pd.read_csv(dataset_set)
+
+					set_is_multilabel_set = type(file_data['label'][0]) is str
+
+					if not set_is_multilabel_set:
+						test_labels = np.asarray(file_data['label']).astype('U')
+					else:
+						test_labels = np.asarray([row.split(',') for row in file_data['label']]).astype('U')
+
+					test_classes   = np.unique(train_labels)
+					test_data      = np.asarray([np.fromstring(row, sep=',') for row in file_data['data']])
+					test_filenames = np.asarray(file_data['filename']).astype('U')
+				elif current_set_lower.endswith('.h5'):
+					with h5py.File(dataset_set, 'r') as h5py_file:
+						test_classes   = np.asarray(h5py_file['test_classes']).astype('U')
+						test_data      = np.asarray(h5py_file['test_data'])
+						test_filenames = np.asarray(h5py_file['test_filenames']).astype('U')
+						test_labels    = np.asarray(h5py_file['test_labels']).astype('U')
+				else: # npy
+					file_data = np.load(dataset_set, allow_pickle=True)
+
+					test_labels    = np.asarray(file_data[0]).astype('U')
+					test_classes   = np.unique(test_labels)
+					test_data      = np.stack(file_data[2])
+					test_filenames = np.asarray(file_data[1]).astype('U')
+
+		loaded_dataset = True
+
+	# Dataset is directory of directories
+	elif dataset_is_dir_of_dirs:
 		for dataset_set in natsorted(glob(os.path.join(dataset, '*'))):
 			current_set = os.path.basename(dataset_set)
 
@@ -218,10 +328,10 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 
 					current_file_lower = current_file.lower()
 
-					if current_file_lower.endswith('.npy'):
-						file_data = np.load(class_file)
-					elif current_file_lower.endswith('.csv'):
+					if current_file_lower.endswith('.csv'):
 						file_data = np.loadtxt(class_file, delimiter=',')
+					elif current_file_lower.endswith('.npy'):
+						file_data = np.load(class_file)
 					else:
 						file_data = cv2.imread(class_file, cv2.IMREAD_COLOR)
 
@@ -243,9 +353,21 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 		test_filenames  = np.asarray(test_filenames)
 		test_labels     = np.asarray(test_labels)
 
-	time_diff = time() - start_time
+		loaded_dataset = True
 
-	Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
+	# No dataset provided
+	elif all(not dataset_type for dataset_type in (dataset_is_file, dataset_is_dir_of_files, dataset_is_dir_of_dirs)):
+		Hexnet_print_warning('No dataset provided')
+
+	# No identifiable dataset provided
+	else:
+		Hexnet_print_warning('No identifiable dataset provided')
+
+
+	if loaded_dataset:
+		time_diff = time() - start_time
+
+		Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
 
 	if create_h5:
 		dataset = f'{dataset}.h5'
@@ -353,7 +475,7 @@ def resize_dataset(dataset_s, resize_string, method='nearest'):
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
-	dataset_s = [tf.image.resize(dataset, size, method).numpy() for dataset in dataset_s if dataset.size]
+	dataset_s = [tf.image.resize(dataset, size, method).numpy() if dataset.size else None for dataset in dataset_s]
 
 	return dataset_s
 
@@ -367,14 +489,14 @@ def crop_dataset(dataset_s, crop_string):
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
-	if not '+' in crop_string:
+	if '+' not in crop_string:
 		crop_Y = 0
 		crop_X = 0
 	else:
 		crop_Y = int(crop_offset[0])
 		crop_X = int(crop_offset[1])
 
-	if not 'x' in crop_string:
+	if 'x' not in crop_string:
 		crop_H = dataset_s[0].shape[1] - crop_Y
 		crop_W = dataset_s[0].shape[2] - crop_X
 	else:
@@ -384,7 +506,7 @@ def crop_dataset(dataset_s, crop_string):
 	slice_H = slice(crop_Y, crop_Y + crop_H)
 	slice_W = slice(crop_X, crop_X + crop_W)
 
-	dataset_s = [dataset[:, slice_H, slice_W, :] for dataset in dataset_s if dataset.size]
+	dataset_s = [dataset[:, slice_H, slice_W, :] if dataset.size else None for dataset in dataset_s]
 
 	return dataset_s
 
@@ -399,7 +521,7 @@ def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
 	if type(dataset_s) is not list:
 		dataset_s = list(dataset_s)
 
-	dataset_s = [np.pad(dataset, pad_width, mode, constant_values=constant_values) for dataset in dataset_s if dataset.size]
+	dataset_s = [np.pad(dataset, pad_width, mode, constant_values=constant_values) if dataset.size else None for dataset in dataset_s]
 
 	return dataset_s
 
@@ -431,12 +553,19 @@ def show_dataset(
 		if class_counter == max_classes_to_display:
 			break
 
-		class_label_indices = np.where(train_labels == train_class)[0]
+		class_indices = np.where(train_labels == train_class)[0]
+		class_labels  = train_labels[class_indices]
+		class_data    = train_data[class_indices]
 
 		for image_counter in range(max_images_per_class):
+			train_label = class_labels[image_counter]
+
+			if train_label.ndim:
+				train_label = list(train_label)
+
 			plt.subplot(nrows, ncols, index)
-			plt.title(f'train image {index}\n(class {train_class})')
-			plt.imshow(train_data[class_label_indices[image_counter]])
+			plt.title(f'train image {index}\n(label {train_label})')
+			plt.imshow(class_data[image_counter])
 
 			index += 1
 
@@ -446,12 +575,19 @@ def show_dataset(
 		if class_counter == max_classes_to_display:
 			break
 
-		class_label_indices = np.where(test_labels == test_class)[0]
+		class_indices = np.where(test_labels == test_class)[0]
+		class_labels  = test_labels[class_indices]
+		class_data    = test_data[class_indices]
 
 		for image_counter in range(max_images_per_class):
+			test_label = class_labels[image_counter]
+
+			if test_label.ndim:
+				test_label = list(test_label)
+
 			plt.subplot(nrows, ncols, index)
-			plt.title(f'test image {index - figsize_2}\n(class {test_class})')
-			plt.imshow(test_data[class_label_indices[image_counter]])
+			plt.title(f'test image {index - figsize_2}\n(label {test_label})')
+			plt.imshow(class_data[image_counter])
 
 			index += 1
 
@@ -494,7 +630,7 @@ def visualize_dataset(
 	else:
 		dataset_visualized = f'{dataset}_visualized'
 
-		if os.path.isfile(dataset) and dataset.endswith('.h5'):
+		if os.path.isfile(dataset) and dataset.lower().endswith('.h5'):
 			for current_class in train_classes:
 				os.makedirs(os.path.join(dataset_visualized, 'train', current_class), exist_ok=True)
 
@@ -520,10 +656,10 @@ def visualize_dataset(
 
 				filename_lower = filename.lower()
 
-				if filename_lower.endswith('.npy'):
+				if filename_lower.endswith('.csv'):
+					np.savetxt(filename, np.reshape(file, newshape = (1, file.shape[0])), delimiter=',')
+				elif filename_lower.endswith('.npy'):
 					np.save(filename, file)
-				elif filename_lower.endswith('.csv'):
-					np.savetxt(filename, file.reshape(1, file.shape[0]), delimiter=',')
 				else:
 					if not visualize_hexagonal:
 						imsave(filename, file)
