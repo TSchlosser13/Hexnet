@@ -157,6 +157,25 @@ def model_HCNN(input_shape, classes, kernel_size, pool_size):
 
 
 
+def model_CNN_multilabel_test(input_shape, classes, kernel_size, pool_size):
+	model = Sequential()
+
+	model.add(Conv2D(filters=32, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu, input_shape=input_shape))
+	model.add(MaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Conv2D(filters=64, kernel_size=kernel_size, padding='SAME', activation=tf.nn.relu))
+	model.add(MaxPool2D(pool_size=pool_size, padding='SAME'))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation=tf.nn.relu))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation=tf.nn.sigmoid))
+
+	return model
+
+
+
+
 def model_SCNN_custom_v1_ks2_ps2(input_shape, classes):
 	kernel_size = (2, 2)
 	pool_size   = (2, 2)
@@ -317,4 +336,5 @@ def model_HCNN_custom_v2(input_shape, classes):
 	model.add(Dense(units=classes, activation=tf.nn.softmax))
 
 	return model
+
 

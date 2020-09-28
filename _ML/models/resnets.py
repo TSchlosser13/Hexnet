@@ -152,8 +152,8 @@ def resnet_v1(input_shape, depth, num_classes=10, mode='baseline'):
     for stack in range(3):
         for res_block in range(num_res_blocks):
             strides = 1
-            if stack > 0 and res_block == 0:  # first layer but not first stack
-                strides = 2  # downsample
+            if stack > 0 and res_block == 0: # first layer but not first stack
+                strides = 2 # downsample
             y = resnet_layer(inputs=x,
                              num_filters=num_filters,
                              strides=strides,
@@ -162,9 +162,8 @@ def resnet_v1(input_shape, depth, num_classes=10, mode='baseline'):
                              num_filters=num_filters,
                              activation=None,
                              mode=mode)
-            if stack > 0 and res_block == 0:  # first layer but not first stack
-                # linear projection residual shortcut connection to match
-                # changed dims
+            if stack > 0 and res_block == 0: # first layer but not first stack
+                # linear projection residual shortcut connection to match changed dims
                 x = resnet_layer(inputs=x,
                                  num_filters=num_filters,
                                  kernel_size=1,
@@ -243,13 +242,13 @@ def resnet_v2(input_shape, depth, num_classes=10, mode='baseline'):
             strides = 1
             if stage == 0:
                 num_filters_out = num_filters_in * 4
-                if res_block == 0:  # first layer and first stage
+                if res_block == 0: # first layer and first stage
                     activation = None
                     batch_normalization = False
             else:
                 num_filters_out = num_filters_in * 2
-                if res_block == 0:  # first layer but not first stage
-                    strides = 2    # downsample
+                if res_block == 0: # first layer but not first stage
+                    strides = 2 # downsample
 
             # bottleneck residual unit
             y = resnet_layer(inputs=x,
@@ -270,8 +269,7 @@ def resnet_v2(input_shape, depth, num_classes=10, mode='baseline'):
                              conv_first=False,
                              mode=mode)
             if res_block == 0:
-                # linear projection residual shortcut connection to match
-                # changed dims
+                # linear projection residual shortcut connection to match changed dims
                 x = resnet_layer(inputs=x,
                                  num_filters=num_filters_out,
                                  kernel_size=1,

@@ -122,7 +122,7 @@ def getwhere(x):
 
 
 def autoencoder_SWWAE(input_shape, pool_size = 2, nfeats = [8, 16, 32, 64, 128], ksize = 3, nlayers = 5):
-    pool_sizes = np.array([1, 1, 1, 1, 1]) * pool_size
+    pool_sizes = np.asarray([1, 1, 1, 1, 1]) * pool_size
     nfeats_all = [input_shape[2]] + nfeats
 
     img_input = Input(shape=input_shape)
