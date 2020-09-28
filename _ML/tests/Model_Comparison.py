@@ -29,7 +29,7 @@
 
 
 model_s    = ['SResNet_v2', 'HResNet_v2']
-dataset_s  = ['../datasets/CIFAR/CIFAR-10_s2s.h5', '../datasets/CIFAR/CIFAR-10_s2h.h5']
+dataset_s  = ['../datasets/CIFAR/CIFAR-10.h5', '../datasets/CINIC/CINIC.h5', '../datasets/ImageNet/Tiny_ImageNet.h5', '../datasets/MNIST/MNIST.h5']
 output_dir = 'tmp'
 
 batch_size       = 32
@@ -46,7 +46,7 @@ import sys
 from glob    import glob
 from natsort import natsorted
 
-sys.path.append('..')
+sys.path[0] = '..'
 import Hexnet
 
 
@@ -60,12 +60,12 @@ def parse_args():
 
 
 	parser.add_argument('--model',                          nargs = '+', default = model_s,          help = 'model(s) for training and testing (providing no argument disables training and testing)')
-	parser.add_argument('--dataset',                        nargs = '+', default = dataset_s,        help = 'load dataset(s) from file or directory')
+	parser.add_argument('--dataset',                        nargs = '+', default = dataset_s,        help = 'load dataset(s) from HDF5 or directory')
 	parser.add_argument('--output-dir',                     nargs = '?', default = output_dir,       help = 'training and test results\' output directory (providing no argument disables the output)')
 
-	parser.add_argument('--batch-size',       type = int,                default = batch_size,       help = 'training batch size')
-	parser.add_argument('--epochs',           type = int,                default = epochs,           help = 'training epochs')
-	parser.add_argument('--runs',             type = int,                default = runs,             help = 'training runs')
+	parser.add_argument('--batch-size',       type = int,                default = batch_size,       help = 'batch size for training and testing')
+	parser.add_argument('--epochs',           type = int,                default = epochs,           help = 'epochs')
+	parser.add_argument('--runs',             type = int,                default = runs,             help = 'number of training and test runs')
 	parser.add_argument('--validation-split', type = float,              default = validation_split, help = 'fraction of the training data to be used as validation data')
 
 
@@ -100,8 +100,8 @@ for dataset in args.dataset:
 
 
 
-accuracy_dats = natsorted(glob(os.path.join(output_dir, '*_accuracy.dat')))
-loss_dats     = natsorted(glob(os.path.join(output_dir, '*_loss.dat')))
+accuracy_dats = natsorted(glob(os.path.join(args.output_dir, '*_accuracy.dat')))
+loss_dats     = natsorted(glob(os.path.join(args.output_dir, '*_loss.dat')))
 
 accuracy_dats_len = len(accuracy_dats)
 loss_dats_len     = len(loss_dats)
@@ -179,5 +179,4 @@ os.system(f'pdflatex {loss_tex}')
 
 
 sys.exit(status)
-
 
