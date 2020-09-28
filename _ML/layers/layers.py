@@ -122,7 +122,7 @@ class SConv2D(tf.keras.layers.Layer):
 		padding              = 'SAME',
 		data_format          = 'NHWC',
 		dilation_rate        = (1, 1),
-		activation           = tf.nn.relu,
+		activation           = None,
 		use_bias             = True,
 		kernel_initializer   = tf.initializers.glorot_uniform,
 		bias_initializer     = tf.initializers.zeros,
@@ -147,11 +147,16 @@ class SConv2D(tf.keras.layers.Layer):
 		else:
 			self.kernel_size = kernel_size
 
-		self.strides              = strides
-		self.padding              = padding
-		self.data_format          = data_format
-		self.dilation_rate        = dilation_rate
-		self.activation           = activation
+		self.strides       = strides
+		self.padding       = padding
+		self.data_format   = data_format
+		self.dilation_rate = dilation_rate
+
+		if type(activation) is str:
+			self.activation = tf.keras.activations(activation)
+		else:
+			self.activation = activation
+
 		self.use_bias             = use_bias
 		self.kernel_initializer   = kernel_initializer
 		self.bias_initializer     = bias_initializer
@@ -195,9 +200,131 @@ class SConv2D(tf.keras.layers.Layer):
 			data_format = self.data_format,
 			name        = 'SConv2D_output_bias_add')
 
-		output = self.activation(
-			features = output,
-			name     = 'SConv2D_output_activation')
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'SConv2D_output_activation')
+
+		return output
+
+
+class SConv2DTranspose(SConv2D):
+	"""Square 2D transposed convolution layer (e.g. spatial convolution over images, sometimes called Deconvolution).
+
+	This layer creates a convolution kernel that is convolved
+	with the layer input to produce a tensor of
+	outputs. If `use_bias` is True,
+	a bias vector is created and added to the outputs. Finally, if
+	`activation` is not `None`, it is applied to the outputs as well.
+
+	When using this layer as the first layer in a model,
+	provide the keyword argument `input_shape`
+	(tuple of integers, does not include the sample axis),
+	e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
+	in `data_format="channels_last"`.
+
+	Arguments:
+		filters: Integer, the dimensionality of the output space
+			(i.e. the number of output filters in the convolution).
+		kernel_size: An integer or tuple/list of 2 integers, specifying the
+			height and width of the 2D convolution window.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+		strides: An integer or tuple/list of 2 integers,
+			specifying the strides of the convolution along the height and width.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Specifying any stride value != 1 is incompatible with specifying
+			any `dilation_rate` value != 1.
+		padding: one of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		dilation_rate: an integer or tuple/list of 2 integers, specifying
+			the dilation rate to use for dilated convolution.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Currently, specifying any `dilation_rate` value != 1 is
+			incompatible with specifying any stride value != 1.
+		activation: Activation function to use.
+			If you don't specify anything, no activation is applied
+			(ie. "linear" activation: `a(x) = x`).
+		use_bias: Boolean, whether the layer uses a bias vector.
+		kernel_initializer: Initializer for the `kernel` weights matrix.
+		bias_initializer: Initializer for the bias vector.
+		kernel_regularizer: Regularizer function applied to
+			the `kernel` weights matrix.
+		bias_regularizer: Regularizer function applied to the bias vector.
+		activity_regularizer: Regularizer function applied to
+			the output of the layer (its "activation")..
+		kernel_constraint: Constraint function applied to the kernel matrix.
+		bias_constraint: Constraint function applied to the bias vector.
+
+	Input shape:
+		4D tensor with shape:
+		`(samples, channels, rows, cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, rows, cols, channels)` if data_format='channels_last'.
+
+	Output shape:
+		4D tensor with shape:
+		`(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+		`rows` and `cols` values might have changed due to padding.
+	"""
+
+	def build(self, input_shape):
+		super().build(input_shape)
+
+		kernel_shape = (self.kernel_size[0], self.kernel_size[1], self.filters, input_shape[3]) # HWOIC
+		bias_shape   = self.filters
+
+		self.kernel = self.add_variable(
+			name        = 'SConv2DTranspose_kernel_add_variable',
+			shape       = kernel_shape,
+			initializer = self.kernel_initializer,
+			trainable   = True)
+
+		self.bias = self.add_variable(
+			name        = 'SConv2DTranspose_bias_add_variable',
+			shape       = bias_shape,
+			initializer = self.bias_initializer,
+			trainable   = True)
+
+	def call(self, input):
+		if type(self.strides) is int:
+			output_shape = (tf.shape(input)[0], self.strides * input.shape[1], self.strides * input.shape[2], self.filters)
+		else:
+			output_shape = (tf.shape(input)[0], self.strides[0] * input.shape[1], self.strides[1] * input.shape[2], self.filters)
+
+		output = tf.nn.conv2d_transpose(
+			input        = input,
+			filters      = self.kernel,
+			output_shape = output_shape,
+			strides      = self.strides,
+			padding      = self.padding,
+			data_format  = self.data_format,
+			dilations    = self.dilation_rate,
+			name         = 'SConv2DTranspose_output_conv2d_transpose')
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'SConv2DTranspose_output_bias_add')
+
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'SConv2DTranspose_output_activation')
 
 		return output
 
@@ -310,9 +437,10 @@ class SGConv2D(SConv2D):
 			data_format = self.data_format,
 			name        = 'SGConv2D_output_bias_add')
 
-		output = self.activation(
-			features = output,
-			name     = 'SGConv2D_output_activation')
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'SGConv2D_output_activation')
 
 		return output
 
@@ -703,7 +831,7 @@ class HConv2D(tf.keras.layers.Layer):
 		padding              = 'SAME',
 		data_format          = 'NHWC',
 		dilation_rate        = (1, 1),
-		activation           = tf.nn.relu,
+		activation           = None,
 		use_bias             = True,
 		kernel_initializer   = tf.initializers.glorot_uniform,
 		bias_initializer     = tf.initializers.zeros,
@@ -739,10 +867,15 @@ class HConv2D(tf.keras.layers.Layer):
 		else:
 			self.strides = strides
 
-		self.padding              = padding
-		self.data_format          = data_format
-		self.dilation_rate        = dilation_rate
-		self.activation           = activation
+		self.padding       = padding
+		self.data_format   = data_format
+		self.dilation_rate = dilation_rate
+
+		if type(activation) is str:
+			self.activation = tf.keras.activations(activation)
+		else:
+			self.activation = activation
+
 		self.use_bias             = use_bias
 		self.kernel_initializer   = kernel_initializer
 		self.bias_initializer     = bias_initializer
@@ -765,13 +898,13 @@ class HConv2D(tf.keras.layers.Layer):
 		bias_shape   = self.filters
 
 		self.kernel = self.add_variable(
-			name        = 'SConv2D_kernel_add_variable',
+			name        = 'HConv2D_kernel_add_variable',
 			shape       = kernel_shape,
 			initializer = self.kernel_initializer,
 			trainable   = True)
 
 		self.bias = self.add_variable(
-			name        = 'SConv2D_bias_add_variable',
+			name        = 'HConv2D_bias_add_variable',
 			shape       = bias_shape,
 			initializer = self.bias_initializer,
 			trainable   = True)
@@ -864,9 +997,10 @@ class HConv2D(tf.keras.layers.Layer):
 			data_format = self.data_format,
 			name        = 'HConv2D_output_bias_add')
 
-		output = self.activation(
-			features = output,
-			name     = 'HConv2D_output_activation')
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HConv2D_output_activation')
 
 		return output
 
@@ -886,9 +1020,10 @@ class HConv2D(tf.keras.layers.Layer):
 			data_format = self.data_format,
 			name        = 'HConv2D_output_bias_add')
 
-		output = self.activation(
-			features = output,
-			name     = 'HConv2D_output_activation')
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HConv2D_output_activation')
 
 		return output
 
@@ -968,9 +1103,340 @@ class HConv2D(tf.keras.layers.Layer):
 			data_format = self.data_format,
 			name        = 'HConv2D_output_bias_add')
 
-		output = self.activation(
-			features = output,
-			name     = 'HConv2D_output_activation')
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HConv2D_output_activation')
+
+		return output
+
+	def call(self, input):
+		if self.mode == 'hexagonal_kernel':
+			output = self.call_hexagonal_kernel(input)
+		elif self.mode == 'square_kernel_square_stride':
+			output = self.call_square_kernel_square_stride(input)
+		else: # 'square_kernel_hexagonal_stride'
+			output = self.call_square_kernel_hexagonal_stride(input)
+
+		return output
+
+
+class HConv2DTranspose(HConv2D):
+	"""Hexagonal 2D transposed convolution layer (e.g. spatial convolution over images, sometimes called Deconvolution).
+
+	This layer creates a convolution kernel that is convolved
+	with the layer input to produce a tensor of
+	outputs. If `use_bias` is True,
+	a bias vector is created and added to the outputs. Finally, if
+	`activation` is not `None`, it is applied to the outputs as well.
+
+	When using this layer as the first layer in a model,
+	provide the keyword argument `input_shape`
+	(tuple of integers, does not include the sample axis),
+	e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
+	in `data_format="channels_last"`.
+
+	Arguments:
+		filters: Integer, the dimensionality of the output space
+			(i.e. the number of output filters in the convolution).
+		kernel_size: An integer or tuple/list of 2 integers, specifying the
+			height and width of the 2D convolution window.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+		strides: An integer or tuple/list of 2 integers,
+			specifying the strides of the convolution along the height and width.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Specifying any stride value != 1 is incompatible with specifying
+			any `dilation_rate` value != 1.
+		padding: one of `"valid"` or `"same"` (case-insensitive).
+		data_format: A string,
+			one of `channels_last` (default) or `channels_first`.
+			The ordering of the dimensions in the inputs.
+			`channels_last` corresponds to inputs with shape
+			`(batch, height, width, channels)` while `channels_first`
+			corresponds to inputs with shape
+			`(batch, channels, height, width)`.
+			It defaults to the `image_data_format` value found in your
+			Keras config file at `~/.keras/keras.json`.
+			If you never set it, then it will be "channels_last".
+		dilation_rate: an integer or tuple/list of 2 integers, specifying
+			the dilation rate to use for dilated convolution.
+			Can be a single integer to specify the same value for
+			all spatial dimensions.
+			Currently, specifying any `dilation_rate` value != 1 is
+			incompatible with specifying any stride value != 1.
+		activation: Activation function to use.
+			If you don't specify anything, no activation is applied
+			(ie. "linear" activation: `a(x) = x`).
+		use_bias: Boolean, whether the layer uses a bias vector.
+		kernel_initializer: Initializer for the `kernel` weights matrix.
+		bias_initializer: Initializer for the bias vector.
+		kernel_regularizer: Regularizer function applied to
+			the `kernel` weights matrix.
+		bias_regularizer: Regularizer function applied to the bias vector.
+		activity_regularizer: Regularizer function applied to
+			the output of the layer (its "activation")..
+		kernel_constraint: Constraint function applied to the kernel matrix.
+		bias_constraint: Constraint function applied to the bias vector.
+		mode: String,
+			one of `hexagonal_kernel` (default), `square_kernel_square_stride`,
+			or `square_kernel_hexagonal_stride`.
+
+	Input shape:
+		4D tensor with shape:
+		`(samples, channels, rows, cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, rows, cols, channels)` if data_format='channels_last'.
+
+	Output shape:
+		4D tensor with shape:
+		`(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+		or 4D tensor with shape:
+		`(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+		`rows` and `cols` values might have changed due to padding.
+	"""
+
+	def build_masks(self, mask_size=(3, 3)):
+		return build_masks(mask_size)
+
+	def build(self, input_shape):
+		super().build(input_shape)
+
+
+		kernel_shape = (self.kernel_size[0], self.kernel_size[1], self.filters, input_shape[3]) # HWOIC
+		bias_shape   = self.filters
+
+		self.kernel = self.add_variable(
+			name        = 'HConv2DTranspose_kernel_add_variable',
+			shape       = kernel_shape,
+			initializer = self.kernel_initializer,
+			trainable   = True)
+
+		self.bias = self.add_variable(
+			name        = 'HConv2DTranspose_bias_add_variable',
+			shape       = bias_shape,
+			initializer = self.bias_initializer,
+			trainable   = True)
+
+		if self.mode == 'hexagonal_kernel':
+			(kernel_mask_even_rows, _) = self.build_masks(mask_size=self.kernel_size)
+
+			self.kernel_mask_even_rows = tf.convert_to_tensor(
+				value = kernel_mask_even_rows,
+				dtype = tf.float32,
+				name  = 'HConv2DTranspose_kernel_mask_even_rows_convert_to_tensor')
+
+
+		if self.mode == 'hexagonal_kernel' or self.mode == 'square_kernel_hexagonal_stride':
+			self.strides = (int(self.strides[0] / 2), self.strides[1])
+
+	def call_hexagonal_kernel(self, input):
+		kernel_masked_even_rows = tf.einsum('ijkl,ij->ijkl', self.kernel, self.kernel_mask_even_rows)
+
+		if input.shape[1] > 1:
+			kernel_masked_odd_rows = []
+
+			kernel_center = int(kernel_masked_even_rows.shape[0] / 2)
+
+			if kernel_center % 2:
+				kernel_shift = -1
+			else:
+				kernel_shift = 1
+
+			for kernel_row in range(kernel_masked_even_rows.shape[0]):
+				if abs(kernel_center - kernel_row) % 2:
+					kernel_masked_odd_rows.append(
+						tf.roll(
+							input = kernel_masked_even_rows[kernel_row],
+							shift = kernel_shift,
+							axis  = 0,
+							name  = 'HConv2DTranspose_kernel_masked_odd_rows_roll'))
+				else:
+					kernel_masked_odd_rows.append(kernel_masked_even_rows[kernel_row])
+
+			kernel_masked_odd_rows = tf.stack(
+				values = kernel_masked_odd_rows,
+				axis   = 0,
+				name   = 'HConv2DTranspose_kernel_masked_odd_rows_stack')
+
+
+		if type(self.strides) is int:
+			output_shape = (tf.shape(input)[0], self.strides * input.shape[1], self.strides * input.shape[2], self.filters)
+		else:
+			output_shape = (tf.shape(input)[0], self.strides[0] * input.shape[1], self.strides[1] * input.shape[2], self.filters)
+
+		output_even_rows = tf.nn.conv2d_transpose(
+			input        = input,
+			filters      = kernel_masked_even_rows,
+			output_shape = output_shape,
+			strides      = self.strides,
+			padding      = self.padding,
+			data_format  = self.data_format,
+			dilations    = self.dilation_rate,
+			name         = 'HConv2DTranspose_output_even_rows_conv2d_transpose')
+
+		if input.shape[1] > 1:
+			output_odd_rows = tf.nn.conv2d_transpose(
+				input        = input[:, 1:, :, :],
+				filters      = kernel_masked_odd_rows,
+				output_shape = output_shape,
+				strides      = self.strides,
+				padding      = self.padding,
+				data_format  = self.data_format,
+				dilations    = self.dilation_rate,
+				name         = 'HConv2DTranspose_output_odd_rows_conv2d_transpose')
+
+
+		if input.shape[1] > 1:
+			output = tf.concat(
+				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
+				axis   = 1,
+				name   = 'HConv2DTranspose_output_concat')
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output = tf.concat(
+					values = (output, output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]),
+					axis   = 1,
+					name   = 'HConv2DTranspose_output_concat')
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output = tf.concat(
+					values = (output, output_even_rows[:, -1:, :, :]),
+					axis   = 1,
+					name   = 'HConv2DTranspose_output_concat')
+		else:
+			output = output_even_rows
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'HConv2DTranspose_output_bias_add')
+
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HConv2DTranspose_output_activation')
+
+		return output
+
+	def call_square_kernel_square_stride(self, input):
+		if type(self.strides) is int:
+			output_shape = (tf.shape(input)[0], self.strides * input.shape[1], self.strides * input.shape[2], self.filters)
+		else:
+			output_shape = (tf.shape(input)[0], self.strides[0] * input.shape[1], self.strides[1] * input.shape[2], self.filters)
+
+		output = tf.nn.conv2d_transpose(
+			input        = input,
+			filters      = self.kernel,
+			output_shape = output_shape,
+			strides      = self.strides,
+			padding      = self.padding,
+			data_format  = self.data_format,
+			dilations    = self.dilation_rate,
+			name         = 'HConv2DTranspose_output_conv2d_transpose')
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'HConv2DTranspose_output_bias_add')
+
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HConv2DTranspose_output_activation')
+
+		return output
+
+	def call_square_kernel_hexagonal_stride(self, input):
+		kernel_even_rows = self.kernel
+
+		if input.shape[1] > 1:
+			kernel_odd_rows = []
+
+			for kernel_row in range(kernel_even_rows.shape[0]):
+				if kernel_row % 2:
+					kernel_odd_rows.append(
+						tf.pad(
+							tensor          = kernel_even_rows[kernel_row],
+							paddings        = ((1, 0), (0, 0), (0, 0)),
+							mode            = 'CONSTANT',
+							constant_values = 0,
+							name            = 'HConv2DTranspose_kernel_odd_rows_pad'))
+				else:
+					kernel_odd_rows.append(
+						tf.pad(
+							tensor          = kernel_even_rows[kernel_row],
+							paddings        = ((0, 1), (0, 0), (0, 0)),
+							mode            = 'CONSTANT',
+							constant_values = 0,
+							name            = 'HConv2DTranspose_kernel_odd_rows_pad'))
+
+			kernel_odd_rows = tf.stack(
+				values = kernel_odd_rows,
+				axis   = 0,
+				name   = 'HConv2DTranspose_kernel_odd_rows_stack')
+
+
+		if type(self.strides) is int:
+			output_shape = (tf.shape(input)[0], self.strides * input.shape[1], self.strides * input.shape[2], self.filters)
+		else:
+			output_shape = (tf.shape(input)[0], self.strides[0] * input.shape[1], self.strides[1] * input.shape[2], self.filters)
+
+		output_even_rows = tf.nn.conv2d_transpose(
+			input        = input,
+			filters      = kernel_even_rows,
+			output_shape = output_shape,
+			strides      = self.strides,
+			padding      = self.padding,
+			data_format  = self.data_format,
+			dilations    = self.dilation_rate,
+			name         = 'HConv2DTranspose_output_even_rows_conv2d_transpose')
+
+		if input.shape[1] > 1:
+			output_odd_rows = tf.nn.conv2d_transpose(
+				input        = input[:, 1:, :, :],
+				filters      = kernel_odd_rows,
+				output_shape = output_shape,
+				strides      = self.strides,
+				padding      = self.padding,
+				data_format  = self.data_format,
+				dilations    = self.dilation_rate,
+				name         = 'HConv2DTranspose_output_odd_rows_conv2d_transpose')
+
+
+		if input.shape[1] > 1:
+			output = tf.concat(
+				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
+				axis   = 1,
+				name   = 'HConv2DTranspose_output_concat')
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output = tf.concat(
+					values = (output, output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]),
+					axis   = 1,
+					name   = 'HConv2DTranspose_output_concat')
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output = tf.concat(
+					values = (output, output_even_rows[:, -1:, :, :]),
+					axis   = 1,
+					name   = 'HConv2DTranspose_output_concat')
+		else:
+			output = output_even_rows
+
+		output = tf.nn.bias_add(
+			value       = output,
+			bias        = self.bias,
+			data_format = self.data_format,
+			name        = 'HConv2DTranspose_output_bias_add')
+
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HConv2DTranspose_output_activation')
 
 		return output
 
@@ -1165,9 +1631,10 @@ class HGConv2D(HConv2D):
 			data_format = self.data_format,
 			name        = 'HGConv2D_output_bias_add')
 
-		output = self.activation(
-			features = output,
-			name     = 'HGConv2D_output_activation')
+		if self.activation is not None:
+			output = self.activation(
+				features = output,
+				name     = 'HGConv2D_output_activation')
 
 		return output
 
