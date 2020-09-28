@@ -33,23 +33,25 @@
 ################################################################################
 
 model               = 'CNN'
-load_model          = None
-load_weights        = None
+load_model          = False
+load_weights        = False
 
 dataset             = 'datasets/MNIST/MNIST.h5'
-create_dataset      = None
-resize_dataset      = None
-crop_dataset        = None
-pad_dataset         = None
-augment_dataset     = None
+create_dataset      = False
+resize_dataset      = False
+crop_dataset        = False
+pad_dataset         = False
+augment_dataset     = False
 augmenter           = 'simple'
 augmentation_level  = 1
 
 output_dir          = 'tests/tmp'
 
+optimizer           = 'adam'
+metrics             = 'auto'
 batch_size          = 32
 epochs              =  1
-loss                = None
+loss                = 'auto'
 runs                =  1
 validation_split    =  0.0
 
@@ -108,7 +110,7 @@ import misc.visualization as visualization
 import models.models      as models
 
 from core.Hexnet import Hexnet_init
-from misc.misc   import Hexnet_print, print_newline
+from misc.misc   import array_to_one_hot_array, Hexnet_print, print_newline
 
 
 ################################################################################
@@ -148,6 +150,8 @@ def run(args):
 	visualize_hexagonal = args.visualize_hexagonal
 	show_results        = args.show_results
 
+	optimizer           = args.optimizer
+	metrics             = args.metrics
 	batch_size          = args.batch_size
 	epochs              = args.epochs
 	loss_string         = args.loss
@@ -173,7 +177,7 @@ def run(args):
 	# Initialization
 	############################################################################
 
-	if model_string is not None:
+	if model_string:
 		model_is_provided = True
 
 		model_is_custom      = True if 'custom'      in model_string else False
@@ -187,33 +191,36 @@ def run(args):
 	else:
 		model_is_provided = False
 
-	if augmenter_string is not None:
+	if augmenter_string:
 		augmenter_is_custom = True if 'custom' in augmenter_string else False
 
-	if loss_string is not None:
+	if metrics != 'auto':
+		metrics_are_provided = True
+	else:
+		metrics_are_provided = False
+
+	if loss_string != 'auto':
 		loss_is_provided = True
 
 		subpixel_loss_identifiers = ('s2s', 's2h')
 		loss_is_subpixel_loss     = True if any(identifier in loss_string for identifier in subpixel_loss_identifiers) else False
+
+		loss_is_from_keras = loss_string.startswith('keras_')
 	else:
 		loss_is_provided = False
 
-	if dataset is not None:
+	if dataset:
 		dataset = dataset.rstrip('/')
 
 		dataset_is_provided = True
 
-		if create_dataset is not None:
-			create_dataset = ast.literal_eval(create_dataset)
-
-		visualize_hexagonal_identifiers = ('hex', 's2h', 'h2h')
-		if any(identifier in dataset for identifier in visualize_hexagonal_identifiers): visualize_hexagonal = True
+		if create_dataset: create_dataset = ast.literal_eval(create_dataset)
 	else:
 		dataset_is_provided = False
 
 	if disable_output:
 		output_dir = None
-	elif output_dir is None:
+	elif not output_dir:
 		disable_output = True
 
 	disable_training |= epochs < 1
@@ -252,7 +259,7 @@ def run(args):
 	# Create classification dataset
 	############################################################################
 
-	if create_dataset is not None:
+	if create_dataset:
 		print_newline()
 
 		datasets.create_dataset(dataset, split_ratios=create_dataset, verbosity_level=verbosity_level)
@@ -359,11 +366,13 @@ def run(args):
 
 	if enable_training:
 		if class_labels_are_digits:
-			train_labels = np.asarray([int(label) for label in train_labels_orig])
+			train_labels = np.asarray([int(label) for label in train_labels_orig.flatten()])
 		else:
-			train_labels = np.asarray([np.where(label == train_classes_orig)[0][0] for label in train_labels_orig])
+			train_labels = np.asarray([np.where(label == train_classes_orig)[0][0] for label in train_labels_orig.flatten()])
 
-		train_classes = list(set(train_labels))
+		train_classes     = np.unique(train_labels)
+		train_classes_len = len(train_classes)
+		train_labels      = np.reshape(train_labels, newshape=train_labels_orig.shape)
 
 		if class_labels_are_digits:
 			train_classes_min = min(train_classes)
@@ -371,13 +380,18 @@ def run(args):
 			train_classes -= train_classes_min
 			train_labels  -= train_classes_min
 
+		if train_labels.ndim > 1:
+			train_labels = array_to_one_hot_array(train_labels, train_classes_len)
+
 	if enable_testing:
 		if class_labels_are_digits:
-			test_labels = np.asarray([int(label) for label in test_labels_orig])
+			test_labels = np.asarray([int(label) for label in test_labels_orig.flatten()])
 		else:
-			test_labels = np.asarray([np.where(label == test_classes_orig)[0][0] for label in test_labels_orig])
+			test_labels = np.asarray([np.where(label == test_classes_orig)[0][0] for label in test_labels_orig.flatten()])
 
-		test_classes = list(set(test_labels))
+		test_classes     = np.unique(test_labels)
+		test_classes_len = len(test_classes)
+		test_labels      = np.reshape(test_labels, newshape=test_labels_orig.shape)
 
 		if class_labels_are_digits:
 			test_classes_min = min(test_classes)
@@ -385,21 +399,24 @@ def run(args):
 			test_classes -= test_classes_min
 			test_labels  -= test_classes_min
 
+		if test_labels.ndim > 1:
+			test_labels = array_to_one_hot_array(test_labels, test_classes_len)
+
 
 	############################################################################
 	# Preprocess the dataset
 	############################################################################
 
-	if any(operation is not None for operation in (resize_dataset, crop_dataset, pad_dataset)):
+	if any(operation for operation in (resize_dataset, crop_dataset, pad_dataset)):
 		Hexnet_print('Dataset preprocessing')
 
-		if resize_dataset is not None:
+		if resize_dataset:
 			(train_data, test_data) = datasets.resize_dataset(dataset_s = (train_data, test_data), resize_string = resize_dataset)
 
-		if crop_dataset is not None:
+		if crop_dataset:
 			(train_data, test_data) = datasets.crop_dataset(dataset_s = (train_data, test_data), crop_string = crop_dataset)
 
-		if pad_dataset is not None:
+		if pad_dataset:
 			(train_data, test_data) = datasets.pad_dataset(dataset_s = (train_data, test_data), pad_string = pad_dataset)
 
 
@@ -407,7 +424,7 @@ def run(args):
 	# Augment the dataset
 	############################################################################
 
-	if augment_dataset is not None:
+	if augment_dataset:
 		Hexnet_print('Dataset augmentation')
 
 		augmenter = vars(augmenters)[f'augmenter_{augmenter_string}']
@@ -481,14 +498,14 @@ def run(args):
 		if visualize_dataset: print_newline()
 		Hexnet_print('Dataset standardization')
 
-		if train_data.ndim == 4:
-			mean_axis = (1, 2)
-		else:
-			mean_axis = 1
-
 		std_eps = np.finfo(np.float32).eps
 
 		if enable_training:
+			if train_data.ndim > 3:
+				mean_axis = (1, 2)
+			else:
+				mean_axis = 1
+
 			train_data_mean = np.mean(train_data, axis=mean_axis, keepdims=True)
 
 			train_data_std = np.sqrt(((train_data - train_data_mean)**2).mean(axis=mean_axis, keepdims=True))
@@ -497,6 +514,11 @@ def run(args):
 			train_data = (train_data - train_data_mean) / train_data_std
 
 		if enable_testing:
+			if test_data.ndim > 3:
+				mean_axis = (1, 2)
+			else:
+				mean_axis = 1
+
 			test_data_mean = np.mean(test_data, axis=mean_axis, keepdims=True)
 
 			test_data_std = np.sqrt(((test_data - test_data_mean)**2).mean(axis=mean_axis, keepdims=True))
@@ -561,12 +583,12 @@ def run(args):
 
 		if enable_training:
 			input_shape = train_data.shape[1:4]
-			classes     = len(train_classes)
+			classes     = train_classes_len
 		elif enable_testing:
 			input_shape = test_data.shape[1:4]
-			classes     = len(test_classes)
+			classes     = test_classes_len
 
-		if load_model is None:
+		if not load_model:
 			model = vars(models)[f'model_{model_string}']
 
 			if model_is_custom or model_is_standalone:
@@ -582,7 +604,7 @@ def run(args):
 		elif not (model_is_standalone or model_is_from_sklearn):
 			model = tf.keras.models.load_model(load_model)
 
-		if load_weights is not None and not (model_is_standalone or model_is_from_sklearn):
+		if load_weights and not (model_is_standalone or model_is_from_sklearn):
 			model.load_weights(load_weights)
 
 
@@ -593,24 +615,28 @@ def run(args):
 		if not (model_is_standalone or model_is_from_sklearn):
 			Hexnet_print(f'({run_string}) Loss and metrics initialization')
 
+			if not metrics_are_provided:
+				if not model_is_autoencoder:
+					metrics = ['accuracy']
+				else:
+					metrics = []
+
 			if not loss_is_provided:
 				if not model_is_autoencoder:
-					loss = 'sparse_categorical_crossentropy'
+					loss = 'SparseCategoricalCrossentropy'
 				else:
-					loss = 'mse'
+					loss = 'MeanSquaredError'
 
 				loss = tf.losses.get(loss)
 			else:
 				if not loss_is_subpixel_loss:
-					loss = vars(losses)[f'loss_{loss_string}']()
+					if not loss_is_from_keras:
+						loss = vars(losses)[f'loss_{loss_string}']()
+					else:
+						loss = vars(tf.keras.losses)[loss_string[len('keras_'):]]()
 				else:
 					output_shape = test_data.shape[1:4]
 					loss         = vars(losses)[f'loss_{loss_string}'](input_shape, output_shape)
-
-			if not model_is_autoencoder:
-				metrics = ['accuracy']
-			else:
-				metrics = None
 
 
 		########################################################################
@@ -621,7 +647,7 @@ def run(args):
 			Hexnet_print(f'({run_string}) Model compilation')
 
 			if not model_is_standalone:
-				model.compile(optimizer='adam', loss=loss, metrics=metrics)
+				model.compile(optimizer, loss, metrics)
 			else:
 				model.compile()
 
@@ -698,15 +724,12 @@ def run(args):
 			if model_is_standalone:
 				model.evaluate(test_data, test_labels, batch_size, epochs=10, visualize_hexagonal=visualize_hexagonal, output_dir=output_dir, run_title=run_title)
 			elif model_is_autoencoder:
-				test_loss = model.evaluate(test_data, test_data)
+				test_loss_metrics = model.evaluate(test_data, test_data)
 			else:
-				test_loss, test_acc = model.evaluate(test_data, test_labels)
+				test_loss_metrics = model.evaluate(test_data, test_labels)
 
 			if not model_is_standalone:
-				if not model_is_autoencoder:
-					Hexnet_print(f'({run_string}) test_acc={test_acc:.8f}, test_loss={test_loss:.8f}')
-				else:
-					Hexnet_print(f'({run_string}) test_loss={test_loss:.8f}')
+				Hexnet_print(f'({run_string}) test_loss_metrics={test_loss_metrics}')
 
 
 		########################################################################
@@ -802,11 +825,21 @@ def parse_args(args=None, namespace=None):
 	parser = argparse.ArgumentParser(description='Hexnet: The Hexagonal Machine Learning Module')
 
 
+	loss_choices_to_ignore = ['Loss', 'Reduction']
+
 	model_choices     = [model[0][len('model_'):] for model in inspect.getmembers(models, inspect.isfunction) if model[0].startswith('model_')]
 	augmenter_choices = [augmenter[0][len('augmenter_'):] for augmenter in inspect.getmembers(augmenters) if augmenter[0].startswith('augmenter_')]
-	loss_choices      = [loss[0][len('loss_'):] for loss in inspect.getmembers(losses, inspect.isclass) if loss[0].startswith('loss_')]
+
+	loss_choices  = ['auto']
+	loss_choices += [loss[0][len('loss_'):] for loss in inspect.getmembers(losses, inspect.isclass) if loss[0].startswith('loss_')]
+	loss_choices += [f'keras_{loss[0]}' for loss in inspect.getmembers(tf.keras.losses, inspect.isclass) if loss[0] not in loss_choices_to_ignore]
 
 	augment_dataset_choices = ['train', 'test']
+
+
+	parser.add_argument('--disable-training',                               action  = 'store_true',        help = 'disable training')
+	parser.add_argument('--disable-testing',                                action  = 'store_true',        help = 'disable testing')
+	parser.add_argument('--disable-output',                                 action  = 'store_true',        help = 'disable training and test results\' output')
 
 	parser.add_argument(
 		'--model',
@@ -814,6 +847,18 @@ def parse_args(args=None, namespace=None):
 		default = model,
 		choices = model_choices,
 		help    = 'model for training and testing: choices are generated from models/models.py (providing no argument disables training and testing)')
+
+	parser.add_argument('--load-model',                                     default = load_model,          help = 'load model from HDF5')
+	parser.add_argument('--load-weights',                                   default = load_weights,        help = 'load model weights from HDF5')
+	parser.add_argument('--save-model',                                     action  = 'store_true',        help = 'save model as HDF5')
+	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights as HDF5')
+
+	parser.add_argument('--dataset',                           nargs = '?', default = dataset,             help = 'load dataset from HDF5 or directory')
+	parser.add_argument('--create-dataset',                                 default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., {\'train\':0.9,\'test\':0.1})')
+	parser.add_argument('--create-h5',                                      action  = 'store_true',        help = 'save dataset as HDF5')
+	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g., 32x32)')
+	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g., 32x32+2+2, 32x32, or +2+2)')
+	parser.add_argument('--pad-dataset',                                    default = pad_dataset,         help = 'pad dataset using "T,B,L,R" (e.g., 2,2,2,2)')
 
 	parser.add_argument(
 		'--augment-dataset',
@@ -828,28 +873,6 @@ def parse_args(args=None, namespace=None):
 		choices = augmenter_choices,
 		help    = 'augmenter for augmentation: choices are generated from misc/augmenters.py')
 
-	parser.add_argument(
-		'--loss',
-		default = loss,
-		choices = loss_choices,
-		help    = 'custom loss for training and testing: choices are generated from misc/losses.py')
-
-
-	parser.add_argument('--disable-training',                               action  = 'store_true',        help = 'disable training')
-	parser.add_argument('--disable-testing',                                action  = 'store_true',        help = 'disable testing')
-	parser.add_argument('--disable-output',                                 action  = 'store_true',        help = 'disable training and test results\' output')
-
-	parser.add_argument('--load-model',                                     default = load_model,          help = 'load model from HDF5')
-	parser.add_argument('--load-weights',                                   default = load_weights,        help = 'load model weights from HDF5')
-	parser.add_argument('--save-model',                                     action  = 'store_true',        help = 'save model as HDF5')
-	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights as HDF5')
-
-	parser.add_argument('--dataset',                           nargs = '?', default = dataset,             help = 'load dataset from HDF5 or directory')
-	parser.add_argument('--create-dataset',                    nargs = '?', default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., {\'train\':0.9,\'test\':0.1})')
-	parser.add_argument('--create-h5',                                      action  = 'store_true',        help = 'save dataset as HDF5')
-	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g., 32x32)')
-	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g., 32x32+2+2, 32x32, or +2+2)')
-	parser.add_argument('--pad-dataset',                                    default = pad_dataset,         help = 'pad dataset using "T,B,L,R" (e.g., 2,2,2,2)')
 	parser.add_argument('--augmentation-level',  type = int,                default = augmentation_level,  help = 'augmentation level for augmentation')
 
 	parser.add_argument('--output-dir',                        nargs = '?', default = output_dir,          help = 'training and test results\' output directory (providing no argument disables the output)')
@@ -859,9 +882,18 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--visualize-hexagonal',                            action  = 'store_true',        help = 'visualize as hexagonal arrays')
 	parser.add_argument('--show-results',                                   action  = 'store_true',        help = 'show the test results')
 
-	parser.add_argument('--batch-size',          type = int,                default = batch_size,          help = 'training batch size')
-	parser.add_argument('--epochs',              type = int,                default = epochs,              help = 'training epochs')
-	parser.add_argument('--runs',                type = int,                default = runs,                help = 'training runs')
+	parser.add_argument('--optimizer',                                      default = optimizer,           help = 'optimizer for training')
+	parser.add_argument('--metrics',                           nargs = '*', default = metrics,             help = 'metrics for training and testing')
+	parser.add_argument('--batch-size',          type = int,                default = batch_size,          help = 'batch size')
+	parser.add_argument('--epochs',              type = int,                default = epochs,              help = 'epochs')
+
+	parser.add_argument(
+		'--loss',
+		default = loss,
+		choices = loss_choices,
+		help    = 'custom loss for training and testing: choices are generated from misc/losses.py')
+
+	parser.add_argument('--runs',                type = int,                default = runs,                help = 'number of training and test runs')
 	parser.add_argument('--validation-split',    type = float,              default = validation_split,    help = 'fraction of the training data to be used as validation data')
 
 	parser.add_argument('--cnn-kernel-size',     type = int,   nargs = '+', default = cnn_kernel_size,     help = 'CNN models\' kernel size')
@@ -894,5 +926,4 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
-
 

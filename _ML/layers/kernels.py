@@ -33,6 +33,13 @@ import math
 import numpy      as np
 import tensorflow as tf
 
+if __name__ == '__main__':
+	import sys
+	sys.path[0] = '..'
+
+from layers.masks import build_masks
+from misc.misc    import round_half_up
+
 
 def rotate_square_kernel(kernel, angle=90):
 	if type(kernel) is np.ndarray:
@@ -65,7 +72,7 @@ def rotate_square_kernel(kernel, angle=90):
 	return kernel_rotated
 
 
-def rotate_hexagonal_coordinate(p, angle, convert_to_radians=True):
+def rotate_hexagonal_coordinate(p, angle=60, convert_to_radians=True):
 	if convert_to_radians:
 		angle = math.radians(angle)
 
@@ -138,27 +145,27 @@ def rotate_hexagonal_kernels(kernels, angle=60):
 
 				coordinate_hex_rotated = rotate_hexagonal_coordinate(coordinate_hex, angle)
 
-				coordinate_hex_rotated     = (round(coordinate_hex_rotated[0], 1), coordinate_hex_rotated[1])
-				coordinate_hex_rotated_row = coordinate_hex_rotated[0] / 1.5
+				coordinate_rotated_row = round_half_up(coordinate_hex_rotated[0] / 1.5)
 
 				if center_is_even_row:
-					if not int(coordinate_hex_rotated_row) % 2:
-						coordinate_rotated = (coordinate_hex_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3))
+					if not coordinate_rotated_row % 2:
+						coordinate_rotated = (coordinate_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3))
 					else:
-						coordinate_rotated = (coordinate_hex_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3) - shift_factor * 0.5)
+						coordinate_rotated = (coordinate_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3) - shift_factor * 0.5)
 				else:
-					if not int(coordinate_hex_rotated_row) % 2:
-						coordinate_rotated = (coordinate_hex_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3))
+					if not coordinate_rotated_row % 2:
+						coordinate_rotated = (coordinate_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3))
 					else:
-						coordinate_rotated = (coordinate_hex_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3) + shift_factor * 0.5)
+						coordinate_rotated = (coordinate_rotated_row, coordinate_hex_rotated[1] / math.sqrt(3) + shift_factor * 0.5)
 
-				coordinate_rotated = (int(coordinate_rotated[0]), int(round(coordinate_rotated[1], 1)))
-				hw_rotated         = (kernel_h - 1 - (coordinate_rotated[0] + kernel_center), coordinate_rotated[1] + kernel_center)
+				coordinate_rotated = (coordinate_rotated[0], round_half_up(coordinate_rotated[1]))
+
+				hwr = (kernel_h - 1 - (coordinate_rotated[0] + kernel_center), coordinate_rotated[1] + kernel_center)
 
 				if type(kernels[even]) is np.ndarray:
-					kernel_rotated[hw_rotated[0]][hw_rotated[1]] = kernel[h][w]
+					kernel_rotated[hwr[0]][hwr[1]] = kernel[h][w]
 				elif tf.is_tensor(kernels[even]):
-					kernel_rotated[hw_rotated[0]][hw_rotated[1]] = kernel[h, w, :, :]
+					kernel_rotated[hwr[0]][hwr[1]] = kernel[h, w, :, :]
 
 
 	if tf.is_tensor(kernels[even]):
@@ -193,7 +200,7 @@ def rotate_hexagonal_kernels(kernels, angle=60):
 	return kernels_rotated
 
 
-def test_rotate_square_kernel(kernel_size=(3, 3)):
+def test_rotate_square_kernel(kernel_size = (3, 3)):
 	print(f'>> test_rotate_square_kernel: kernel_size={kernel_size}')
 
 	test_kernel = np.zeros(shape=kernel_size, dtype=np.int32)
@@ -212,7 +219,7 @@ def test_rotate_square_kernel(kernel_size=(3, 3)):
 		print(f'test_kernel_rotated =\n{np.asarray(test_kernel_rotated)}')
 
 
-def test_rotate_hexagonal_kernels(kernel_size=(3, 3)):
+def test_rotate_hexagonal_kernels(kernel_size = (3, 3)):
 	even = 0
 	odd  = 1
 
@@ -239,15 +246,9 @@ def test_rotate_hexagonal_kernels(kernel_size=(3, 3)):
 
 
 if __name__ == '__main__':
-	from masks import build_masks
-
+	for i in (3, 5, 7):
+		test_rotate_square_kernel(kernel_size = (i, i))
 
 	for i in (3, 5, 7):
-		test_rotate_square_kernel(kernel_size=(i, i))
-
-	for i in (3, 5, 7):
-		test_rotate_hexagonal_kernels(kernel_size=(i, i))
-else:
-	from layers.masks import build_masks
-
+		test_rotate_hexagonal_kernels(kernel_size = (i, i))
 
