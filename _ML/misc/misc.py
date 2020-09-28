@@ -25,6 +25,7 @@
  ****************************************************************************'''
 
 
+import decimal
 import sys
 
 import numpy as np
@@ -40,8 +41,28 @@ def print_newline():
 def Hexnet_print(string, file=None):
 	print(f'[Hexnet] {string}', file=file)
 
+def Hexnet_print_warning(string, file=None):
+	Hexnet_print(f'(WARNING) {string}', file=file)
+
+
+def test_array(array):
+	if type(array) is not np.ndarray:
+		array = np.asarray(array)
+
+	return array
+
+def test_image_batch(image_batch):
+	image_batch = test_array(image_batch)
+
+	if image_batch.ndim == 3:
+		image_batch = image_batch[np.newaxis, ...]
+
+	return image_batch
+
 
 def normalize_array(array):
+	array = test_array(array)
+
 	array_min   = array.min()
 	array_max   = array.max()
 	array_range = array_max - array_min
@@ -52,5 +73,19 @@ def normalize_array(array):
 		array /= array_min
 
 	return array
+
+
+def array_to_one_hot_array(array, classes):
+	array = test_array(array)
+
+	one_hot_array = np.zeros_like(array, shape = (array.shape[0], classes))
+
+	one_hot_array[np.arange(array.shape[0]), array.T] = 1
+
+	return one_hot_array
+
+
+def round_half_up(value):
+	return int(decimal.Decimal(value).quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP))
 
 
