@@ -56,7 +56,7 @@ void print_help_full() {
 		"--s2s-res         <width> [<height>]  enable square to square image transformation by setting the output resolution                     \n" \
 		"--compare-s2s     <image>             compare square input (i, input) to input square image <image>                                     \n" \
 		"--compare-s2h                         compare square input (i, input) to hexagonal output image (o, output) using s2h-rad               \n" \
-		"--compare-metric  <metric>            compare-s2s and compare-s2h compare metric: AE / SE / MAE / MSE / RMSE / PSNR                     \n" \
+		"--compare-metric  <metric>            compare-s2s and compare-s2h compare metric: AE / SE / MAE / MSE / RMSE / PSNR / SSIM / DSSIM      \n" \
 		"-d, --display                         display hexagonal input (i, input) or output image (o, output) using s2h-rad                      \n" \
 		"-v, --verbose                         increase verbosity                                                                                ");
 }

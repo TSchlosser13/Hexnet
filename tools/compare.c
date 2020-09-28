@@ -27,6 +27,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "compare.h"
 
@@ -47,9 +48,66 @@ i32 get_compare_method(char* method) {
 		return COMPARE_RMSE;
 	} else if(!strcmp(method, "PSNR")) {
 		return COMPARE_PSNR;
+	} else if(!strcmp(method, "SSIM")) {
+		return COMPARE_SSIM;
+	} else if(!strcmp(method, "DSSIM")) {
+		return COMPARE_DSSIM;
 	} else {
 		return COMPARE_ERROR;
 	}
+}
+
+
+u32 sum(u8* p, u32 size) {
+	u32 sum = 0;
+
+	for(u32 i = 0; i < size; i++)
+		sum += p[i];
+
+	return sum;
+}
+
+float mean(u8* p, u32 size) {
+	return (float)sum(p, size) / size;
+}
+
+float variance(u8* p, u32 size) {
+	float variance = 0.0f;
+
+	const float mean_p = mean(p, size);
+
+	for(u32 i = 0; i < size; i++) {
+		const float diff = p[i] - mean_p;
+
+		variance += diff * diff;
+	}
+
+	return variance / size;
+}
+
+float covariance(u8* p1, u8* p2, u32 size) {
+	float covariance = 0.0f;
+
+	const float mean_p1 = mean(p1, size);
+	const float mean_p2 = mean(p2, size);
+
+	for(u32 i = 0; i < size; i++) {
+		const float diff_p1 = p1[i] - mean_p1;
+		const float diff_p2 = p2[i] - mean_p2;
+
+		covariance += diff_p1 * diff_p2;
+	}
+
+	return covariance / size;
+}
+
+
+float _ssim(float mean_x, float mean_y, float variance_x, float variance_y, float covariance, float c1, float c2) {
+	return ((2 * mean_x * mean_y + c1) * (2 * covariance + c2)) / ((mean_x * mean_x + mean_y * mean_y + c1) * (variance_x + variance_y + c2));
+}
+
+float _dssim(float mean_x, float mean_y, float variance_x, float variance_y, float covariance, float c1, float c2) {
+	return (1 - _ssim(mean_x, mean_y, variance_x, variance_y, covariance, c1, c2)) / 2;
 }
 
 
@@ -90,10 +148,44 @@ float psnr(u8* p1, u8* p2, u32 size) {
 	return 10 * logf(65025 / mse(p1, p2, size));
 }
 
+float ssim(u8* p1, u8* p2, u32 size) {
+	const float c1 = SSIM_C1;
+	const float c2 = SSIM_C2;
 
-#define col_changed(c1, c2)             ( (u32)(c1) != (u32)(c2) && (c2) != (u32)(c2) )
-#define row_changed(r1, r2)             ( (u32)(r1) != (u32)(r2) && (r2) != (u32)(r2) )
-#define col_row_changed(c1, c2, r1, r2) ( col_changed(c1, c2) && row_changed(r1, r2) )
+	float mean_p1        = 0.0f;
+	float mean_p2        = 0.0f;
+	float variance_p1    = 0.0f;
+	float variance_p2    = 0.0f;
+	float covariance_p12 = 0.0f;
+
+	for(u32 i = 0; i < size; i++) {
+		mean_p1 += p1[i];
+		mean_p2 += p2[i];
+	}
+
+	mean_p1 /= size;
+	mean_p2 /= size;
+
+	for(u32 i = 0; i < size; i++) {
+		const float diff_p1 = p1[i] - mean_p1;
+		const float diff_p2 = p2[i] - mean_p2;
+
+		variance_p1    += diff_p1 * diff_p1;
+		variance_p2    += diff_p2 * diff_p2;
+		covariance_p12 += diff_p1 * diff_p2;
+	}
+
+	variance_p1    /= size;
+	variance_p2    /= size;
+	covariance_p12 /= size;
+
+	return _ssim(mean_p1, mean_p2, variance_p1, variance_p2, covariance_p12, c1, c2);
+}
+
+float dssim(u8* p1, u8* p2, u32 size) {
+	return (1 - ssim(p1, p2, size)) / 2;
+}
+
 
 bool pixels_differ(u8* p1, u8* p2, u32 size) {
 	for(u32 i = 0; i < size; i++) {
@@ -118,7 +210,43 @@ i32 pixels_diff(u8* p1, u8* p2, u32 size, u32 method) {
 }
 
 
+#define col_changed(c1, c2)             ( (u32)(c1) != (u32)(c2) && (c2) != (u32)(c2) )
+#define row_changed(r1, r2)             ( (u32)(r1) != (u32)(r2) && (r2) != (u32)(r2) )
+#define col_row_changed(c1, c2, r1, r2) ( col_changed(c1, c2) && row_changed(r1, r2) )
+
+void set_ps_areas(u8** p1s, u8* p1, u8** p2s, u8* p2, u32* ps_end, u32 depth, double** areas, double area, u32* areas_end) {
+	for(u32 i = 0; i < depth; i++) {
+		(*p1s)[*ps_end] = p1[i];
+		(*p2s)[*ps_end] = p2[i];
+		(*ps_end)++;
+	}
+
+	(*areas)[*areas_end] = area;
+	(*areas_end)++;
+}
+
+void realloc_ps_areas(u8** p1s, u8** p2s, u32 ps_end, u32* ps_size, double** areas, u32 areas_end, u32* areas_size) {
+	#define REALLOC_THRESHOLD 0.9f
+	#define REALLOC_STEP_SIZE 1000000
+
+
+	if(ps_end > REALLOC_THRESHOLD * *ps_size) {
+		*ps_size += REALLOC_STEP_SIZE;
+		*p1s      = (u8*)realloc(*p1s, *ps_size * sizeof(u8));
+		*p2s      = (u8*)realloc(*p2s, *ps_size * sizeof(u8));
+	}
+
+	if(areas_end > REALLOC_THRESHOLD * *areas_size) {
+		*areas_size += REALLOC_STEP_SIZE;
+		*areas       = (double*)realloc(*areas, *areas_size * sizeof(double));
+	}
+}
+
+
 double _compare_s2s(Array s1, Array s2, u32 method) {
+	#define MALLOC_INIT_SIZE 1000000
+
+
 	const u32 depth = s1.depth;
 	const u32 size  = s1.size;
 
@@ -135,9 +263,18 @@ double _compare_s2s(Array s1, Array s2, u32 method) {
 	u32 p1_cr;
 	u32 p2_cr;
 
-	float  area;
+	double area;
 	i32    diff;
 	double result = 0.0;
+
+	// Collect pixel values and areas
+	u32     ps_end     = 0;
+	u32     areas_end  = 0;
+	u32     ps_size    = MALLOC_INIT_SIZE;
+	u32     areas_size = MALLOC_INIT_SIZE;
+	u8*     p1s        =     (u8*)malloc(ps_size    * sizeof(u8));
+	u8*     p2s        =     (u8*)malloc(ps_size    * sizeof(u8));
+	double* areas      = (double*)malloc(areas_size * sizeof(double));
 
 
 	if(s1.width > s2.width) {
@@ -171,19 +308,19 @@ double _compare_s2s(Array s1, Array s2, u32 method) {
 	p2_cr += p2_r;
 
 
-	const float ws_min = (float)width_min  / width_max;
-	const float ws_max = (float)width_max  / width_min;
-	const float hs_min = (float)height_min / height_max;
-	const float hs_max = (float)height_max / height_min;
+	const double ws_min = (double)width_min  / width_max;
+	const double ws_max = (double)width_max  / width_min;
+	const double hs_min = (double)height_min / height_max;
+	const double hs_max = (double)height_max / height_min;
 
 
 	for(u32 h_max = 0; h_max < height_max; h_max++) {
-		const float h_min     = h_max * hs_min;
-		const float h_min_max = (u32)(h_min + 1) * hs_max;
+		const double h_min     = h_max * hs_min;
+		const double h_min_max = (u32)(h_min + 1) * hs_max;
 
 		for(u32 w_max = 0; w_max < width_max; w_max++) {
-			const float w_min     = w_max * ws_min;
-			const float w_min_max = (u32)(w_min + 1) * ws_max;
+			const double w_min     = w_max * ws_min;
+			const double w_min_max = (u32)(w_min + 1) * ws_max;
 
 
 			if(s1.width > s2.width) {
@@ -206,32 +343,48 @@ double _compare_s2s(Array s1, Array s2, u32 method) {
 			p2 *= depth;
 
 
+			if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+				realloc_ps_areas(&p1s, &p2s, ps_end, &ps_size, &areas, areas_end, &areas_size);
+
+
 			area    = (MIN(w_max + 1, w_min_max) - w_max) * (MIN(h_max + 1, h_min_max) - h_max);
 			diff    = pixels_diff(s1.p + p1, s2.p + p2, depth, method);
 			result += area * diff;
+
+			if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+				set_ps_areas(&p1s, s1.p + p1, &p2s, s2.p + p2, &ps_end, depth, &areas, area, &areas_end);
 
 			if(col_changed(w_min, w_min + ws_min)) {
 				area    = (w_max + 1 - w_min_max) * (MIN(h_max + 1, h_min_max) - h_max);
 				diff    = pixels_diff(s1.p + p1 + p1_c, s2.p + p2 + p2_c, depth, method);
 				result += area * diff;
+
+				if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+					set_ps_areas(&p1s, s1.p + p1 + p1_c, &p2s, s2.p + p2 + p2_c, &ps_end, depth, &areas, area, &areas_end);
 			}
 
 			if(row_changed(h_min, h_min + hs_min)) {
 				area    = (MIN(w_max + 1, w_min_max) - w_max) * (h_max + 1 - h_min_max);
 				diff    = pixels_diff(s1.p + p1 + p1_r, s2.p + p2 + p2_r, depth, method);
 				result += area * diff;
+
+				if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+					set_ps_areas(&p1s, s1.p + p1 + p1_r, &p2s, s2.p + p2 + p2_r, &ps_end, depth, &areas, area, &areas_end);
 			}
 
 			if(col_row_changed(w_min, w_min + ws_min, h_min, h_min + hs_min)) {
 				area    = (w_max + 1 - w_min_max) * (h_max + 1 - h_min_max);
 				diff    = pixels_diff(s1.p + p1 + p1_cr, s2.p + p2 + p2_cr, depth, method);
 				result += area * diff;
+
+				if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+					set_ps_areas(&p1s, s1.p + p1 + p1_cr, &p2s, s2.p + p2 + p2_cr, &ps_end, depth, &areas, area, &areas_end);
 			}
 		}
 	}
 
 
-	result *= MIN(1, (float)s1.width / s2.width) * MIN(1, (float)s1.height / s2.height);
+	result *= MIN(1, (double)s1.width / s2.width) * MIN(1, (double)s1.height / s2.height); // adjust result in case of mismatched aspect ratios
 
 	if( method == COMPARE_MAE  ||
 	    method == COMPARE_MSE  ||
@@ -246,6 +399,53 @@ double _compare_s2s(Array s1, Array s2, u32 method) {
 		result = 10 * logf(65025 / result);
 	}
 
+	if(method == COMPARE_SSIM || method == COMPARE_DSSIM) {
+		const float c1 = SSIM_C1;
+		const float c2 = SSIM_C2;
+
+		float mean_p1        = 0.0f;
+		float mean_p2        = 0.0f;
+		float variance_p1    = 0.0f;
+		float variance_p2    = 0.0f;
+		float covariance_p12 = 0.0f;
+
+		for(u32 i = 0; i < ps_end; i++) {
+			const double current_area = areas[i / depth];
+
+			mean_p1 += current_area * p1s[i];
+			mean_p2 += current_area * p2s[i];
+		}
+
+		mean_p1 /= size;
+		mean_p2 /= size;
+
+		for(u32 i = 0; i < ps_end; i++) {
+			const double current_area = areas[i / depth];
+
+			const float diff_p1 = current_area * (p1s[i] - mean_p1);
+			const float diff_p2 = current_area * (p2s[i] - mean_p2);
+
+			variance_p1    += diff_p1 * diff_p1;
+			variance_p2    += diff_p2 * diff_p2;
+			covariance_p12 += diff_p1 * diff_p2;
+		}
+
+		variance_p1    /= size;
+		variance_p2    /= size;
+		covariance_p12 /= size;
+
+		if(method == COMPARE_SSIM) {
+			result = _ssim(mean_p1, mean_p2, variance_p1, variance_p2, covariance_p12, c1, c2);
+		} else {
+			result = _dssim(mean_p1, mean_p2, variance_p1, variance_p2, covariance_p12, c1, c2);
+		}
+	}
+
+
+	free(p1s);
+	free(p2s);
+	free(areas);
+
 
 	return result;
 }
@@ -255,12 +455,24 @@ void compare_s2s(Array s1, Array s2, u32 method) {
 }
 
 double _compare_s2h(Array s, Hexarray h, u32 method) {
+	#define MALLOC_INIT_SIZE 1000000
+
+
 	const u32 depth = s.depth;
 	const u32 size  = s.size;
 
 	double area;
 	i32    diff;
 	double result = 0.0;
+
+	// Collect pixel values and areas
+	u32     ps_end     = 0;
+	u32     areas_end  = 0;
+	u32     ps_size    = MALLOC_INIT_SIZE;
+	u32     areas_size = MALLOC_INIT_SIZE;
+	u8*     p1s        =     (u8*)malloc(ps_size    * sizeof(u8));
+	u8*     p2s        =     (u8*)malloc(ps_size    * sizeof(u8));
+	double* areas      = (double*)malloc(areas_size * sizeof(double));
 
 
 	const double wb = (h.width_hex  - s.width_sq)  / 2;
@@ -309,6 +521,10 @@ double _compare_s2h(Array s, Hexarray h, u32 method) {
 			const u32 whu = (u32)(wh / h.dist_w);
 
 
+			if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+				realloc_ps_areas(&p1s, &p2s, ps_end, &ps_size, &areas, areas_end, &areas_size);
+
+
 			if(hd < hs_h - sr_h * wd) {
 				const double w_min = MAX(wd, (hs_h - hn) / sr_h);
 				const double w_max = MIN((hs_h - hd) / sr_h, wn);
@@ -328,16 +544,25 @@ double _compare_s2h(Array s, Hexarray h, u32 method) {
 					if(phc >= 0) {
 						diff    = pixels_diff(s.p + ps, h.p + phc, depth, method);
 						result += area * diff;
+
+						if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+							set_ps_areas(&p1s, s.p + ps, &p2s, h.p + phc, &ps_end, depth, &areas, area, &areas_end);
 					}
 
 					area    = wmr_min * hmr_min - area;
 					diff    = pixels_diff(s.p + ps, h.p + ph, depth, method);
 					result += area * diff;
+
+					if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+						set_ps_areas(&p1s, s.p + ps, &p2s, h.p + ph, &ps_end, depth, &areas, area, &areas_end);
 				} else {
 					if(phc >= 0) {
 						area    = wmr_min * hmr_min;
 						diff    = pixels_diff(s.p + ps, h.p + phc, depth, method);
 						result += area * diff;
+
+						if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+							set_ps_areas(&p1s, s.p + ps, &p2s, h.p + phc, &ps_end, depth, &areas, area, &areas_end);
 					}
 				}
 			} else if(hd < hs_h - sr_h * (h.dist_w - wn)) {
@@ -359,16 +584,25 @@ double _compare_s2h(Array s, Hexarray h, u32 method) {
 					if(phc >= 0 && phc < h.size) {
 						diff    = pixels_diff(s.p + ps, h.p + phc, depth, method);
 						result += area * diff;
+
+						if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+							set_ps_areas(&p1s, s.p + ps, &p2s, h.p + phc, &ps_end, depth, &areas, area, &areas_end);
 					}
 
 					area    = wmr_min * hmr_min - area;
 					diff    = pixels_diff(s.p + ps, h.p + ph, depth, method);
 					result += area * diff;
+
+					if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+						set_ps_areas(&p1s, s.p + ps, &p2s, h.p + ph, &ps_end, depth, &areas, area, &areas_end);
 				} else {
 					if(phc >= 0 && phc < h.size) {
 						area    = wmr_min * hmr_min;
 						diff    = pixels_diff(s.p + ps, h.p + phc, depth, method);
 						result += area * diff;
+
+						if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+							set_ps_areas(&p1s, s.p + ps, &p2s, h.p + phc, &ps_end, depth, &areas, area, &areas_end);
 					}
 				}
 			} else {
@@ -378,6 +612,9 @@ double _compare_s2h(Array s, Hexarray h, u32 method) {
 				area    = wmr_min * hmr_min;
 				diff    = pixels_diff(s.p + ps, h.p + ph, depth, method);
 				result += area * diff;
+
+				if(method == COMPARE_SSIM || method == COMPARE_DSSIM)
+					set_ps_areas(&p1s, s.p + ps, &p2s, h.p + ph, &ps_end, depth, &areas, area, &areas_end);
 			}
 
 
@@ -402,6 +639,53 @@ double _compare_s2h(Array s, Hexarray h, u32 method) {
 	} else if(method == COMPARE_PSNR) {
 		result = 10 * logf(65025 / result);
 	}
+
+	if(method == COMPARE_SSIM || method == COMPARE_DSSIM) {
+		const float c1 = SSIM_C1;
+		const float c2 = SSIM_C2;
+
+		float mean_p1        = 0.0f;
+		float mean_p2        = 0.0f;
+		float variance_p1    = 0.0f;
+		float variance_p2    = 0.0f;
+		float covariance_p12 = 0.0f;
+
+		for(u32 i = 0; i < ps_end; i++) {
+			const double current_area = areas[i / depth];
+
+			mean_p1 += current_area * p1s[i];
+			mean_p2 += current_area * p2s[i];
+		}
+
+		mean_p1 /= size;
+		mean_p2 /= size;
+
+		for(u32 i = 0; i < ps_end; i++) {
+			const double current_area = areas[i / depth];
+
+			const float diff_p1 = current_area * (p1s[i] - mean_p1);
+			const float diff_p2 = current_area * (p2s[i] - mean_p2);
+
+			variance_p1    += diff_p1 * diff_p1;
+			variance_p2    += diff_p2 * diff_p2;
+			covariance_p12 += diff_p1 * diff_p2;
+		}
+
+		variance_p1    /= size;
+		variance_p2    /= size;
+		covariance_p12 /= size;
+
+		if(method == COMPARE_SSIM) {
+			result = _ssim(mean_p1, mean_p2, variance_p1, variance_p2, covariance_p12, c1, c2);
+		} else {
+			result = _dssim(mean_p1, mean_p2, variance_p1, variance_p2, covariance_p12, c1, c2);
+		}
+	}
+
+
+	free(p1s);
+	free(p2s);
+	free(areas);
 
 
 	return result;
