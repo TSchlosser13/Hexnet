@@ -21,6 +21,33 @@ For the base system of this project for hexagonal transformation and visualizati
 
 
 
+Generation of Basic Geometric Primitives
+----------------------------------------
+
+### Installation
+
+Install SymPy version 1.6.2
+
+```
+conda create -n geometric_primitives python=3.7
+conda activate geometric_primitives
+pip install matplotlib sympy==1.6.2 tqdm==4.47.0
+```
+
+
+### Image Generation Script
+
+Current classes for generation
+
+TODO
+
+```
+python geometric_primitives_image_generation.py
+```
+
+
+
+
 Generation of Cherenkov Telescope Array (CTA) Images Using ctapipe
 ------------------------------------------------------------------
 
@@ -34,8 +61,8 @@ cd ctapipe
 
 CTAPIPE_VER=0.8.0
 wget https://raw.githubusercontent.com/cta-observatory/ctapipe/v$CTAPIPE_VER/environment.yml
-conda env create -n cta -f environment.yml
-conda activate cta
+conda env create -n ctapipe -f environment.yml
+conda activate ctapipe
 conda install -c cta-observatory ctapipe=$CTAPIPE_VER
 
 cd ..
@@ -58,7 +85,7 @@ python ctapipe_image_generation.py
 ### Test Scripts
 
 ```
-cd tests
+cd ctapipe
 ```
 
 Show all camera geometries
