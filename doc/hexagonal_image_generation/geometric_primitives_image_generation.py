@@ -12,9 +12,9 @@ from matplotlib.pyplot import imsave
 from tqdm              import tqdm
 
 
-output_dir = 'ctapipe_image_generation'
+output_dir = 'geometric_primitives_image_generation'
 
-function_s_in_bound_threshold = 64
+function_s_in_bound_threshold = 128
 
 
 os.makedirs(output_dir, exist_ok=True)
