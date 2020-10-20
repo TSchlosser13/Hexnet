@@ -12,7 +12,7 @@ from matplotlib.pyplot import imsave
 from tqdm              import tqdm
 
 
-output_dir = '../../../../ctapipe_image_generation'
+output_dir = 'ctapipe_image_generation'
 
 function_s_in_bound_threshold = 64
 
@@ -31,12 +31,12 @@ def plot_function_square(
 	multiple_symbols = len(symbol_s) > 1
 
 	function_s = [sp.sympify(function) for function in function_s]
-	symbol_s   = sp.symbols(','.join(symbol_s))
+	symbol_s   = sp.symbols(','.join(symbol_s), real=True)
 
 
 	image = np.full(fill_value = 255, shape = (figure_size, figure_size))
 
-	variables = np.arange(0, window_size + step_size, step_size)
+	variables = np.arange(0, window_size, step_size)
 
 	if multiple_symbols:
 		variables = itertools.product(variables, repeat=len(symbol_s))
@@ -49,11 +49,14 @@ def plot_function_square(
 	for function in function_s:
 		for variable_s in variables:
 			if multiple_symbols:
-				subs = [(symbol, variable) for symbol, variable in zip(symbol_s, variable_s)]
+				subs = {str(symbol): variable for symbol, variable in zip(symbol_s, variable_s)}
 			else:
-				subs = [(symbol_s, variable_s)]
+				subs = {str(symbol_s): variable_s}
 
-			result = function.subs(subs)
+			result = function.evalf(subs=subs)
+
+			if result.has(sp.I):
+				continue
 
 			if multiple_symbols:
 				x = int(figure_size * variable_s[0])
@@ -83,49 +86,30 @@ def plot_function_hexagonal(
 	figure_size      = 64,
 	window_size      =  1,
 	step_size        =  0.001,
-	linewidth_factor =  0.01):
+	linewidth_factor =  0.01,
+	rad_o            =  0.63):
 
-	multiple_symbols = len(symbol_s) > 1
-
-	function_s = [sp.sympify(function) for function in function_s]
-	symbol_s   = sp.symbols(','.join(symbol_s))
-
-
-	image = np.full(fill_value = 255, shape = (figure_size, figure_size))
-
-	variables = np.arange(0, window_size + step_size, step_size)
-
-	if multiple_symbols:
-		variables = itertools.product(variables, repeat=len(symbol_s))
-
-	sampling_size = int(linewidth_factor * window_size * figure_size)
+	s_height = figure_size
+	s_width  = figure_size
 
 
-
-
-	s_height = window_size
-	h_height = window_size
-	s_width  = window_size
-	h_width  = window_size
+	if s_height > rad_o:
+		h_width  = math.ceil(s_width  / (math.sqrt(3) * rad_o))
+		h_height = math.ceil(s_height / (1.5 * rad_o))
+	else:
+		h_width  = math.ceil(s_width / (math.sqrt(3) * rad_o))
+		h_height = 1
 
 
 	width_sq  = s_width
 	height_sq = s_height
 
-	if h_height > 1:
-		h_rad_i_w = (s_width / (h_width - 0.5)) / 2
-		h_rad_i_h = ((s_height / (h_height - 0.5)) / 2) / (math.sqrt(3) / 2)
-	else:
-		h_rad_i_w = (s_width / h_width) / 2
-		h_rad_i_h = (s_height / 2) / (math.sqrt(3) / 2)
 
-	h_rad_i = max(h_rad_i_w, h_rad_i_h)
-
-	h_rad_o  = h_rad_i / (math.sqrt(3) / 2)
-	h_dia_o  = 2 * h_rad_o
+	h_rad_i  = (math.sqrt(3) / 2) * rad_o
+	h_dia_o  = 2 * rad_o
 	h_dia_i  = 2 * h_rad_i
 	h_dist_w = h_dia_i
-	h_dist_h = 1.5 * h_rad_o
+	h_dist_h = 1.5 * rad_o
 
 	if h_height > 1:
 		width_hex  = h_width * h_dia_i + h_rad_i
@@ -141,52 +125,68 @@ def plot_function_hexagonal(
 
 
 
+	multiple_symbols = len(symbol_s) > 1
+
+	function_s = [sp.sympify(function) for function in function_s]
+	symbol_s   = sp.symbols(','.join(symbol_s), real=True)
+
+
+	image = np.full(fill_value = 255, shape = (h_height, h_width))
+
+	variables = np.arange(-wb / figure_size, window_size + wb / figure_size, step_size)
+
+	if multiple_symbols:
+		variables = itertools.product(variables, repeat=len(symbol_s))
+
+	sampling_size = int(linewidth_factor * window_size * figure_size)
+
+
 	function_s_in_bound_cnt = 0
 
 	for function in function_s:
 		for variable_s in variables:
 			if multiple_symbols:
-				subs = [(symbol, variable) for symbol, variable in zip(symbol_s, variable_s)]
+				subs = {str(symbol): variable for symbol, variable in zip(symbol_s, variable_s)}
 			else:
-				subs = [(symbol_s, variable_s)]
+				subs = {str(symbol_s): variable_s}
 
-			result = function.subs(subs)
+			result = function.evalf(subs=subs)
+
+			if result.has(sp.I):
+				continue
 
 			if multiple_symbols:
-				x = int(figure_size * variable_s[0])
+				x = float(width_hex * variable_s[0])
 			else:
-				x = int(figure_size * variable_s)
+				x = float(width_hex * variable_s)
 
-			y = int(figure_size * result)
+			y = float(height_hex * result)
 
 
-			xh = -wb + x
-			yh = -hb + y
-
-			if 1 - yh % 2:
-				xhi = round(xh / h_dist_w)
+			if 1 - (h_height - 1 - y) % 2:
+				xi = round(x / h_dist_w)
 			else:
-				xhi = round((xh - h_rad_i) / h_dist_w)
+				xi = round((x - h_rad_i) / h_dist_w)
 
-			yhi = round(yh / h_dist_h)
+			yi = round(y / h_dist_h)
 
 
-			for yi in range(yhi - sampling_size, yhi + sampling_size + 1):
-				yihs   = hb + yi * h_dist_h
-				y_diff = (y - yihs)**2
+			for yik in range(yi - sampling_size, yi + sampling_size + 1):
+				yiks   = -hb + yik * h_dist_h
+				y_diff = (y - yiks)**2
 
-				for xi in range(xhi - sampling_size, xhi + sampling_size + 1):
-					if 1 - yi % 2:
-						xihs = wb + xi * h_dist_w
+				for xik in range(xi - sampling_size, xi + sampling_size + 1):
+					if 1 - (h_height - 1 - yik) % 2:
+						xiks = -wb + xik * h_dist_w
 					else:
-						xihs = wb + h_rad_i + xi * h_dist_w
+						xiks = -wb + h_rad_i + xik * h_dist_w
 
-					x_diff = (x - xihs)**2
+					x_diff = (x - xiks)**2
 
 					if math.sqrt(x_diff + y_diff) <= sampling_size and \
-					   xi >= 0 and xi < figure_size and yi >= 0 and yi < figure_size:
-						image[figure_size - 1 - yi][xi]  = 0
-						function_s_in_bound_cnt         += 1
+					   xik >= 0 and xik < h_width and yik >= 0 and yik < h_height:
+						image[h_height - 1 - yik][xik]  = 0
+						function_s_in_bound_cnt        += 1
 
 
 	return image, function_s_in_bound_cnt
