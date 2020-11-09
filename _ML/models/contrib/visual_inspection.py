@@ -34,7 +34,7 @@ from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPool2D
 	Schlosser, Tobias ; Beuth, Frederik ; Friedrich, Michael ; Kowerko, Danny
 '''
 
-def model_CNN_custom_Schlosser2019_chips(input_shape, classes):
+def model_CNN_custom_Schlosser2019_good_bad_chips(input_shape, classes):
 	model = Sequential()
 
 	model.add(Conv2D(filters=32, kernel_size=(5, 5), activation='relu', input_shape=input_shape))
@@ -56,7 +56,21 @@ def model_CNN_custom_Schlosser2019_chips(input_shape, classes):
 
 	return model
 
-def model_CNN_custom_Schlosser2019_streets(input_shape, classes):
+def model_CNN_custom_Schlosser2019_in_out_chips(input_shape, classes):
+	model = Sequential()
+
+	model.add(Conv2D(filters=32, kernel_size=(3, 3), activation='relu', input_shape=input_shape))
+	model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
+	model.add(MaxPooling2D(pool_size=(2, 2)))
+	model.add(Dropout(rate=0.25))
+	model.add(Flatten())
+	model.add(Dense(units=128, activation='relu'))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation='softmax'))
+
+	return model
+
+def model_CNN_custom_Schlosser2019_good_bad_streets(input_shape, classes):
 	model = Sequential()
 
 	model.add(Conv2D(filters=32, kernel_size=(5, 5), activation='relu', input_shape=input_shape))
@@ -119,6 +133,44 @@ def model_CNN_custom_Nakazawa2018(input_shape, classes):
 	model.add(MaxPool2D(pool_size=(2, 2)))
 	model.add(Flatten())
 	model.add(Dense(units=256, activation='sigmoid'))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=classes, activation='softmax'))
+
+	return model
+
+
+'''
+	Deep Learning for Classification of the Chemical Composition of Particle Defects on Semiconductor Wafers
+	O'Leary, Jared ; Sawlani, Kapil ; Mesbah, Ali
+'''
+
+def model_CNN_custom_OLeary2020(input_shape, classes):
+	model = Sequential()
+
+	model.add(Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu', input_shape=input_shape))
+	model.add(Conv2D(filters=64, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(MaxPooling2D(pool_size=(2, 2)))
+	model.add(Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=128, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(MaxPooling2D(pool_size=(2, 2)))
+	model.add(Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=256, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(MaxPooling2D(pool_size=(2, 2)))
+	model.add(Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(MaxPooling2D(pool_size=(2, 2)))
+	model.add(Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(Conv2D(filters=512, kernel_size=(3, 3), padding='same', activation='relu'))
+	model.add(MaxPooling2D(pool_size=(2, 2)))
+	model.add(Flatten())
+	model.add(Dense(units=4096, activation='tanh'))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=4096, activation='tanh'))
+	model.add(Dropout(rate=0.5))
+	model.add(Dense(units=4096, activation='tanh'))
 	model.add(Dropout(rate=0.5))
 	model.add(Dense(units=classes, activation='softmax'))
 
