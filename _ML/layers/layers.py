@@ -32,6 +32,7 @@ import tensorflow as tf
 
 from scipy.optimize import linear_sum_assignment
 
+from core.Hexsamp   import Hexsamp_h2h
 from layers.kernels import rotate_hexagonal_kernels, rotate_square_kernel
 from layers.masks   import build_masks
 from layers.offsets import build_offsets
@@ -2251,6 +2252,9 @@ class HSampling2D(tf.keras.layers.Layer):
 			`target_size` is bigger than the current size of the `image`. Defaults to False.
 		antialias: Whether to use an anti-aliasing filter when downsampling an
 			image.
+		mode: String,
+			one of `hexagonal_interpolation` (default) or
+			`square_interpolation`.
 
 	Raises:
 		ValueError: if the shape of `images` is incompatible with the
@@ -2272,6 +2276,7 @@ class HSampling2D(tf.keras.layers.Layer):
 		interpolation         = 'nearest',
 		preserve_aspect_ratio = False,
 		antialias             = False,
+		mode                  = 'hexagonal_interpolation',
 		**kwargs):
 
 		super().__init__(**kwargs)
@@ -2291,19 +2296,28 @@ class HSampling2D(tf.keras.layers.Layer):
 		self.preserve_aspect_ratio = preserve_aspect_ratio
 		self.antialias             = antialias
 
+		self.mode = mode
+
 	def build(self, input_shape):
 		super().build(input_shape)
 
 		self.target_size = (round(self.size_factor[0] * input_shape[1]), round(self.size_factor[1] * input_shape[2]))
 
 	def call(self, input):
-		output = tf.image.resize(
-			images                = input,
-			size                  = self.target_size,
-			method                = self.interpolation,
-			preserve_aspect_ratio = self.preserve_aspect_ratio,
-			antialias             = self.antialias,
-			name                  = 'HSampling2D_output_resize')
+		if self.mode == 'hexagonal_interpolation':
+			method = 0 if self.interpolation == 'bilinear' else 1 # TODO: add more interpolation methods
+
+			h2_s = tf.identity(input)[:, :self.target_size[0], :self.target_size[1], :] # TODO: initialize hexarray without identity
+
+			output = Hexsamp_h2h(input, h2_s, method)
+		else: # 'square_interpolation'
+			output = tf.image.resize(
+				images                = input,
+				size                  = self.target_size,
+				method                = self.interpolation,
+				preserve_aspect_ratio = self.preserve_aspect_ratio,
+				antialias             = self.antialias,
+				name                  = 'HSampling2D_output_resize')
 
 		return output
 

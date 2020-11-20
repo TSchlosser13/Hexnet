@@ -27,7 +27,8 @@
 
 import math
 
-import numpy as np
+import numpy      as np
+import tensorflow as tf
 
 from misc.misc import test_image_batch
 
@@ -44,8 +45,24 @@ def Hexsamp_kernel(x, y, method):
 	return k
 
 
+@tf.function
 def Hexsamp_h2h(h1_s, h2_s, method):
-	h1_s = test_image_batch(h1_s)
+	h1_s_is_tensor = tf.is_tensor(h1_s)
+	h2_s_is_tensor = tf.is_tensor(h2_s)
+
+	if h1_s_is_tensor or h2_s_is_tensor:
+		if not h1_s_is_tensor:
+			h1_s = tf.convert_to_tensor(h1_s, dtype=tf.float32)
+
+		if not h2_s_is_tensor:
+			h2_s = tf.convert_to_tensor(h2_s, dtype=tf.float32)
+
+		s12_is_tensor = True
+	else:
+		h1_s = test_image_batch(h1_s)
+		h2_s = test_image_batch(h2_s)
+
+		s12_is_tensor = False
 
 
 	h1_s_shape = h1_s.shape
@@ -97,6 +114,11 @@ def Hexsamp_h2h(h1_s, h2_s, method):
 		h2_s_height_hex = h2_s_dia_o
 
 
+	if s12_is_tensor:
+		h2_s_list   = h2_s_height * [h2_s_width * [None]]
+		h2_s_list_h = []
+
+
 
 
 	r  = max(h1_s_dia_i, h2_s_dia_i)
@@ -113,8 +135,13 @@ def Hexsamp_h2h(h1_s, h2_s, method):
 			wt   = wb + w * h2_s_dia_i if not (h    % 2) else wb + h2_s_rad_i + w * h2_s_dia_i
 			wth  = wt / h1_s_dia_i     if not (hthi % 2) else -h1_s_rad_i + wt / h1_s_dia_i
 			wthi = round(wth)
-			o    = np.zeros(shape = (hexarrays, depth))
-			on   = 0.0
+
+			if not s12_is_tensor:
+				o = np.zeros(shape = (hexarrays, depth))
+			else:
+				o = tf.zeros(shape = (tf.shape(h2_s)[0], depth))
+
+			on = 0.0
 
 
 			for y in range(hthi - ri, hthi + ri + 1):
@@ -135,7 +162,24 @@ def Hexsamp_h2h(h1_s, h2_s, method):
 				o /= on
 
 
-			h2_s[:, h, w, :] = np.round(np.minimum(o, 255))
+			if not s12_is_tensor:
+				h2_s[:, h, w, :] = np.round(np.minimum(o, 255))
+			else:
+				h2_s_list[h][w] = o
+
+
+		if s12_is_tensor:
+			h2_s_list_h.append(
+				tf.stack(
+					values = h2_s_list[h],
+					axis   = 1,
+					name   = 'Hexsamp_h2h_h2_s_list_h_stack'))
+
+	if s12_is_tensor:
+		h2_s = tf.stack(
+			values = h2_s_list_h,
+			axis   = 1,
+			name   = 'Hexsamp_h2h_h2_s_stack')
 
 
 	return h2_s
