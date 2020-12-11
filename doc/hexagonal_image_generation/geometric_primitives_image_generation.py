@@ -1,6 +1,33 @@
 #!/usr/bin/env python3.7
 
 
+'''****************************************************************************
+ * geometric_primitives_image_generation.py: Primitive(s) Generation
+ ******************************************************************************
+ * v0.1 - 01.09.2020
+ *
+ * Copyright (c) 2020 Tobias Schlosser (tobias@tobias-schlosser.net)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ ****************************************************************************'''
+
+
 import itertools
 import math
 import os
@@ -14,10 +41,20 @@ from tqdm              import tqdm
 
 output_dir = 'geometric_primitives_image_generation'
 
-function_s_in_bound_threshold = 128
+pixels_in_bound_threshold = 64
 
 
-os.makedirs(output_dir, exist_ok=True)
+def rotate_point(point, angle = 90, origin = (0, 0), convert_to_radians = True):
+	if convert_to_radians:
+		angle = math.radians(angle)
+
+	px, py = point
+	ox, oy = origin
+
+	qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+	qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+
+	return (qx, qy)
 
 
 def plot_function_square(
@@ -26,7 +63,8 @@ def plot_function_square(
 	figure_size      = 64,
 	window_size      =  1,
 	step_size        =  0.001,
-	linewidth_factor =  0.01):
+	linewidth_factor =  0.02,
+	rotation_degrees =  0):
 
 	multiple_symbols = len(symbol_s) > 1
 
@@ -44,7 +82,7 @@ def plot_function_square(
 	sampling_size = int(linewidth_factor * window_size * figure_size)
 
 
-	function_s_in_bound_cnt = 0
+	pixels_in_bound = []
 
 	for function in function_s:
 		for variable_s in variables:
@@ -59,11 +97,17 @@ def plot_function_square(
 				continue
 
 			if multiple_symbols:
-				x = int(figure_size * variable_s[0])
+				x = variable_s[0]
 			else:
-				x = int(figure_size * variable_s)
+				x = variable_s
 
-			y = int(figure_size * result)
+			y = result
+
+			if rotation_degrees:
+				x, y = rotate_point(point = (x, y), angle = rotation_degrees, origin = (window_size / 2, window_size / 2))
+
+			x = int(figure_size * x)
+			y = int(figure_size * y)
 
 			for yi in range(y - sampling_size, y + sampling_size + 1):
 				y_diff = (y - yi)**2
@@ -73,11 +117,11 @@ def plot_function_square(
 
 					if math.sqrt(x_diff + y_diff) <= sampling_size and \
 					   xi >= 0 and xi < figure_size and yi >= 0 and yi < figure_size:
-						image[figure_size - 1 - yi][xi]  = 0
-						function_s_in_bound_cnt         += 1
+						image[figure_size - 1 - yi][xi] = 0
+						pixels_in_bound.append((yi, xi))
 
 
-	return image, function_s_in_bound_cnt
+	return image, len(set(pixels_in_bound))
 
 
 def plot_function_hexagonal(
@@ -86,8 +130,9 @@ def plot_function_hexagonal(
 	figure_size      = 64,
 	window_size      =  1,
 	step_size        =  0.001,
-	linewidth_factor =  0.01,
-	rad_o            =  0.63):
+	linewidth_factor =  0.02,
+	rad_o            =  0.63,
+	rotation_degrees =  0):
 
 	s_height = figure_size
 	s_width  = figure_size
@@ -141,7 +186,7 @@ def plot_function_hexagonal(
 	sampling_size = int(linewidth_factor * window_size * figure_size)
 
 
-	function_s_in_bound_cnt = 0
+	pixels_in_bound = []
 
 	for function in function_s:
 		for variable_s in variables:
@@ -156,11 +201,17 @@ def plot_function_hexagonal(
 				continue
 
 			if multiple_symbols:
-				x = float(width_hex * variable_s[0])
+				x = variable_s[0]
 			else:
-				x = float(width_hex * variable_s)
+				x = variable_s
 
-			y = float(height_hex * result)
+			y = result
+
+			if rotation_degrees:
+				x, y = rotate_point(point = (x, y), angle = rotation_degrees, origin = (window_size / 2, window_size / 2))
+
+			x = float(width_hex  * x)
+			y = float(height_hex * y)
 
 
 			if 1 - (h_height - 1 - y) % 2:
@@ -185,11 +236,11 @@ def plot_function_hexagonal(
 
 					if math.sqrt(x_diff + y_diff) <= sampling_size and \
 					   xik >= 0 and xik < h_width and yik >= 0 and yik < h_height:
-						image[h_height - 1 - yik][xik]  = 0
-						function_s_in_bound_cnt        += 1
+						image[h_height - 1 - yik][xik] = 0
+						pixels_in_bound.append((yik, xik))
 
 
-	return image, function_s_in_bound_cnt
+	return image, len(set(pixels_in_bound))
 
 
 def plot_function(
@@ -199,29 +250,49 @@ def plot_function(
 	figure_size      = 64,
 	window_size      =  1,
 	step_size        =  0.001,
-	linewidth_factor =  0.01):
+	linewidth_factor =  0.02,
+	rad_o            =  0.63,
+	rotation_degrees =  0,
+	output_dir       = output_dir,
+	filename         = None):
 
 	function_s_replace_what_with = [['*', '']]
 
 
-	image, function_s_in_bound_cnt = plot_function_function(
-		function_s,
-		symbol_s,
-		figure_size,
-		window_size,
-		step_size,
-		linewidth_factor)
+	if plot_function_function is plot_function_square:
+		image, pixels_in_bound_cnt = plot_function_function(
+			function_s,
+			symbol_s,
+			figure_size,
+			window_size,
+			step_size,
+			linewidth_factor,
+			rotation_degrees)
+	else: # plot_function_hexagonal
+		image, pixels_in_bound_cnt = plot_function_function(
+			function_s,
+			symbol_s,
+			figure_size,
+			window_size,
+			step_size,
+			linewidth_factor,
+			rad_o,
+			rotation_degrees)
 
-	if function_s_in_bound_cnt > function_s_in_bound_threshold:
-		function_s = ','.join(function_s)
+	if pixels_in_bound_cnt > pixels_in_bound_threshold:
+		if not filename:
+			filename = ','.join(function_s)
 
-		for replace_what, replace_with in function_s_replace_what_with:
-			function_s = function_s.replace(replace_what, replace_with)
+			for replace_what, replace_with in function_s_replace_what_with:
+				filename = filename.replace(replace_what, replace_with)
+
+			if rotation_degrees:
+				filename = f'{filename}__rotated_{rotation_degrees:.2f}deg'
 
 		if plot_function_function is plot_function_square:
-			image_filename = os.path.join(output_dir, f'{function_s}.png')
+			image_filename = os.path.join(output_dir, f'{filename}.png')
 		else: # plot_function_hexagonal
-			image_filename = os.path.join(output_dir, f'{function_s}_hex.png')
+			image_filename = os.path.join(output_dir, f'{filename}_hex.png')
 
 		imsave(image_filename, image, vmin=0, vmax=255, cmap='gray')
 
@@ -234,7 +305,7 @@ def test_plot_functions():
 		['x'], ['x+0.5'],
 		['sqrt(x)'], ['sqrt(x)+0.5'],
 		['x^2'], ['x^2+0.5'],
-		['-sqrt(1-x**2)', 'sqrt(1-x**2)'], ['-sqrt(1-x**2)+0.5', 'sqrt(1-x**2)+0.5']
+		['-sqrt(1-x^2)', 'sqrt(1-x^2)'], ['-sqrt(1-x^2)+0.5', 'sqrt(1-x^2)+0.5']
 	]
 
 	symbols           = [['x']]
@@ -274,7 +345,8 @@ def test_plot_functions():
 						figure_size,
 						window_size,
 						step_size,
-						linewidth_factor)
+						linewidth_factor,
+						output_dir = output_dir)
 			else:
 				plot_function(
 					plot_function_function,
@@ -283,9 +355,13 @@ def test_plot_functions():
 					figure_size,
 					window_size,
 					step_size,
-					linewidth_factor)
+					linewidth_factor,
+					output_dir = output_dir)
 
 
-test_plot_functions()
+if __name__ == '__main__':
+	os.makedirs(output_dir, exist_ok=True)
+
+	test_plot_functions()
 
 

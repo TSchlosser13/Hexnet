@@ -31,7 +31,7 @@ Install SymPy version 1.6.2
 ```
 conda create -n geometric_primitives python=3.7
 conda activate geometric_primitives
-pip install matplotlib sympy==1.6.2 tqdm==4.47.0
+pip install colorama==0.4.4 joblib==0.17.0 matplotlib sympy==1.6.2 tqdm==4.47.0
 ```
 
 
@@ -39,11 +39,14 @@ pip install matplotlib sympy==1.6.2 tqdm==4.47.0
 
 Current classes for generation
 
-TODO
+- Class 0: lines
+- Class 1: curves
 
 ```
-python geometric_primitives_image_generation.py
+python geometric_primitives_image_generation_dataset.py
 ```
+
+See also geometric_primitives_image_generation.py.
 
 
 
@@ -184,5 +187,4 @@ Whipple490.camgeom.fits.gz
 - https://cta-observatory.github.io/ctapipe/examples/InstrumentDescription.html
 
 - https://cta-observatory.github.io/ctapipe/tutorials/lst_analysis_bootcamp_2018.html
-
 
