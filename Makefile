@@ -29,7 +29,7 @@ gui/gui.gresource.c: gui/gui.gresource.xml
 	glib-compile-resources --target=$@ --generate-source $<
 
 clean:
-	rm -fv $(built_src) $(obj) Hexnet Hexnet.so
+	rm -fv $(built_src) $(obj) Hexnet Hexnet.so *.png
 
 install:
 	cp -v Hexnet    /usr/bin
