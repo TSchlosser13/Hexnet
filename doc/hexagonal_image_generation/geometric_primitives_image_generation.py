@@ -41,7 +41,11 @@ from tqdm              import tqdm
 
 output_dir = 'geometric_primitives_image_generation'
 
-pixels_in_bound_threshold = 64
+pixels_in_bound_threshold     = 64
+populate_variables_iterations =  8
+window_size_factor            =  0.1
+
+populated_variables_dict = {}
 
 
 def rotate_point(point, angle = 90, origin = (0, 0), convert_to_radians = True):
@@ -55,6 +59,36 @@ def rotate_point(point, angle = 90, origin = (0, 0), convert_to_radians = True):
 	qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
 
 	return (qx, qy)
+
+
+def populate_variables(variables, function, symbol, step_size):
+	symbol = str(symbol)
+
+	populated_variables = variables
+
+	for _ in range(populate_variables_iterations):
+		variables = populated_variables
+
+		continue_population = False
+
+		for i in range(len(variables) - 1):
+			result_current = function.evalf(subs = {str(symbol): variables[i]})
+			result_next    = function.evalf(subs = {str(symbol): variables[i + 1]})
+
+			if result_current.has(sp.I) or result_next.has(sp.I):
+				continue
+
+			x_diff = (variables[i]   - variables[i + 1])**2
+			y_diff = (result_current - result_next)**2
+
+			if math.sqrt(x_diff + y_diff) > step_size:
+				populated_variables.insert(variables.index(variables[i + 1]), (variables[i] + variables[i + 1]) / 2)
+				continue_population = True
+
+		if not continue_population:
+			break
+
+	return variables
 
 
 def plot_function_square(
@@ -74,7 +108,7 @@ def plot_function_square(
 
 	image = np.full(fill_value = 255, shape = (figure_size, figure_size))
 
-	variables = np.arange(0, window_size, step_size)
+	variables = np.arange(-window_size_factor * window_size, window_size + window_size_factor * window_size, step_size).tolist()
 
 	if multiple_symbols:
 		variables = itertools.product(variables, repeat=len(symbol_s))
@@ -85,7 +119,16 @@ def plot_function_square(
 	pixels_in_bound = []
 
 	for function in function_s:
-		for variable_s in variables:
+		if not multiple_symbols:
+			if f'{function}_{symbol_s}_{step_size}' not in populated_variables_dict:
+				populated_variables = populate_variables(variables, function, symbol_s, step_size)
+				populated_variables_dict[f'{function}_{symbol_s}_{step_size}'] = populated_variables
+			else:
+				populated_variables = populated_variables_dict[f'{function}_{symbol_s}_{step_size}']
+		else:
+			populated_variables = variables
+
+		for variable_s in populated_variables:
 			if multiple_symbols:
 				subs = {str(symbol): variable for symbol, variable in zip(symbol_s, variable_s)}
 			else:
@@ -178,7 +221,10 @@ def plot_function_hexagonal(
 
 	image = np.full(fill_value = 255, shape = (h_height, h_width))
 
-	variables = np.arange(-wb / figure_size, window_size + wb / figure_size, step_size)
+	variables = np.arange(
+		-wb / figure_size - window_size_factor * window_size,
+		window_size + wb / figure_size + window_size_factor * window_size,
+		step_size).tolist()
 
 	if multiple_symbols:
 		variables = itertools.product(variables, repeat=len(symbol_s))
@@ -189,7 +235,16 @@ def plot_function_hexagonal(
 	pixels_in_bound = []
 
 	for function in function_s:
-		for variable_s in variables:
+		if not multiple_symbols:
+			if f'{function}_{symbol_s}_{step_size}' not in populated_variables_dict:
+				populated_variables = populate_variables(variables, function, symbol_s, step_size)
+				populated_variables_dict[f'{function}_{symbol_s}_{step_size}'] = populated_variables
+			else:
+				populated_variables = populated_variables_dict[f'{function}_{symbol_s}_{step_size}']
+		else:
+			populated_variables = variables
+
+		for variable_s in populated_variables:
 			if multiple_symbols:
 				subs = {str(symbol): variable for symbol, variable in zip(symbol_s, variable_s)}
 			else:
@@ -363,5 +418,4 @@ if __name__ == '__main__':
 	os.makedirs(output_dir, exist_ok=True)
 
 	test_plot_functions()
-
 
