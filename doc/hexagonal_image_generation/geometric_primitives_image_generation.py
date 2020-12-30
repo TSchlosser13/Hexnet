@@ -72,8 +72,8 @@ def populate_variables(variables, function, symbol, step_size):
 		continue_population = False
 
 		for i in range(len(variables) - 1):
-			result_current = function.evalf(subs = {str(symbol): variables[i]})
-			result_next    = function.evalf(subs = {str(symbol): variables[i + 1]})
+			result_current = function.evalf(subs = {symbol: variables[i]})
+			result_next    = function.evalf(subs = {symbol: variables[i + 1]})
 
 			if result_current.has(sp.I) or result_next.has(sp.I):
 				continue
@@ -88,7 +88,7 @@ def populate_variables(variables, function, symbol, step_size):
 		if not continue_population:
 			break
 
-	return variables
+	return populated_variables
 
 
 def plot_function_square(
