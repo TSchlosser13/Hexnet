@@ -26,6 +26,7 @@
 
 
 import random
+import uuid
 
 import imgaug            as ia
 import imgaug.augmenters as iaa
@@ -33,6 +34,50 @@ import numpy             as np
 
 from core.Hexarray import rotate_Hexarray, scale_Hexarray, translate_Hexarray
 from misc.misc     import test_image_batch
+
+
+def augment_size(data, filenames, labels, labels_orig, augmentation_size):
+	if augmentation_size != 1:
+		target_size = round(augmentation_size * data.shape[0])
+
+		if augmentation_size > 1:
+			size_diff = target_size - data.shape[0]
+
+			augmentation_selectors = np.random.randint(data.shape[0], size=size_diff)
+
+			data_augmentation        = np.empty_like(data,        shape = (size_diff, data.shape[1], data.shape[2], data.shape[3]))
+			filenames_augmentation   = np.empty_like(filenames,   shape=size_diff)
+			labels_augmentation      = np.empty_like(labels,      shape=size_diff)
+			labels_orig_augmentation = np.empty_like(labels_orig, shape=size_diff)
+
+			for augmentation_selector_index, augmentation_selector in enumerate(augmentation_selectors):
+				filename = filenames[augmentation_selector].split('.')
+
+				data_augmentation[augmentation_selector_index]        = data[augmentation_selector]
+				filenames_augmentation[augmentation_selector_index]   = '.'.join(filename[:-1]) + '_' + str(uuid.uuid4()) + '.' + filename[-1]
+				labels_augmentation[augmentation_selector_index]      = labels[augmentation_selector]
+				labels_orig_augmentation[augmentation_selector_index] = labels_orig[augmentation_selector]
+
+			data        = np.concatenate((data,        data_augmentation))
+			filenames   = np.concatenate((filenames,   filenames_augmentation))
+			labels      = np.concatenate((labels,      labels_augmentation))
+			labels_orig = np.concatenate((labels_orig, labels_orig_augmentation))
+		else:
+			size_diff = data.shape[0] - target_size
+
+			while size_diff:
+				deletion_selectors = np.random.randint(data.shape[0], size=size_diff)
+
+				data        = np.delete(data,        deletion_selectors, axis=0)
+				filenames   = np.delete(filenames,   deletion_selectors)
+				labels      = np.delete(labels,      deletion_selectors)
+				labels_orig = np.delete(labels_orig, deletion_selectors)
+
+				size_diff = data.shape[0] - target_size
+
+	return (data, filenames, labels, labels_orig)
+
+
 
 
 def augmenter_simple(augmentation_level=1):
@@ -146,7 +191,7 @@ def randomized_rotate_Hexarray(Hexarray_s):
 	angle_factor         = 60
 	angle_selector_range = (1, 5)
 
-	angle_selector = random.randint(angle_selector_range)
+	angle_selector = random.randint(angle_selector_range[0], angle_selector_range[1])
 	angle          = angle_selector * angle_factor
 
 	Hexarray_s_rotated = rotate_Hexarray(Hexarray_s, angle)
@@ -160,7 +205,7 @@ def randomized_scale_Hexarray(Hexarray_s):
 	res_factor         = Hexarray_s.shape[1:3]
 	res_selector_range = (0.5, 2)
 
-	res_selector = random.uniform(res_selector_range)
+	res_selector = random.uniform(res_selector_range[0], res_selector_range[1])
 	res          = np.round(res_selector * res_factor)
 
 	Hexarray_s_scaled = scale_Hexarray(Hexarray_s, res, method = 0, fill_value = 0)
@@ -174,7 +219,7 @@ def randomized_translate_Hexarray(Hexarray_s):
 	translation_factor         = Hexarray_s.shape[1:3]
 	translation_selector_range = (-0.5, 0.5)
 
-	translation_selector = np.random.uniform(translation_selector_range, size=2)
+	translation_selector = np.random.uniform(translation_selector_range[0], translation_selector_range[1], size=2)
 	translation          = np.round(translation_selector * translation_factor)
 
 	Hexarray_s_translated = translate_Hexarray(Hexarray_s, translation, axis = (1, 2), fill_value = 0, cyclic_translation = False)

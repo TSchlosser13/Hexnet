@@ -44,6 +44,7 @@ pad_dataset         = False
 augment_dataset     = False
 augmenter           = 'simple'
 augmentation_level  = 1
+augmentation_size   = 1
 
 output_dir          = 'tests/tmp'
 
@@ -142,6 +143,7 @@ def run(args):
 	augment_dataset     = args.augment_dataset
 	augmenter_string    = args.augmenter
 	augmentation_level  = args.augmentation_level
+	augmentation_size   = args.augmentation_size
 
 	output_dir          = args.output_dir
 	show_dataset        = args.show_dataset
@@ -192,7 +194,11 @@ def run(args):
 		model_is_provided = False
 
 	if augmenter_string:
+		augmenter_is_provided = True
+
 		augmenter_is_custom = True if 'custom' in augmenter_string else False
+	else:
+		augmenter_is_provided = False
 
 	if metrics != 'auto':
 		metrics_are_provided = True
@@ -427,18 +433,28 @@ def run(args):
 	if augment_dataset:
 		Hexnet_print('Dataset augmentation')
 
-		augmenter = vars(augmenters)[f'augmenter_{augmenter_string}']
+		if augmentation_size != 1:
+			if 'train' in augment_dataset:
+				train_data, train_filenames, train_labels, train_labels_orig = \
+					augmenters.augment_size(train_data, train_filenames, train_labels, train_labels_orig, augmentation_size)
 
-		if not augmenter_is_custom:
-			augmenter = augmenter(augmentation_level)
-		else:
-			augmenter = augmenter()
+			if 'test' in augment_dataset:
+				test_data, test_filenames, test_labels, test_labels_orig = \
+					augmenters.augment_size(test_data, test_filenames, test_labels, test_labels_orig, augmentation_size)
 
-		if 'train' in augment_dataset:
-			train_data = augmenter(images=train_data)
+		if augmenter_is_provided:
+			augmenter = vars(augmenters)[f'augmenter_{augmenter_string}']
 
-		if 'test' in augment_dataset:
-			test_data = augmenter(images=test_data)
+			if not augmenter_is_custom:
+				augmenter = augmenter(augmentation_level)
+			else:
+				augmenter = augmenter()
+
+			if 'train' in augment_dataset:
+				train_data = augmenter(images=train_data)
+
+			if 'test' in augment_dataset:
+				test_data = augmenter(images=test_data)
 
 
 	############################################################################
@@ -869,11 +885,13 @@ def parse_args(args=None, namespace=None):
 
 	parser.add_argument(
 		'--augmenter',
+		nargs   = '?',
 		default = augmenter,
 		choices = augmenter_choices,
-		help    = 'augmenter for augmentation: choices are generated from misc/augmenters.py')
+		help    = 'augmenter: choices are generated from misc/augmenters.py')
 
-	parser.add_argument('--augmentation-level',  type = int,                default = augmentation_level,  help = 'augmentation level for augmentation')
+	parser.add_argument('--augmentation-level',  type = int,                default = augmentation_level,  help = 'augmentation level')
+	parser.add_argument('--augmentation-size',   type = float,              default = augmentation_size,   help = 'augmentation dataset set(s) size factor')
 
 	parser.add_argument('--output-dir',                        nargs = '?', default = output_dir,          help = 'training and test results\' output directory (providing no argument disables the output)')
 	parser.add_argument('--show-dataset',                                   action  = 'store_true',        help = 'show the dataset')
@@ -884,8 +902,8 @@ def parse_args(args=None, namespace=None):
 
 	parser.add_argument('--optimizer',                                      default = optimizer,           help = 'optimizer for training')
 	parser.add_argument('--metrics',                           nargs = '*', default = metrics,             help = 'metrics for training and testing')
-	parser.add_argument('--batch-size',          type = int,                default = batch_size,          help = 'batch size')
-	parser.add_argument('--epochs',              type = int,                default = epochs,              help = 'epochs')
+	parser.add_argument('--batch-size',          type = int,                default = batch_size,          help = 'batch size for training and testing')
+	parser.add_argument('--epochs',              type = int,                default = epochs,              help = 'epochs for training')
 
 	parser.add_argument(
 		'--loss',
@@ -926,4 +944,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
