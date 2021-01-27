@@ -33,8 +33,6 @@ increase_verbosity = False
 
 camgeoms_len = len(camgeoms)
 
-os.makedirs(output_dir, exist_ok=True)
-
 
 def visualize(geom, image, title, show_and_save_figs=False, increase_verbosity=False):
 	pix_x = geom.pix_x / u.m
@@ -117,68 +115,40 @@ def visualize(geom, image, title, show_and_save_figs=False, increase_verbosity=F
 	imsave(f'{title}_hex.png', image_out, cmap='gray')
 
 
-for camgeom_index, camgeom in enumerate(camgeoms):
-	print(f'> ({camgeom_index + 1:{len(str(camgeoms_len))}}/{camgeoms_len}) camgeom={camgeom}')
+def test_ctapipe_image_generation():
+	for camgeom_index, camgeom in enumerate(camgeoms):
+		print(f'> ({camgeom_index + 1:{len(str(camgeoms_len))}}/{camgeoms_len}) camgeom={camgeom}')
 
-	output_dir_camgeom = os.path.join(output_dir, camgeom)
-	os.makedirs(output_dir_camgeom, exist_ok=True)
+		output_dir_camgeom = os.path.join(output_dir, camgeom)
+		os.makedirs(output_dir_camgeom, exist_ok=True)
 
-	geom = CameraGeometry.from_name(camgeom)
-
-
-	# Class 0: no areas of photons
-
-	print('\t> Class 0: no areas of photons')
-
-	camgeom_class = os.path.join(output_dir_camgeom, '0_areas')
-	os.makedirs(camgeom_class, exist_ok=True)
-
-	for image_index in tqdm(range(images_to_generate_per_class)):
-		image = np.zeros(geom.n_pixels)
-		title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
-
-		visualize(geom, image, title, show_and_save_figs, increase_verbosity)
+		geom = CameraGeometry.from_name(camgeom)
 
 
-	# Class 1: 1 area of photons
+		# Class 0: no areas of photons
 
-	print('\t> Class 1: 1 area of photons')
+		print('\t> Class 0: no areas of photons')
 
-	camgeom_class = os.path.join(output_dir_camgeom, '1_area')
-	os.makedirs(camgeom_class, exist_ok=True)
+		camgeom_class = os.path.join(output_dir_camgeom, '0_areas')
+		os.makedirs(camgeom_class, exist_ok=True)
 
-	for image_index in tqdm(range(images_to_generate_per_class)):
-		title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
+		for image_index in tqdm(range(images_to_generate_per_class)):
+			image = np.zeros(geom.n_pixels)
+			title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
 
-		model = toymodel.Gaussian(
-			x      = np.random.uniform(-0.8,  0.8)       * u.m,
-			y      = np.random.uniform(-0.8,  0.8)       * u.m,
-			width  = np.random.uniform( 0.05, 0.075)     * u.m,
-			length = np.random.uniform( 0.1,  0.15)      * u.m,
-			psi    = np.random.uniform( 0,    2 * np.pi) * u.rad)
-
-		image, _, _ = model.generate_image(
-			geom,
-			intensity    = np.random.uniform(1000, 3000),
-			nsb_level_pe = 5)
-
-		visualize(geom, image, title, show_and_save_figs, increase_verbosity)
+			visualize(geom, image, title, show_and_save_figs, increase_verbosity)
 
 
-	# Class 2: 2 to 9 areas of photons
+		# Class 1: 1 area of photons
 
-	print('\t> Class 2: 2 to 9 areas of photons')
+		print('\t> Class 1: 1 area of photons')
 
-	camgeom_class = os.path.join(output_dir_camgeom, '2-9_areas')
-	os.makedirs(camgeom_class, exist_ok=True)
+		camgeom_class = os.path.join(output_dir_camgeom, '1_area')
+		os.makedirs(camgeom_class, exist_ok=True)
 
-	for image_index in tqdm(range(images_to_generate_per_class)):
-		image = np.zeros(geom.n_pixels)
-		title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
+		for image_index in tqdm(range(images_to_generate_per_class)):
+			title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
 
-		areas_to_generate_per_image = random.randint(2, 9)
-
-		for _ in range(areas_to_generate_per_image):
 			model = toymodel.Gaussian(
 				x      = np.random.uniform(-0.8,  0.8)       * u.m,
 				y      = np.random.uniform(-0.8,  0.8)       * u.m,
@@ -186,13 +156,47 @@ for camgeom_index, camgeom in enumerate(camgeoms):
 				length = np.random.uniform( 0.1,  0.15)      * u.m,
 				psi    = np.random.uniform( 0,    2 * np.pi) * u.rad)
 
-			new_image, _, _ = model.generate_image(
+			image, _, _ = model.generate_image(
 				geom,
 				intensity    = np.random.uniform(1000, 3000),
 				nsb_level_pe = 5)
 
-			image += new_image
+			visualize(geom, image, title, show_and_save_figs, increase_verbosity)
 
-		visualize(geom, image, title, show_and_save_figs, increase_verbosity)
 
+		# Class 2: 2 to 9 areas of photons
+
+		print('\t> Class 2: 2 to 9 areas of photons')
+
+		camgeom_class = os.path.join(output_dir_camgeom, '2-9_areas')
+		os.makedirs(camgeom_class, exist_ok=True)
+
+		for image_index in tqdm(range(images_to_generate_per_class)):
+			image = np.zeros(geom.n_pixels)
+			title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
+
+			areas_to_generate_per_image = random.randint(2, 9)
+
+			for _ in range(areas_to_generate_per_image):
+				model = toymodel.Gaussian(
+					x      = np.random.uniform(-0.8,  0.8)       * u.m,
+					y      = np.random.uniform(-0.8,  0.8)       * u.m,
+					width  = np.random.uniform( 0.05, 0.075)     * u.m,
+					length = np.random.uniform( 0.1,  0.15)      * u.m,
+					psi    = np.random.uniform( 0,    2 * np.pi) * u.rad)
+
+				new_image, _, _ = model.generate_image(
+					geom,
+					intensity    = np.random.uniform(1000, 3000),
+					nsb_level_pe = 5)
+
+				image += new_image
+
+			visualize(geom, image, title, show_and_save_figs, increase_verbosity)
+
+
+if __name__ == '__main__':
+	os.makedirs(output_dir, exist_ok=True)
+
+	test_ctapipe_image_generation()
 

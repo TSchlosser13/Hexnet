@@ -67,8 +67,6 @@ wget https://raw.githubusercontent.com/cta-observatory/ctapipe/v$CTAPIPE_VER/env
 conda env create -n ctapipe -f environment.yml
 conda activate ctapipe
 conda install -c cta-observatory ctapipe=$CTAPIPE_VER
-
-cd ..
 ```
 
 
@@ -76,13 +74,15 @@ cd ..
 
 Current classes for generation
 
-- Class 0: no areas of photons
-- Class 1: 1 area of photons
-- Class 2: 2 to 9 areas of photons
+- Class 0: no shower areas
+- Class 1: 1 shower area
+- Class 2: 2 to 9 shower areas
 
 ```
-python ctapipe_image_generation.py
+python ctapipe_image_generation_dataset.py
 ```
+
+See also ctapipe_image_generation.py.
 
 
 ### Test Scripts
@@ -127,6 +127,8 @@ See also notebooks \*.ipynb.
 ### Find Camera Geometries
 
 ```
+git clone https://github.com/cta-observatory/ctapipe-extra
+
 cd ctapipe-extra/ctapipe_resources
 ls | grep ".camgeom.fits.gz"
 ```
