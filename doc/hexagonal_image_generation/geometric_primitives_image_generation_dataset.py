@@ -36,12 +36,14 @@ import numpy as np
 from joblib import delayed, Parallel
 from tqdm   import tqdm
 
-from geometric_primitives_image_generation import plot_function, plot_function_square, plot_function_hexagonal
+from geometric_primitives_image_generation import plot_function, plot_function_hexagonal, plot_function_square
 
 
 enable_test_mode = False
 
 output_dir = 'geometric_primitives_image_generation_dataset'
+
+max_filename_length = 64
 
 
 class dataset:
@@ -83,13 +85,15 @@ class dataset:
 
 
 	def _generate(self, function_s, symbol_s):
-		function_s_replace_what_with = [['*', '']]
+		function_s_replace_what_with = [['*', ''], ['/', '_div_']]
 
 
 		classname = ','.join(function_s)
 
 		for replace_what, replace_with in function_s_replace_what_with:
 			classname = classname.replace(replace_what, replace_with)
+
+		classname = classname[:max_filename_length]
 
 		output_dir_class = os.path.join(self.output_dir, classname)
 		os.makedirs(output_dir_class, exist_ok=True)
@@ -102,7 +106,7 @@ class dataset:
 
 			for translation in tqdm(self.translations, desc='translations'):
 				if translation:
-					translated_function_s = [f'{function.replace("x", f"(x-{translation[0]})")}+{translation[1]}' for \
+					translated_function_s = [f'{function.replace("x", f"(x-({translation[0]}))")}+({translation[1]})' for \
 						function in modified_function_s]
 				else:
 					translated_function_s = modified_function_s.copy()
@@ -111,6 +115,8 @@ class dataset:
 
 				for replace_what, replace_with in function_s_replace_what_with:
 					filename_translation = filename_translation.replace(replace_what, replace_with)
+
+				filename_translation = filename_translation[:max_filename_length]
 
 				for step_size in tqdm(self.step_sizes, desc = 'step sizes'):
 					filename_step_size = f'{filename_translation}_ss{step_size:.3f}'
@@ -147,8 +153,17 @@ if __name__ == '__main__':
 
 
 	if not enable_test_mode:
-		functions          = [['x'], ['sqrt(x)']]
-		symbols            = [['x'], ['x']]
+		functions = [
+			['x'],
+			['sqrt(x)'],
+			['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
+			[f'-x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			[f'-sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			['x'] + ['sqrt(x)'] + ['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
+			['x*sin(1/x)']
+		]
+
+		symbols            = len(functions) * [['x']]
 		figure_sizes       = range(100, 1001, 100)
 		window_size        = 1
 		step_sizes         = np.arange(0.001, 0.006, 0.001)
@@ -157,8 +172,17 @@ if __name__ == '__main__':
 		function_modifiers = [f'{i:.2f}*' for i in np.arange(0.8, 1.3, 0.1)]
 		translations       = [(f'{i[0]:.2f}', f'{i[1]:.2f}') for i in itertools.product(np.arange(-0.5, 0.6, 0.5), repeat=2)]
 	else:
-		functions          = [['x'], ['sqrt(x)']]
-		symbols            = [['x'], ['x']]
+		functions = [
+			['x'],
+			['sqrt(x)'],
+			['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
+			[f'-x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			[f'-sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			['x'] + ['sqrt(x)'] + ['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
+			['x*sin(1/x)']
+		]
+
+		symbols            = len(functions) * [['x']]
 		figure_sizes       = [100, 200]
 		window_size        = 1
 		step_sizes         = [0.001, 0.002]

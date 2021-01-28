@@ -41,6 +41,11 @@ Current classes for generation
 
 - Class 0: lines
 - Class 1: curves
+- Class 2: circles
+- Class 3: line-based grids
+- Class 4: curve-based grids
+- Class 5: lines, curves, and circles
+- Class 6: miscellaneous
 
 ```
 python geometric_primitives_image_generation_dataset.py
@@ -189,4 +194,5 @@ Whipple490.camgeom.fits.gz
 - https://cta-observatory.github.io/ctapipe/examples/InstrumentDescription.html
 
 - https://cta-observatory.github.io/ctapipe/tutorials/lst_analysis_bootcamp_2018.html
+
 

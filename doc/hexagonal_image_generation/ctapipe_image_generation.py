@@ -25,7 +25,7 @@ camgeoms = (
 
 output_dir = 'ctapipe_image_generation'
 
-images_to_generate_per_class = 1000
+images_to_generate_per_class = 100
 
 show_and_save_figs = False
 increase_verbosity = False
@@ -199,4 +199,5 @@ if __name__ == '__main__':
 	os.makedirs(output_dir, exist_ok=True)
 
 	test_ctapipe_image_generation()
+
 
