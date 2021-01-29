@@ -93,7 +93,8 @@ class dataset:
 		for replace_what, replace_with in function_s_replace_what_with:
 			classname = classname.replace(replace_what, replace_with)
 
-		classname = classname[:max_filename_length]
+		if len(classname) > max_filename_length:
+			classname = f'{classname[:max_filename_length]}_'
 
 		output_dir_class = os.path.join(self.output_dir, classname)
 		os.makedirs(output_dir_class, exist_ok=True)
@@ -116,7 +117,8 @@ class dataset:
 				for replace_what, replace_with in function_s_replace_what_with:
 					filename_translation = filename_translation.replace(replace_what, replace_with)
 
-				filename_translation = filename_translation[:max_filename_length]
+				if len(filename_translation) > max_filename_length:
+					filename_translation = f'{filename_translation[:max_filename_length]}_'
 
 				for step_size in tqdm(self.step_sizes, desc = 'step sizes'):
 					filename_step_size = f'{filename_translation}_ss{step_size:.3f}'
@@ -157,8 +159,8 @@ if __name__ == '__main__':
 			['x'],
 			['sqrt(x)'],
 			['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
-			[f'-x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
-			[f'-sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			[f'-x+1+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			[f'-sqrt(x)+1+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
 			['x'] + ['sqrt(x)'] + ['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
 			['x*sin(1/x)']
 		]
@@ -176,8 +178,8 @@ if __name__ == '__main__':
 			['x'],
 			['sqrt(x)'],
 			['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
-			[f'-x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
-			[f'-sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			[f'-x+1+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'x+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
+			[f'-sqrt(x)+1+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)] + [f'sqrt(x)+({i:.2f})' for i in np.arange(-0.4, 0.5, 0.1)],
 			['x'] + ['sqrt(x)'] + ['1/4*(2-sqrt(-3+16*x-16*x^2))', '1/4*(2+sqrt(-3+16*x-16*x^2))'],
 			['x*sin(1/x)']
 		]
@@ -226,5 +228,4 @@ if __name__ == '__main__':
 		print(f'\t> dataset.output_dir={dataset.output_dir}')
 
 		dataset.generate()
-
 
