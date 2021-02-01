@@ -72,23 +72,22 @@ if __name__ == '__main__':
 		geom = CameraGeometry.from_name(camgeom)
 
 
+		# Class 0: no areas of photons
+
+		print('\t\t> Class 0: no areas of photons')
+
+		camgeom_class = os.path.join(output_dir_camgeom, '0_areas')
+		os.makedirs(camgeom_class, exist_ok=True)
+
+		for image_index in tqdm(range(images_to_generate_per_class)):
+			image = np.zeros(geom.n_pixels)
+			title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
+
+			postprocess_and_visualize(geom, image, title, show_and_save_figs, increase_verbosity)
+
+
 		for model_index, (model_name, model_function) in enumerate(models.items()):
 			print(f'\t> ({model_index + 1:{len(str(models_len))}}/{models_len}) model_name={model_name}')
-
-
-			# Class 0: no areas of photons
-
-			if not model_index:
-				print('\t\t> Class 0: no areas of photons')
-
-				camgeom_class = os.path.join(output_dir_camgeom, '0_areas')
-				os.makedirs(camgeom_class, exist_ok=True)
-
-				for image_index in tqdm(range(images_to_generate_per_class)):
-					image = np.zeros(geom.n_pixels)
-					title = os.path.join(camgeom_class, f'{camgeom}_image{str(image_index).zfill(len(str(images_to_generate_per_class)))}')
-
-					postprocess_and_visualize(geom, image, title, show_and_save_figs, increase_verbosity)
 
 
 			# Class 1: 1 area of photons
