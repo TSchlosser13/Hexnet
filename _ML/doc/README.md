@@ -24,5 +24,7 @@ For **_The_ Hexagonal Machine Learning Module** of this project see [_ML/](_ML/)
 Multi-label classification
 --------------------------
 
+```
 python Hexnet.py --disable-output --dataset datasets/MNIST/MNIST_NPY_multilabel_test --model CNN_multilabel_test --loss keras_CategoricalCrossentropy
+```
 
