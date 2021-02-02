@@ -187,9 +187,6 @@ def InceptionResNetV2(include_top=True,
     # Arguments
         include_top: whether to include the fully-connected
             layer at the top of the network.
-        weights: one of `None` (random initialization),
-              'imagenet' (pre-training on ImageNet),
-              or the path to the weights file to be loaded.
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -326,4 +323,5 @@ def InceptionResNetV2(include_top=True,
 
 def model_Inception_ResNet_v2(input_shape, classes):
     return InceptionResNetV2(input_shape=input_shape, classes=classes)
+
 
