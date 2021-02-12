@@ -21,10 +21,37 @@ For **_The_ Hexagonal Machine Learning Module** of this project see [_ML/](_ML/)
 
 
 
-Multi-label classification
+Create a Classification Dataset
+-------------------------------
+
+```
+python Hexnet.py --model --dataset dataset --create-dataset {'train':0.9,'test':0.1}
+```
+
+
+Visualize the Dataset
+---------------------
+
+```
+python Hexnet.py --model --dataset dataset --visualize-dataset
+```
+
+
+Model Comparison Test Script
+----------------------------
+
+```
+cd tests
+python Model_Comparison.py --dataset dataset1 dataset2 --model CNN SCNN
+cd ..
+```
+
+
+Multi-Label Classification
 --------------------------
 
 ```
-python Hexnet.py --disable-output --dataset datasets/MNIST/MNIST_NPY_multilabel_test --model CNN_multilabel_test --loss keras_CategoricalCrossentropy
+python Hexnet.py --disable-output --dataset dataset --model CNN_multilabel_test --loss keras_CategoricalCrossentropy
 ```
+
 
