@@ -28,9 +28,13 @@
  ****************************************************************************'''
 
 
-model_s    = ['SResNet_v2', 'HResNet_v2']
-dataset_s  = ['../datasets/CIFAR/CIFAR-10.h5', '../datasets/CINIC/CINIC.h5', '../datasets/ImageNet/Tiny_ImageNet.h5', '../datasets/MNIST/MNIST.h5']
-output_dir = 'tmp'
+################################################################################
+# Default parameters
+################################################################################
+
+model_s    = ['CNN', 'SCNN']
+dataset_s  = ['../datasets/MNIST/MNIST.h5']
+output_dir = 'Model_Comparison'
 
 batch_size       = 32
 epochs           =  2
@@ -38,22 +42,238 @@ runs             =  2
 validation_split =  0.1
 
 
+################################################################################
+# Imports
+################################################################################
+
 import argparse
+import ast
 import copy
 import os
 import sys
 
-from glob    import glob
-from natsort import natsorted
+from datetime import datetime
+from glob     import glob
+from natsort  import natsorted
 
 sys.path[0] = '..'
 import Hexnet
 
 
+################################################################################
+# Miscellaneous
+################################################################################
+
 separator_string = 80 * '#'
 
-status = 0
+def visualize_training_results_LaTeX(output_dir, compiler='pdflatex'):
+	timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
 
+	report_dats   = natsorted(glob(os.path.join(output_dir, '*_classification_report.dat')))
+	accuracy_dats = natsorted(glob(os.path.join(output_dir, '*_accuracy.dat')))
+	loss_dats     = natsorted(glob(os.path.join(output_dir, '*_loss.dat')))
+
+
+	# Test report
+
+	if report_dats:
+		report_dats_len = len(report_dats)
+		report_tex      = os.path.join(output_dir, f'_Model_Comparison_Report_{timestamp}.tex')
+		report_tex_file = open(report_tex, 'w')
+
+		print(
+			'\\documentclass[border=1pt]{standalone}\n'
+			'\n'
+			'\n'
+			'\\usepackage{multirow}\n'
+			'\n'
+			'\n'
+			'\\begin{document}\n'
+			'    \\begin{tabular}{|c|c|c|c|c|c|c|c|c|}\n'
+			'        \\hline\n'
+			'        Dataset & Model & Run & Date & Class / Entry & F1 Score & Precision & Recall & Classification Report \\\\\n'
+			'        \\hline\n'
+			'        \\noalign{\\vskip 2pt}\n'
+			'\n'
+			'        \\hline',
+			 file=report_tex_file)
+
+		for dat_index, dat in enumerate(report_dats):
+			dat_basename = os.path.basename(dat)
+
+			dataset               = dat_basename.split('_')[1].split('_')[0]
+			model                 = dat_basename.split('_')[0]
+			run                   = dat_basename.split('_run')[1].split('_')[0]
+			date                  = dat_basename.split('_run')[0].split('_')[-1]
+			classification_report = dat_basename.replace('_', '\_')
+
+			with open(dat) as dat_file:
+				dat_data = dat_file.read()
+
+			dat_data     = ast.literal_eval(dat_data)
+			dat_data_len = len(dat_data)
+
+			for i, (key, value) in enumerate(dat_data.items()):
+				print_end_condition = i < dat_data_len - 1 or dat_index == report_dats_len - 1
+
+				if type(value) is dict:
+					f1_score  = float(format(value['f1-score'],  '.8f'))
+					precision = float(format(value['precision'], '.8f'))
+					recall    = float(format(value['recall'],    '.8f'))
+
+					print(
+						f'        {dataset} & {model} & {run} & {date} & {key} & '
+							f'{f1_score} & {precision} & {recall} & {classification_report} \\\\\n'
+						 '        \\hline\n',
+						 end  = ('' if print_end_condition else '        \\noalign{\\vskip 2pt}\n\n        \\hline\n'),
+						 file = report_tex_file)
+				else:
+					value = float(format(value, '.8f'))
+
+					print(
+						f'        {dataset} & {model} & {run} & {date} & {key} & '
+							f'\\multicolumn{{3}}{{c|}}{{{value}}} & {classification_report} \\\\\n'
+						 '        \\hline\n',
+						 end  = ('' if print_end_condition else '        \\noalign{\\vskip 2pt}\n\n        \\hline\n'),
+						 file = report_tex_file)
+
+		print(
+			'    \\end{tabular}\n'
+			'\\end{document}\n',
+			 file=report_tex_file)
+
+		report_tex_file.close()
+
+
+	# Training accuracy
+
+	if accuracy_dats:
+		accuracy_dats_len = len(accuracy_dats)
+		accuracy_tex      = os.path.join(output_dir, f'_Model_Comparison_Accuracy_{timestamp}.tex')
+		accuracy_tex_file = open(accuracy_tex, 'w')
+
+		print(
+			'\\documentclass[border=1pt]{standalone}\n'
+			'\n'
+			'\n'
+			'\\usepackage{pgfplots}\n'
+			'\n'
+			'\n'
+			'\\begin{document}\n'
+			'    \\begin{tikzpicture}\n'
+			'        \\begin{axis}[xlabel={Epoch}, ylabel={Accuracy}, legend pos=outer north east, legend cell align=left]',
+			 file=accuracy_tex_file)
+
+		for dat_index, dat in enumerate(accuracy_dats):
+			dat          = dat.replace('\\', '/')
+			legend_entry = os.path.basename(dat).replace('_', '\_')
+
+			print(
+				f'            \\addplot table[x expr=\coordindex, y index=0] {{{dat}}};\n'
+				f'            \\addlegendentry{{{legend_entry}}}\n',
+				 end = ('\n' if dat_index < accuracy_dats_len - 1 else ''), file = accuracy_tex_file)
+
+		print(
+			'        \\end{axis}\n'
+			'    \\end{tikzpicture}\n'
+			'\\end{document}\n',
+			 file=accuracy_tex_file)
+
+		accuracy_tex_file.close()
+
+
+	# Training loss
+
+	if loss_dats:
+		loss_dats_len = len(loss_dats)
+		loss_tex      = os.path.join(output_dir, f'_Model_Comparison_Loss_{timestamp}.tex')
+		loss_tex_file = open(loss_tex, 'w')
+
+		print(
+			'\\documentclass[border=1pt]{standalone}\n'
+			'\n'
+			'\n'
+			'\\usepackage{pgfplots}\n'
+			'\n'
+			'\n'
+			'\\begin{document}\n'
+			'    \\begin{tikzpicture}\n'
+			'        \\begin{axis}[xlabel={Epoch}, ylabel={Loss}, legend pos=outer north east, legend cell align=left]',
+			 file=loss_tex_file)
+
+		for dat_index, dat in enumerate(loss_dats):
+			dat          = dat.replace('\\', '/')
+			legend_entry = os.path.basename(dat).replace('_', '\_')
+
+			print(
+				f'            \\addplot table[x expr=\coordindex, y index=0] {{{dat}}};\n'
+				f'            \\addlegendentry{{{legend_entry}}}\n',
+				 end = ('\n' if dat_index < loss_dats_len - 1 else ''), file = loss_tex_file)
+
+		print(
+			'        \\end{axis}\n'
+			'    \\end{tikzpicture}\n'
+			'\\end{document}\n',
+			 file=loss_tex_file)
+
+		loss_tex_file.close()
+
+
+	if report_dats or accuracy_dats or loss_dats:
+		output_dir = output_dir.replace('\\', '/')
+
+		if report_dats:
+			report_tex = report_tex.replace('\\', '/')
+			os.system(f'{compiler} -output-directory {output_dir} {report_tex}')
+
+		if accuracy_dats:
+			accuracy_tex = accuracy_tex.replace('\\', '/')
+			os.system(f'{compiler} -output-directory {output_dir} {accuracy_tex}')
+
+		if loss_dats:
+			loss_tex = loss_tex.replace('\\', '/')
+			os.system(f'{compiler} -output-directory {output_dir} {loss_tex}')
+
+
+################################################################################
+# Start model comparison
+################################################################################
+
+def run(args):
+	status = 0
+
+
+	Hexnet_args = copy.deepcopy(args)
+	Hexnet_args.model   = None
+	Hexnet_args.dataset = None
+	Hexnet_args = Hexnet.parse_args(args=[], namespace=Hexnet_args)
+
+
+	for dataset in args.dataset:
+		Hexnet_args.dataset = dataset
+
+		for model in args.model:
+			Hexnet_args.model = model
+
+			Hexnet.Hexnet_print(f'args={Hexnet_args}')
+			Hexnet.print_newline()
+
+			status |= Hexnet.run(Hexnet_args)
+
+			print(separator_string)
+
+		print(separator_string)
+
+
+	visualize_training_results_LaTeX(args.output_dir)
+
+
+	return status
+
+
+################################################################################
+# parse_args
+################################################################################
 
 def parse_args():
 	parser = argparse.ArgumentParser(description='Hexnet: The Hexagonal Machine Learning Module - Model Comparison Test Script')
@@ -64,7 +284,7 @@ def parse_args():
 	parser.add_argument('--output-dir',                     nargs = '?', default = output_dir,       help = 'training and test results\' output directory (providing no argument disables the output)')
 
 	parser.add_argument('--batch-size',       type = int,                default = batch_size,       help = 'batch size for training and testing')
-	parser.add_argument('--epochs',           type = int,                default = epochs,           help = 'epochs')
+	parser.add_argument('--epochs',           type = int,                default = epochs,           help = 'epochs for training')
 	parser.add_argument('--runs',             type = int,                default = runs,             help = 'number of training and test runs')
 	parser.add_argument('--validation-split', type = float,              default = validation_split, help = 'fraction of the training data to be used as validation data')
 
@@ -72,111 +292,17 @@ def parse_args():
 	return parser.parse_args()
 
 
-args = parse_args()
-print(f'args={args}')
-print(separator_string)
+################################################################################
+# main
+################################################################################
 
-Hexnet_args = copy.deepcopy(args)
-Hexnet_args.model   = ''
-Hexnet_args.dataset = ''
-Hexnet_args = Hexnet.parse_args(args=[], namespace=Hexnet_args)
+if __name__ == '__main__':
+	args = parse_args()
 
-
-for dataset in args.dataset:
-	Hexnet_args.dataset = dataset
-
-	for model in args.model:
-		Hexnet_args.model = model
-
-		Hexnet.Hexnet_print(f'args={Hexnet_args}')
-		Hexnet.print_newline()
-
-		status |= Hexnet.run(Hexnet_args)
-
-		print(separator_string)
-
+	print(f'args={args}')
 	print(separator_string)
 
+	status = run(args)
 
-
-
-accuracy_dats = natsorted(glob(os.path.join(args.output_dir, '*_accuracy.dat')))
-loss_dats     = natsorted(glob(os.path.join(args.output_dir, '*_loss.dat')))
-
-accuracy_dats_len = len(accuracy_dats)
-loss_dats_len     = len(loss_dats)
-
-accuracy_tex = 'Model_Comparison_Accuracy.tex'
-loss_tex     = 'Model_Comparison_Loss.tex'
-
-accuracy_tex_file = open(accuracy_tex, 'w')
-loss_tex_file     = open(loss_tex,     'w')
-
-
-print(
-	'\\documentclass[border=1pt]{standalone}\n'
-	'\n'
-	'\n'
-	'\\usepackage{pgfplots}\n'
-	'\n'
-	'\n'
-	'\\begin{document}\n'
-	'    \\begin{tikzpicture}\n'
-	'        \\begin{axis}[xlabel={Epoch}, ylabel={Accuracy}, legend pos=outer north east, legend cell align=left]',
-	 file=accuracy_tex_file)
-
-for dat_index, dat in enumerate(accuracy_dats):
-	dat          = dat.replace('\\', '/')
-	legend_entry = os.path.basename(dat).replace('_', '\_')
-
-	print(
-		f'            \\addplot table[x expr=\coordindex, y index=0] {{{dat}}};\n'
-		f'            \\addlegendentry{{{legend_entry}}}\n',
-		 end = ('\n' if dat_index < accuracy_dats_len - 1 else ''), file = accuracy_tex_file)
-
-print(
-	'        \\end{axis}\n'
-	'    \\end{tikzpicture}\n'
-	'\\end{document}\n',
-	 file=accuracy_tex_file)
-
-
-print(
-	'\\documentclass[border=1pt]{standalone}\n'
-	'\n'
-	'\n'
-	'\\usepackage{pgfplots}\n'
-	'\n'
-	'\n'
-	'\\begin{document}\n'
-	'    \\begin{tikzpicture}\n'
-	'        \\begin{axis}[xlabel={Epoch}, ylabel={Loss}, legend pos=outer north east, legend cell align=left]',
-	 file=loss_tex_file)
-
-for dat_index, dat in enumerate(loss_dats):
-	dat          = dat.replace('\\', '/')
-	legend_entry = os.path.basename(dat).replace('_', '\_')
-
-	print(
-		f'            \\addplot table[x expr=\coordindex, y index=0] {{{dat}}};\n'
-		f'            \\addlegendentry{{{legend_entry}}}\n',
-		 end = ('\n' if dat_index < loss_dats_len - 1 else ''), file = loss_tex_file)
-
-print(
-	'        \\end{axis}\n'
-	'    \\end{tikzpicture}\n'
-	'\\end{document}\n',
-	 file=loss_tex_file)
-
-
-accuracy_tex_file.close()
-loss_tex_file.close()
-
-os.system(f'pdflatex {accuracy_tex}')
-os.system(f'pdflatex {loss_tex}')
-
-
-
-
-sys.exit(status)
+	sys.exit(status)
 

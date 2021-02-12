@@ -1,0 +1,36 @@
+\documentclass[border=1pt]{standalone}
+
+
+\usepackage{pgfplots}
+
+
+\begin{document}
+    \begin{tikzpicture}
+        \begin{axis}[xlabel={Epoch}, ylabel={Loss}, legend pos=outer north east, legend cell align=left]
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/CNN_MNIST.h5_epochs2-bs32_20210212-212519_run1_loss.dat};
+            \addlegendentry{CNN\_MNIST.h5\_epochs2-bs32\_20210212-212519\_run1\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/CNN_MNIST.h5_epochs2-bs32_20210212-212519_run1_val_loss.dat};
+            \addlegendentry{CNN\_MNIST.h5\_epochs2-bs32\_20210212-212519\_run1\_val\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/CNN_MNIST.h5_epochs2-bs32_20210212-212553_run2_loss.dat};
+            \addlegendentry{CNN\_MNIST.h5\_epochs2-bs32\_20210212-212553\_run2\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/CNN_MNIST.h5_epochs2-bs32_20210212-212553_run2_val_loss.dat};
+            \addlegendentry{CNN\_MNIST.h5\_epochs2-bs32\_20210212-212553\_run2\_val\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/SCNN_MNIST.h5_epochs2-bs32_20210212-212634_run1_loss.dat};
+            \addlegendentry{SCNN\_MNIST.h5\_epochs2-bs32\_20210212-212634\_run1\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/SCNN_MNIST.h5_epochs2-bs32_20210212-212634_run1_val_loss.dat};
+            \addlegendentry{SCNN\_MNIST.h5\_epochs2-bs32\_20210212-212634\_run1\_val\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/SCNN_MNIST.h5_epochs2-bs32_20210212-212704_run2_loss.dat};
+            \addlegendentry{SCNN\_MNIST.h5\_epochs2-bs32\_20210212-212704\_run2\_loss.dat}
+
+            \addplot table[x expr=\coordindex, y index=0] {Model_Comparison/SCNN_MNIST.h5_epochs2-bs32_20210212-212704_run2_val_loss.dat};
+            \addlegendentry{SCNN\_MNIST.h5\_epochs2-bs32\_20210212-212704\_run2\_val\_loss.dat}
+        \end{axis}
+    \end{tikzpicture}
+\end{document}
+
