@@ -25,6 +25,7 @@
  ****************************************************************************'''
 
 
+import csv
 import cv2
 import h5py
 import math
@@ -344,6 +345,20 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 						test_filenames.append(current_file)
 						test_labels.append(current_class)
 
+
+		# Zero-fill ragged nested sequences
+
+		data_max_size = max([data.size for data in train_data + test_data])
+
+		for data_index, data in enumerate(train_data):
+			if data.size < data_max_size:
+				train_data[data_index] = np.pad(train_data[data_index], (0, data_max_size - data.size), 'constant', constant_values=0)
+
+		for data_index, data in enumerate(test_data):
+			if data.size < data_max_size:
+				test_data[data_index] = np.pad(test_data[data_index], (0, data_max_size - data.size), 'constant', constant_values=0)
+
+
 		train_classes   = np.asarray(train_classes)
 		train_data      = np.asarray(train_data)
 		train_filenames = np.asarray(train_filenames)
@@ -627,6 +642,19 @@ def visualize_dataset(
 			test_data,
 			test_filenames,
 			test_labels)
+	elif os.path.isfile(dataset) and dataset.lower().endswith('.csv'):
+		dataset_visualized = f'{dataset}_visualized'
+
+		with open(dataset) as dataset_file:
+			dataset_reader = csv.reader(dataset_file)
+			dataset_data   = list(dataset_reader)[1:]
+
+		for label, filename, data in tqdm(dataset_data):
+			current_output_dir = os.path.join(dataset_visualized, label)
+			os.makedirs(current_output_dir, exist_ok=True)
+
+			with open(os.path.join(current_output_dir, filename), 'w') as current_data_file:
+				print(data.replace('"', ''), file=current_data_file)
 	else:
 		dataset_visualized = f'{dataset}_visualized'
 

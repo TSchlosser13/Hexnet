@@ -341,11 +341,11 @@ def run(args):
 	 (test_classes_orig,  test_data,  test_filenames,  test_labels_orig)) = \
 		datasets.load_dataset(dataset, create_h5, verbosity_level)
 
-	if not train_data.size:
+	if type(train_data) is not np.ndarray:
 		disable_training = True
 		enable_training  = not disable_training
 
-	if not test_data.size:
+	if type(test_data) is not np.ndarray:
 		disable_testing = True
 		enable_testing  = not disable_testing
 
@@ -585,10 +585,7 @@ def run(args):
 
 		run_string = f'run={run}/{runs}'
 		timestamp  = datetime.now().strftime('%Y%m%d-%H%M%S')
-		run_title  = f'{tests_title}_{timestamp}'
-
-		if runs > 1:
-			run_title = f'{run_title}_run{run}'
+		run_title  = f'{tests_title}_{timestamp}_run{run}'
 
 
 		########################################################################
