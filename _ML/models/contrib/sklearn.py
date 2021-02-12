@@ -50,6 +50,7 @@ def model_sklearn_RandomForestClassifier(n_jobs=-1, verbose=1, **kwargs):
 def model_sklearn_LogisticRegression(n_jobs=-1, verbose=1, **kwargs):
 	return LogisticRegression(n_jobs=n_jobs, verbose=verbose, **kwargs)
 
+# TODO: add predict_proba support
 def model_sklearn_RidgeClassifier(**kwargs):
 	return RidgeClassifier(**kwargs)
 
@@ -63,12 +64,13 @@ def model_sklearn_MLPClassifier(verbose=1, **kwargs):
 	return MLPClassifier(verbose=verbose, **kwargs)
 
 def model_sklearn_LinearSVC(verbose=1, **kwargs):
-	return LinearSVC(verbose=verbose, **kwargs)
+	# TODO: add predict_proba support
+	# return LinearSVC(verbose=verbose, **kwargs)
+	return SVC(kernel='linear', probability=True, verbose=verbose, **kwargs)
 
 def model_sklearn_SVC(verbose=1, **kwargs):
-	return SVC(verbose=verbose, **kwargs)
+	return SVC(kernel='rbf', probability=True, verbose=verbose, **kwargs)
 
 def model_sklearn_DecisionTreeClassifier(**kwargs):
 	return DecisionTreeClassifier(**kwargs)
-
 

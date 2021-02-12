@@ -410,7 +410,7 @@ def visualize_test_results(
 			prediction = [float(format(class_confidence, '.8f')) for class_confidence in prediction]
 			print(f'{label_orig},{filename},{label},{prediction_class},{prediction}', file=predictions_file)
 
-	with open(os.path.join(output_dir, f'{title}_classification_report.csv'), 'w') as classification_report_file:
+	with open(os.path.join(output_dir, f'{title}_classification_report.dat'), 'w') as classification_report_file:
 		pprint(classification_report, stream=classification_report_file)
 
 	# TODO: multi-label confusion matrices
@@ -467,7 +467,7 @@ def visualize_global_test_results(classification_reports, title, output_dir):
 	if output_dir is not None:
 		os.makedirs(output_dir, exist_ok=True)
 
-	with open(os.path.join(output_dir, f'{title}_classification_reports_summary.csv'), 'w') as classification_report_file:
+	with open(os.path.join(output_dir, f'{title}_classification_reports_summary.dat'), 'w') as classification_report_file:
 		pprint(summarize_classification_reports(classification_reports), stream=classification_report_file)
 
 
