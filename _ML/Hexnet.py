@@ -341,6 +341,10 @@ def run(args):
 	 (test_classes_orig,  test_data,  test_filenames,  test_labels_orig)) = \
 		datasets.load_dataset(dataset, create_h5, verbosity_level)
 
+	print_newline()
+
+	datasets.create_dataset_overview(train_classes_orig, train_labels_orig, test_labels_orig, dataset, output_dir)
+
 	if type(train_data) is not np.ndarray:
 		disable_training = True
 		enable_training  = not disable_training
@@ -941,5 +945,4 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
-
 

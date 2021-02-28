@@ -38,11 +38,15 @@ def print_newline():
 	putchar('\n')
 
 
-def Hexnet_print(string, file=None):
-	print(f'[Hexnet] {string}', file=file)
+def Hexnet_print(string, filename=None):
+	if not filename:
+		print(f'[Hexnet] {string}')
+	else:
+		with open(filename, 'w') as file:
+			print(f'[Hexnet] {string}', file=file)
 
-def Hexnet_print_warning(string, file=None):
-	Hexnet_print(f'(WARNING) {string}', file=file)
+def Hexnet_print_warning(string, filename=None):
+	Hexnet_print(f'(WARNING) {string}', filename)
 
 
 def test_array(array):

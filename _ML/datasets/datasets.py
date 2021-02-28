@@ -166,6 +166,65 @@ def create_dataset_h5(
 		h5py_file.create_dataset('test_labels',     data=test_labels)
 
 
+def create_dataset_overview(classes, train_labels, test_labels, dataset, output_dir):
+	# Prepare dataset overview table
+
+	unique, counts             = np.unique(train_labels, return_counts=True)
+	train_labels_unique_counts = dict(zip(unique, counts))
+	unique, counts             = np.unique(test_labels, return_counts=True)
+	test_labels_unique_counts  = dict(zip(unique, counts))
+
+	labels_unique_counts = {key: train_value + test_value for (key, train_value), (_, test_value) in \
+		zip(train_labels_unique_counts.items(), test_labels_unique_counts.items())}
+
+	train_labels_unique_counts_total = sum(train_labels_unique_counts.values())
+	test_labels_unique_counts_total  = sum(test_labels_unique_counts.values())
+	labels_unique_counts_total       = sum(labels_unique_counts.values())
+
+	entries_max_len = max(np.vectorize(len)(classes).max(), len('Total'), len(str(labels_unique_counts_total)))
+
+
+	# Create dataset overview table
+
+	header_entries = '|'.join([f' {c.rjust(entries_max_len)} '      for c in classes])
+	train_entries  = '|'.join([f' {str(v).rjust(entries_max_len)} ' for v in train_labels_unique_counts.values()])
+	test_entries   = '|'.join([f' {str(v).rjust(entries_max_len)} ' for v in test_labels_unique_counts.values()])
+	total_entries  = '|'.join([f' {str(v).rjust(entries_max_len)} ' for v in labels_unique_counts.values()])
+
+	train_entries_total = str(train_labels_unique_counts_total).rjust(entries_max_len, ' ')
+	test_entries_total  = str(test_labels_unique_counts_total).rjust(entries_max_len, ' ')
+	total_entries_total = str(labels_unique_counts_total).rjust(entries_max_len, ' ')
+
+	header = '| Set \ Class |' + header_entries + '| Total |'
+	train  = '| Train       |' + train_entries  + '| ' + train_entries_total + ' |'
+	test   = '| Test        |' + test_entries   + '| ' + test_entries_total  + ' |'
+	total  = '| Total       |' + total_entries  + '| ' + total_entries_total + ' |'
+	hline  = len(header) * '-'
+
+	dataset_overview = \
+		f'{hline}\n'  \
+		f'{header}\n' \
+		f'{hline}\n'  \
+		f'{train}\n'  \
+		f'{test}\n'   \
+		f'{hline}\n'  \
+		f'{total}\n'  \
+		f'{hline}'
+
+
+	# Output dataset overview table
+
+	Hexnet_print(f'Dataset overview\n{dataset_overview}')
+
+	if output_dir:
+		filename = os.path.join(output_dir, f'{os.path.basename(dataset)}_dataset_overview.dat')
+
+		os.makedirs(output_dir, exist_ok=True)
+
+		with open(filename, 'w') as file:
+			print(dataset_overview, file=file)
+
+
 def copytree_ignore_files(directory, files):
 	return [file for file in files if os.path.isfile(os.path.join(directory, file))]
 
@@ -698,5 +757,4 @@ def visualize_dataset(
 	time_diff = time() - start_time
 
 	Hexnet_print(f'Visualized dataset {dataset} in {time_diff:.3f} seconds')
-
 
