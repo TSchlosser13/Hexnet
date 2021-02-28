@@ -30,6 +30,7 @@
 
 import itertools
 import os
+import random
 
 import numpy as np
 
@@ -38,6 +39,8 @@ from tqdm   import tqdm
 
 from geometric_primitives_image_generation import plot_function, plot_function_hexagonal, plot_function_square
 
+
+enable_randomized_augmentation = False
 
 enable_test_mode = False
 
@@ -121,7 +124,7 @@ class dataset:
 					filename_translation = f'{filename_translation[:max_filename_length]}_'
 
 				for step_size in tqdm(self.step_sizes, desc = 'step sizes'):
-					filename_step_size = f'{filename_translation}_ss{step_size:.3f}'
+					filename_step_size = f'{filename_translation}_ss{step_size:.4f}'
 
 					for linewidth_factor in tqdm(self.linewidth_factors, desc = 'linewidth factors'):
 						filename_linewidth_factor = f'{filename_step_size}_lf{linewidth_factor:.3f}'
@@ -150,6 +153,10 @@ class dataset:
 			function_s, symbol_s in tqdm(zip(self.functions, self.symbols), desc = 'functions and symbols'))
 
 
+def random_uniform(a, b, format_string='.2f'):
+	return float(format(random.uniform(a, b), format_string))
+
+
 if __name__ == '__main__':
 	plot_functions_functions = (plot_function_square, plot_function_hexagonal)
 
@@ -165,14 +172,24 @@ if __name__ == '__main__':
 			['x*sin(1/x)']
 		]
 
-		symbols            = len(functions) * [['x']]
-		figure_sizes       = range(100, 1001, 100)
-		window_size        = 1
-		step_sizes         = np.arange(0.001, 0.006, 0.001)
-		linewidth_factors  = np.arange(0.01, 0.06, 0.01)
-		rotation_degrees   = range(0, 351, 60)
-		function_modifiers = [f'{i:.2f}*' for i in np.arange(0.8, 1.3, 0.1)]
-		translations       = [(f'{i[0]:.2f}', f'{i[1]:.2f}') for i in itertools.product(np.arange(-0.5, 0.6, 0.5), repeat=2)]
+		symbols      = len(functions) * [['x']]
+		figure_sizes = [100, 200, 400, 800, 1000]
+		window_size  = 1
+
+		if not enable_randomized_augmentation:
+			step_sizes         = np.arange(0.001, 0.006, 0.001)
+			linewidth_factors  = np.arange(0.01, 0.06, 0.01)
+			rotation_degrees   = range(0, 301, 60)
+			function_modifiers = [f'{i:.2f}*' for i in np.arange(0.8, 1.3, 0.1)]
+			translations       = [(f'{i[0]:.2f}', f'{i[1]:.2f}') for i in itertools.product(np.arange(-0.5, 0.6, 0.5), repeat=2)]
+		else:
+			step_sizes         = np.arange(random_uniform(0.0007, 0.0013, '.4f'), random_uniform(0.003, 0.009, '.4f'), random_uniform(0.0007, 0.0013, '.4f'))
+			linewidth_factors  = np.arange(random_uniform(0.007, 0.013, '.3f'), random_uniform(0.03, 0.09, '.3f'), random_uniform(0.007, 0.013, '.3f'))
+			rotation_degrees   = range(random_uniform(0, 59), random_uniform(301, 359), random_uniform(30, 90))
+			function_modifiers = [f'{i:.2f}*' for i in np.arange(random_uniform(0.6, 1.0), random_uniform(1.1, 1.5), random_uniform(0.07, 0.13))]
+
+			translations = [(f'{i[0]:.2f}', f'{i[1]:.2f}') for \
+				i in itertools.product(np.arange(random_uniform(-0.7, -0.3), random_uniform(0.4, 0.8), random_uniform(0.3, 0.7)), repeat=2)]
 	else:
 		functions = [
 			['x'],
