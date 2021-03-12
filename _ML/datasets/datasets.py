@@ -156,18 +156,20 @@ def create_dataset_h5(
 	test_labels     = test_labels.astype('S')
 
 	with h5py.File(dataset, 'w') as h5py_file:
-		h5py_file.create_dataset('train_classes',   data=train_classes)
-		h5py_file.create_dataset('train_data',      data=train_data)
-		h5py_file.create_dataset('train_filenames', data=train_filenames)
-		h5py_file.create_dataset('train_labels',    data=train_labels)
-		h5py_file.create_dataset('test_classes',    data=test_classes)
-		h5py_file.create_dataset('test_data',       data=test_data)
-		h5py_file.create_dataset('test_filenames',  data=test_filenames)
-		h5py_file.create_dataset('test_labels',     data=test_labels)
+		h5py_file.create_dataset('train_classes',   data=train_classes,   compression='lzf')
+		h5py_file.create_dataset('train_data',      data=train_data,      compression='lzf')
+		h5py_file.create_dataset('train_filenames', data=train_filenames, compression='lzf')
+		h5py_file.create_dataset('train_labels',    data=train_labels,    compression='lzf')
+		h5py_file.create_dataset('test_classes',    data=test_classes,    compression='lzf')
+		h5py_file.create_dataset('test_data',       data=test_data,       compression='lzf')
+		h5py_file.create_dataset('test_filenames',  data=test_filenames,  compression='lzf')
+		h5py_file.create_dataset('test_labels',     data=test_labels,     compression='lzf')
 
 
 def create_dataset_overview(classes, train_labels, test_labels, dataset, output_dir):
-	# Prepare dataset overview table
+	# Prepare dataset overview table: entries
+
+	total_string = 'Total'
 
 	unique, counts             = np.unique(train_labels, return_counts=True)
 	train_labels_unique_counts = dict(zip(unique, counts))
@@ -181,10 +183,12 @@ def create_dataset_overview(classes, train_labels, test_labels, dataset, output_
 	test_labels_unique_counts_total  = sum(test_labels_unique_counts.values())
 	labels_unique_counts_total       = sum(labels_unique_counts.values())
 
-	entries_max_len = max(np.vectorize(len)(classes).max(), len('Total'), len(str(labels_unique_counts_total)))
+	entries_max_len = max(np.vectorize(len)(classes).max(), len(total_string), len(str(labels_unique_counts_total)))
 
 
-	# Create dataset overview table
+	# Create dataset overview table: rows and columns
+
+	total_string = total_string.rjust(entries_max_len)
 
 	header_entries = '|'.join([f' {c.rjust(entries_max_len)} '      for c in classes])
 	train_entries  = '|'.join([f' {str(v).rjust(entries_max_len)} ' for v in train_labels_unique_counts.values()])
@@ -195,7 +199,7 @@ def create_dataset_overview(classes, train_labels, test_labels, dataset, output_
 	test_entries_total  = str(test_labels_unique_counts_total).rjust(entries_max_len, ' ')
 	total_entries_total = str(labels_unique_counts_total).rjust(entries_max_len, ' ')
 
-	header = '| Set \ Class |' + header_entries + '| Total |'
+	header = '| Set \ Class |' + header_entries + '| ' + total_string        + ' |'
 	train  = '| Train       |' + train_entries  + '| ' + train_entries_total + ' |'
 	test   = '| Test        |' + test_entries   + '| ' + test_entries_total  + ' |'
 	total  = '| Total       |' + total_entries  + '| ' + total_entries_total + ' |'
