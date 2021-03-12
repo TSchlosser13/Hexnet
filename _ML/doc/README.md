@@ -14,7 +14,7 @@ Hexnet: Hexagonal Machine Learning Examples
 
 Examples of hexagonal machine learning.
 
-For **_The_ Hexagonal Machine Learning Module** of this project see [_ML/](_ML/).
+For **_The_ Hexagonal Machine Learning Module** of this project see [../](https://github.com/TSchlosser13/Hexnet/tree/master/_ML).
 
 ---
 
@@ -37,16 +37,6 @@ python Hexnet.py --model --dataset dataset --visualize-dataset
 ```
 
 
-Model Comparison Test Script
-----------------------------
-
-```
-cd tests
-python Model_Comparison.py --dataset dataset1 dataset2 --model CNN SCNN
-cd ..
-```
-
-
 Multi-Label Classification
 --------------------------
 
@@ -54,4 +44,12 @@ Multi-Label Classification
 python Hexnet.py --disable-output --dataset dataset --model CNN_multilabel_test --loss keras_CategoricalCrossentropy
 ```
 
+
+Model Comparison Test Script
+----------------------------
+
+```
+cd tests
+python Model_Comparison.py --dataset dataset1 dataset2 --model CNN SCNN
+```
 
