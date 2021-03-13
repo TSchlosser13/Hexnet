@@ -395,6 +395,13 @@ def visualize_test_results(
 
 	classification_report = sklearn.metrics.classification_report(test_labels, predictions_classes, target_names=test_classes_orig, output_dict=True)
 
+	classification_report['macro avg']['jaccard']     = sklearn.metrics.jaccard_score(test_labels, predictions_classes, average='macro')
+	classification_report['weighted avg']['jaccard']  = sklearn.metrics.jaccard_score(test_labels, predictions_classes, average='weighted')
+	classification_report['macro avg']['f0-score']    = sklearn.metrics.fbeta_score(test_labels, predictions_classes, beta=0, average='macro')
+	classification_report['weighted avg']['f0-score'] = sklearn.metrics.fbeta_score(test_labels, predictions_classes, beta=0, average='weighted')
+	classification_report['macro avg']['f2-score']    = sklearn.metrics.fbeta_score(test_labels, predictions_classes, beta=2, average='macro')
+	classification_report['weighted avg']['f2-score'] = sklearn.metrics.fbeta_score(test_labels, predictions_classes, beta=2, average='weighted')
+
 	# TODO: multi-label confusion matrices
 	if not set_is_multilabel_set:
 		confusion_matrix            = sklearn.metrics.confusion_matrix(test_labels, predictions_classes)
