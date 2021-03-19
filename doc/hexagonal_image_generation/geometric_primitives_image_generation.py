@@ -314,6 +314,26 @@ def plot_function(
 	function_s_replace_what_with = [['*', '']]
 
 
+	if not filename:
+		filename = ','.join(function_s)
+
+		for replace_what, replace_with in function_s_replace_what_with:
+			filename = filename.replace(replace_what, replace_with)
+
+		if rotation_degrees:
+			filename = f'{filename}__rotated_{rotation_degrees:.2f}deg'
+
+	if plot_function_function is plot_function_square:
+		image_filename = os.path.join(output_dir, f'{filename}.png')
+	else: # plot_function_hexagonal
+		image_filename = os.path.join(output_dir, f'{filename}_hex.png')
+
+
+	# Skip image generation if the image exists already
+	if os.path.isfile(image_filename):
+		return
+
+
 	if plot_function_function is plot_function_square:
 		image, pixels_in_bound_cnt = plot_function_function(
 			function_s,
@@ -334,21 +354,8 @@ def plot_function(
 			rad_o,
 			rotation_degrees)
 
+
 	if pixels_in_bound_cnt > pixels_in_bound_threshold:
-		if not filename:
-			filename = ','.join(function_s)
-
-			for replace_what, replace_with in function_s_replace_what_with:
-				filename = filename.replace(replace_what, replace_with)
-
-			if rotation_degrees:
-				filename = f'{filename}__rotated_{rotation_degrees:.2f}deg'
-
-		if plot_function_function is plot_function_square:
-			image_filename = os.path.join(output_dir, f'{filename}.png')
-		else: # plot_function_hexagonal
-			image_filename = os.path.join(output_dir, f'{filename}_hex.png')
-
 		imsave(image_filename, image, vmin=0, vmax=255, cmap='gray')
 
 
