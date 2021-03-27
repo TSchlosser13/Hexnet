@@ -46,6 +46,8 @@ augmenter           = 'simple'
 augmentation_level  = 1
 augmentation_size   = 1
 
+chunk_size          = 1000
+
 output_dir          = 'tests/tmp'
 
 optimizer           = 'adam'
@@ -144,6 +146,8 @@ def run(args):
 	augmenter_string    = args.augmenter
 	augmentation_level  = args.augmentation_level
 	augmentation_size   = args.augmentation_size
+
+	chunk_size          = args.chunk_size
 
 	output_dir          = args.output_dir
 	show_dataset        = args.show_dataset
@@ -526,12 +530,15 @@ def run(args):
 			else:
 				mean_axis = 1
 
-			train_data_mean = np.mean(train_data, axis=mean_axis, keepdims=True)
+			for chunk_start in tqdm(range(0, train_data.shape[0], chunk_size)):
+				chunk_end = min(chunk_start + chunk_size, train_data.shape[0])
 
-			train_data_std = np.sqrt(((train_data - train_data_mean)**2).mean(axis=mean_axis, keepdims=True))
-			train_data_std[train_data_std == 0] = std_eps
+				train_data_mean = np.mean(train_data[chunk_start:chunk_end], axis=mean_axis, keepdims=True)
 
-			train_data = (train_data - train_data_mean) / train_data_std
+				train_data_std = np.sqrt(((train_data[chunk_start:chunk_end] - train_data_mean)**2).mean(axis=mean_axis, keepdims=True))
+				train_data_std[train_data_std == 0] = std_eps
+
+				train_data[chunk_start:chunk_end] = (train_data[chunk_start:chunk_end] - train_data_mean) / train_data_std
 
 		if enable_testing:
 			if test_data.ndim > 3:
@@ -539,12 +546,15 @@ def run(args):
 			else:
 				mean_axis = 1
 
-			test_data_mean = np.mean(test_data, axis=mean_axis, keepdims=True)
+			for chunk_start in tqdm(range(0, test_data.shape[0], chunk_size)):
+				chunk_end = min(chunk_start + chunk_size, test_data.shape[0])
 
-			test_data_std = np.sqrt(((test_data - test_data_mean)**2).mean(axis=mean_axis, keepdims=True))
-			test_data_std[test_data_std == 0] = std_eps
+				test_data_mean = np.mean(test_data[chunk_start:chunk_end], axis=mean_axis, keepdims=True)
 
-			test_data = (test_data - test_data_mean) / test_data_std
+				test_data_std = np.sqrt(((test_data[chunk_start:chunk_end] - test_data_mean)**2).mean(axis=mean_axis, keepdims=True))
+				test_data_std[test_data_std == 0] = std_eps
+
+				test_data[chunk_start:chunk_end] = (test_data[chunk_start:chunk_end] - test_data_mean) / test_data_std
 	else:
 		if visualize_dataset: print_newline()
 		Hexnet_print('Dataset normalization')
@@ -552,10 +562,12 @@ def run(args):
 		normalization_factor = max(train_data.max(), test_data.max()) - min(train_data.min(), test_data.min())
 
 		if enable_training:
-			train_data = (train_data - normalization_factor) / normalization_factor
+			for chunk_start in tqdm(range(0, train_data.shape[0], chunk_size)):
+				train_data[chunk_start:chunk_end] = (train_data[chunk_start:chunk_end] - normalization_factor) / normalization_factor
 
 		if enable_testing:
-			test_data = (test_data - normalization_factor) / normalization_factor
+			for chunk_start in tqdm(range(0, test_data.shape[0], chunk_size)):
+				test_data[chunk_start:chunk_end] = (test_data[chunk_start:chunk_end] - normalization_factor) / normalization_factor
 
 
 	############################################################################
@@ -573,7 +585,7 @@ def run(args):
 	############################################################################
 
 	dataset     = os.path.basename(dataset)
-	tests_title = f'{model_string}_{dataset}'
+	tests_title = f'{model_string}__{dataset}'
 
 	if not model_is_from_sklearn:
 		tests_title = f'{tests_title}_epochs{epochs}-bs{batch_size}'
@@ -589,7 +601,7 @@ def run(args):
 
 		run_string = f'run={run}/{runs}'
 		timestamp  = datetime.now().strftime('%Y%m%d-%H%M%S')
-		run_title  = f'{tests_title}_{timestamp}_run{run}'
+		run_title  = f'{tests_title}__{timestamp}_run{run}'
 
 
 		########################################################################
@@ -894,6 +906,8 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--augmentation-level',  type = int,                default = augmentation_level,  help = 'augmentation level')
 	parser.add_argument('--augmentation-size',   type = float,              default = augmentation_size,   help = 'augmentation dataset set(s) size factor')
 
+	parser.add_argument('--chunk-size',          type = int,                default = chunk_size,          help = 'preprocessing chunk size')
+
 	parser.add_argument('--output-dir',                        nargs = '?', default = output_dir,          help = 'training and test results\' output directory (providing no argument disables the output)')
 	parser.add_argument('--show-dataset',                                   action  = 'store_true',        help = 'show the dataset')
 	parser.add_argument('--visualize-dataset',                              action  = 'store_true',        help = 'visualize the dataset after preprocessing and augmentation')
@@ -945,4 +959,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
