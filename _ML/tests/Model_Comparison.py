@@ -66,7 +66,7 @@ import Hexnet
 
 separator_string = 80 * '#'
 
-def visualize_training_results_LaTeX(output_dir, compiler='pdflatex'):
+def visualize_results_LaTeX(output_dir, compiler='pdflatex'):
 	timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
 
 	report_dats   = natsorted(glob(os.path.join(output_dir, '*_classification_report.dat')))
@@ -101,10 +101,10 @@ def visualize_training_results_LaTeX(output_dir, compiler='pdflatex'):
 		for dat_index, dat in enumerate(report_dats):
 			dat_basename = os.path.basename(dat)
 
-			dataset               = dat_basename.split('_')[1].split('_')[0]
-			model                 = dat_basename.split('_')[0]
+			dataset               = dat_basename.split('__')[1].split('__')[0].replace('_', '\_')
+			model                 = dat_basename.split('__')[0].replace('_', '\_')
 			run                   = dat_basename.split('_run')[1].split('_')[0]
-			date                  = dat_basename.split('_run')[0].split('_')[-1]
+			date                  = dat_basename.split('_run')[0].split('__')[-1]
 			classification_report = dat_basename.replace('_', '\_')
 
 			with open(dat) as dat_file:
@@ -265,7 +265,7 @@ def run(args):
 		print(separator_string)
 
 
-	visualize_training_results_LaTeX(args.output_dir)
+	visualize_results_LaTeX(args.output_dir)
 
 
 	return status
