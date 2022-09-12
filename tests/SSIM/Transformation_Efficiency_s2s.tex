@@ -1,0 +1,17 @@
+\documentclass[border=1pt]{standalone}
+
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+
+\begin{document}
+	\begin{tikzpicture}
+		\begin{axis}[
+		 colormap/viridis, colorbar, mesh/cols=39, point meta min=0, point meta max=1,
+		 xlabel={Test Image Number}, ylabel={$R$}, colorbar style={ylabel={$T_s$}}]
+			\addplot3[surf, shader=interp] file {Transformation_Efficiency_s2s.dat};
+		\end{axis}
+	\end{tikzpicture}
+\end{document}
+

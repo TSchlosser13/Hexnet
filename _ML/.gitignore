@@ -1,0 +1,11 @@
+*.aux
+*.csv
+*.h5
+*.log
+*.npy
+*.pyc
+tests/tmp
+
+!doc/**/*.png
+
+
