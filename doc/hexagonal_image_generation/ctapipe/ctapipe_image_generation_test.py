@@ -1,6 +1,10 @@
 #!/usr/bin/env python3.7
 
 
+################################################################################
+# Imports
+################################################################################
+
 import os
 
 import astropy.units     as u
@@ -12,6 +16,10 @@ from ctapipe.instrument    import CameraGeometry
 from ctapipe.visualization import CameraDisplay
 from matplotlib.pyplot     import imsave
 
+
+################################################################################
+# Parameters
+################################################################################
 
 '''
 camgeoms = (
@@ -52,10 +60,18 @@ output_dir = 'ctapipe_image_generation_test'
 plt.rcParams.update({'font.size': 20})
 
 
+################################################################################
+# Initialization
+################################################################################
+
 camgeoms_len = len(camgeoms)
 
 os.makedirs(output_dir, exist_ok=True)
 
+
+################################################################################
+# Visualize hexagonal camera geometries with hexagonal image data storage
+################################################################################
 
 for camgeom_index, camgeom in enumerate(camgeoms):
 	print(f'> ({camgeom_index + 1:{len(str(camgeoms_len))}}/{camgeoms_len}) camgeom={camgeom}')

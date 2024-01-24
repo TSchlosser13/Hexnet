@@ -25,6 +25,10 @@
  ******************************************************************************/
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -40,6 +44,10 @@
 #include "../misc/defines.h"
 #include "../misc/types.h"
 
+
+/******************************************************************************
+ * GUI realization (create the associated resources)
+ ******************************************************************************/
 
 void gui_gl_area_realize(GtkGLArea* area, gpointer data) {
 	#define SCALE_BORDER_WIDTH     0.05f
@@ -163,6 +171,11 @@ void gui_gl_area_realize(GtkGLArea* area, gpointer data) {
 	free(colors);
 }
 
+
+/******************************************************************************
+ * GUI rendering
+ ******************************************************************************/
+
 void gui_gl_area_render(GtkGLArea* area, GdkGLContext* context, gpointer data) {
 	gui*       gui        = data;
 	gl_context gl_context = gui->gl_context;
@@ -175,6 +188,11 @@ void gui_gl_area_render(GtkGLArea* area, GdkGLContext* context, gpointer data) {
 	glBindVertexArray(gl_context.vao);
 	glDrawArraysInstanced(GL_TRIANGLES, 0, 12, gui->hexarray.pixels);
 }
+
+
+/******************************************************************************
+ * GUI resize
+ ******************************************************************************/
 
 void gui_gl_area_resize(GtkGLArea* area, gint width, gint height, gpointer data) {
 	gui*        gui        = data;
@@ -191,6 +209,11 @@ void gui_gl_area_resize(GtkGLArea* area, gint width, gint height, gpointer data)
 		gl_context->mvp_matrix[5] = (GLfloat)width  / height;
 	}
 }
+
+
+/******************************************************************************
+ * GUI interaction
+ ******************************************************************************/
 
 void gui_gl_area_interact(GtkWidget* widget, GdkEvent* event, gpointer data) {
 	#define SCALING_FACTOR      1.0f / 9
@@ -272,11 +295,20 @@ void gui_gl_area_interact(GtkWidget* widget, GdkEvent* event, gpointer data) {
 }
 
 
+/******************************************************************************
+ * Update the GUI title
+ ******************************************************************************/
+
 void gui_update_title(gui* gui) {
 	char title[256];
 	sprintf(title, "%s [%.2f%%]", gui->title, gui->gl_context.zoom);
 	gtk_window_set_title(GTK_WINDOW(gui->window), title);
 }
+
+
+/******************************************************************************
+ * Activate the GUI
+ ******************************************************************************/
 
 void gui_activate(GtkApplication* app, gpointer data) {
 	GdkPixbuf* icon    = gdk_pixbuf_new_from_resource("/logo.png", NULL);
@@ -321,6 +353,11 @@ void gui_activate(GtkApplication* app, gpointer data) {
 	gtk_widget_show_all(gui->window);
 }
 
+
+/******************************************************************************
+ * Start the GUI
+ ******************************************************************************/
+
 int gui_run(char* title, u32 width, u32 height, Hexarray hexarray) {
 	GtkApplication* app;
 	gui             gui;
@@ -340,5 +377,4 @@ int gui_run(char* title, u32 width, u32 height, Hexarray hexarray) {
 
 	return status;
 }
-
 

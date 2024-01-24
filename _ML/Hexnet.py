@@ -108,6 +108,7 @@ import tensorflow as tf
 from datetime          import datetime
 from matplotlib.pyplot import imsave
 from pprint            import pprint
+from time              import time
 from tqdm              import tqdm
 
 import datasets.datasets  as datasets
@@ -430,6 +431,7 @@ def run(args):
 		train_classes     = np.unique(train_labels)
 		train_classes_len = len(train_classes)
 		train_labels      = np.reshape(train_labels, newshape=train_labels_orig.shape)
+		train_labels_len  = len(train_labels)
 
 		if class_labels_are_digits:
 			train_classes_min = min(train_classes)
@@ -449,6 +451,7 @@ def run(args):
 		test_classes     = np.unique(test_labels)
 		test_classes_len = len(test_classes)
 		test_labels      = np.reshape(test_labels, newshape=test_labels_orig.shape)
+		test_labels_len  = len(test_labels)
 
 		if class_labels_are_digits:
 			test_classes_min = min(test_classes)
@@ -751,6 +754,27 @@ def run(args):
 			print_newline()
 			Hexnet_print(f'({run_string}) Model training')
 
+
+			# Model training time callback: training time per epoch and training time per sample
+
+			class TimeHistory(tf.keras.callbacks.Callback):
+				def on_train_begin(self, logs={}):
+					self.times = []
+
+				def on_epoch_begin(self, batch, logs={}):
+					self.epoch_time_start = time()
+
+				def on_epoch_end(self, batch, logs={}):
+					self.times.append(time() - self.epoch_time_start)
+
+			time_callback = TimeHistory()
+
+			if fit_callbacks:
+				fit_callbacks.append(time_callback)
+			else:
+				fit_callbacks = [time_callback]
+
+
 			if model_is_standalone:
 				model.fit(train_data, train_labels, batch_size, epochs, visualize_hexagonal, output_dir, run_title)
 			elif model_is_autoencoder:
@@ -759,6 +783,11 @@ def run(args):
 				model.fit(np.reshape(train_data, newshape = (train_data.shape[0], -1)), train_labels)
 			else:
 				history = model.fit(train_data, train_labels, batch_size, epochs, validation_split=validation_split, callbacks=fit_callbacks)
+
+				training_time_per_epoch  = [float(format(time, '.8f')) for time in time_callback.times]
+				training_time_per_sample = [float(format(1000 * time / ((1 - validation_split) * train_labels_len), '.8f')) for time in time_callback.times]
+
+				Hexnet_print(f'({run_string}) training time per epoch [s]: {training_time_per_epoch}, training time per sample [ms]: {training_time_per_sample}')
 
 
 		########################################################################
@@ -806,7 +835,14 @@ def run(args):
 			elif model_is_autoencoder:
 				test_loss_metrics = model.evaluate(test_data, test_data)
 			else:
+				_testing_time     = time()
 				test_loss_metrics = model.evaluate(test_data, test_labels)
+				_testing_time     = time() - _testing_time
+
+				testing_time            = float(format(_testing_time, '.8f'))
+				testing_time_per_sample = float(format(1000 * _testing_time / test_labels_len, '.8f'))
+
+				Hexnet_print(f'({run_string}) testing time [s]: {testing_time}, testing time per sample [ms]: {testing_time_per_sample}')
 
 			if not model_is_standalone:
 				Hexnet_print(f'({run_string}) test_loss_metrics={test_loss_metrics}')

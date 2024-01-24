@@ -1,6 +1,10 @@
 #!/usr/bin/env python3.7
 
 
+################################################################################
+# Imports
+################################################################################
+
 import os
 import random
 
@@ -14,6 +18,10 @@ from ctapipe.visualization import CameraDisplay
 from matplotlib.pyplot     import imsave
 from tqdm                  import tqdm
 
+
+################################################################################
+# Parameters
+################################################################################
 
 camgeoms = (
 	'HESS-I',
@@ -31,8 +39,16 @@ show_and_save_figs = False
 increase_verbosity = False
 
 
+################################################################################
+# Initialization
+################################################################################
+
 camgeoms_len = len(camgeoms)
 
+
+################################################################################
+# Visualize telescope array image
+################################################################################
 
 def visualize(geom, image, title, show_and_save_figs=False, increase_verbosity=False):
 	pix_x = geom.pix_x / u.m
@@ -114,6 +130,10 @@ def visualize(geom, image, title, show_and_save_figs=False, increase_verbosity=F
 
 	imsave(f'{title}_hex.png', image_out, cmap='gray')
 
+
+################################################################################
+# Generate telescope array images
+################################################################################
 
 def test_ctapipe_image_generation():
 	for camgeom_index, camgeom in enumerate(camgeoms):
@@ -198,8 +218,13 @@ def test_ctapipe_image_generation():
 			visualize(geom, image, title, show_and_save_figs, increase_verbosity)
 
 
+################################################################################
+# main
+################################################################################
+
 if __name__ == '__main__':
 	os.makedirs(output_dir, exist_ok=True)
 
 	test_ctapipe_image_generation()
+
 

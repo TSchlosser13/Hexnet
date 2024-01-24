@@ -28,6 +28,10 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import itertools
 import os
 import random
@@ -39,6 +43,10 @@ from tqdm   import tqdm
 
 from geometric_primitives_image_generation import plot_function, plot_function_hexagonal, plot_function_square
 
+
+################################################################################
+# Parameters
+################################################################################
 
 enable_randomized_augmentation = False
 
@@ -157,6 +165,10 @@ def random_uniform(a, b, format_string='.2f'):
 	return float(format(random.uniform(a, b), format_string))
 
 
+################################################################################
+# main
+################################################################################
+
 if __name__ == '__main__':
 	plot_functions_functions = (plot_function_square, plot_function_hexagonal)
 
@@ -245,4 +257,5 @@ if __name__ == '__main__':
 		print(f'\t> dataset.output_dir={dataset.output_dir}')
 
 		dataset.generate()
+
 

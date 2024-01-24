@@ -1,6 +1,10 @@
 #!/usr/bin/env python3.7
 
 
+################################################################################
+# Imports
+################################################################################
+
 import astropy.units     as u
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -8,6 +12,11 @@ import numpy             as np
 from ctapipe.image         import toymodel
 from ctapipe.instrument    import CameraGeometry
 from ctapipe.visualization import CameraDisplay
+
+
+################################################################################
+# Parameters
+################################################################################
 
 camgeoms = (
 	'HESS-I',
@@ -17,7 +26,17 @@ camgeoms = (
 	'Whipple151'
 )
 
+
+################################################################################
+# Initialization
+################################################################################
+
 camgeoms_len = len(camgeoms)
+
+
+################################################################################
+# Visualize hexagonal camera geometries and randomized generation
+################################################################################
 
 for camgeom_index, camgeom in enumerate(camgeoms):
 	print(f'> ({camgeom_index + 1:{len(str(camgeoms_len))}}/{camgeoms_len}) camgeom={camgeom}')
@@ -45,4 +64,5 @@ for camgeom_index, camgeom in enumerate(camgeoms):
 
 	disp = CameraDisplay(geom, image=image)
 	plt.show(disp)
+
 

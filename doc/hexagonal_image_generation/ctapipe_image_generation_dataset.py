@@ -1,6 +1,10 @@
 #!/usr/bin/env python3.7
 
 
+################################################################################
+# Imports
+################################################################################
+
 import math
 import os
 import random
@@ -14,6 +18,10 @@ from tqdm               import tqdm
 
 from ctapipe_image_generation import visualize
 
+
+################################################################################
+# Parameters
+################################################################################
 
 camgeoms = (
 	'HESS-I',
@@ -38,9 +46,17 @@ show_and_save_figs = False
 increase_verbosity = False
 
 
+################################################################################
+# Initialization
+################################################################################
+
 camgeoms_len = len(camgeoms)
 models_len   = len(models)
 
+
+################################################################################
+# Postprocess and visualize telescope array image
+################################################################################
 
 def postprocess_and_visualize(geom, image, title, show_and_save_figs=False, increase_verbosity=False):
 	visualize(geom, image, title, show_and_save_figs, increase_verbosity)
@@ -61,6 +77,10 @@ def postprocess_and_visualize(geom, image, title, show_and_save_figs=False, incr
 
 	visualize(geom, cleanmasks_visualized, f'{title}_cleanmasks', show_and_save_figs, increase_verbosity)
 
+
+################################################################################
+# Generate telescope array image dataset (main)
+################################################################################
 
 if __name__ == '__main__':
 	os.makedirs(output_dir, exist_ok=True)
@@ -200,4 +220,5 @@ if __name__ == '__main__':
 				title = os.path.join(camgeom_class, f'{camgeom}_image{image_string}_intensity{intensity:.1f}_centroids{len(centroids)}')
 
 				postprocess_and_visualize(geom, image, title, show_and_save_figs, increase_verbosity)
+
 
