@@ -25,6 +25,10 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import cv2
 import math
 import os
@@ -47,9 +51,15 @@ from tqdm              import tqdm
 from misc.misc import Hexnet_print, normalize_array
 
 
-def visualize_hexarray(hexarray, title, colormap=None, visualize_axes=True, show_hexarray=False):
+################################################################################
+# Visualize Hexarray as raster and vector graphics
+################################################################################
+
+def visualize_hexarray(hexarray, title, colormap=None, visualize_axes=True, show_hexarray=False, rad_o=0.63):
 	axes_border_width = 0.05
 
+
+	# Construct Hexarray
 
 	hexarray_width  = hexarray.shape[1]
 	hexarray_height = hexarray.shape[0]
@@ -57,17 +67,29 @@ def visualize_hexarray(hexarray, title, colormap=None, visualize_axes=True, show
 	hexarray_x = [w * math.sqrt(3) if not h % 2 else math.sqrt(3) / 2 + w * math.sqrt(3) for h in range(hexarray_height) for w in range(hexarray_width)]
 	hexarray_y = [1.5 * h for h in range(hexarray_height) for w in range(hexarray_width)]
 
+	hexarray_x = [rad_o + rad_o * x for x in hexarray_x]
+	hexarray_y = [rad_o + rad_o * y for y in hexarray_y]
+
 	if colormap is not None:
 		hexarray = plt.cm.get_cmap(colormap)(hexarray)
 
 	hexarray_colors = np.reshape(hexarray, newshape = (hexarray.shape[0] * hexarray.shape[1], hexarray.shape[2]))
 
 
+	# Set Matplotlib window title
+
+	fig = plt.figure()
+	man = plt.get_current_fig_manager()
+	man.set_window_title(os.path.basename(title))
+
+
+	# Adjust axes
+
 	ax = plt.subplot(aspect='equal')
 
 	ax.axis(
-		(min(hexarray_x) - math.sqrt(3) / 2,
-		 max(hexarray_x) + math.sqrt(3) / 2,
+		(min(hexarray_x) - 1,
+		 max(hexarray_x) + 1,
 		 min(hexarray_y) - 1,
 		 max(hexarray_y) + 1)
 	)
@@ -75,8 +97,12 @@ def visualize_hexarray(hexarray, title, colormap=None, visualize_axes=True, show
 	ax.invert_yaxis()
 
 
-	patches_list = [RegularPolygon((x, y), numVertices=6, radius=1, color=c) for x, y, c in zip(hexarray_x, hexarray_y, hexarray_colors)]
+	# Calculate hexagons
 
+	patches_list = [RegularPolygon((x, y), numVertices=6, radius=rad_o, color=c) for x, y, c in zip(hexarray_x, hexarray_y, hexarray_colors)]
+
+
+	# Visualize hexagons
 
 	patch_collection = PatchCollection(patches_list, match_original=True)
 	patch_collection = ax.add_collection(patch_collection)
@@ -90,18 +116,20 @@ def visualize_hexarray(hexarray, title, colormap=None, visualize_axes=True, show
 		plt.show()
 
 
+	# Visualize hexagons with axes
+
 	if visualize_axes:
 		patch_collection.remove()
 
 
-		axes_border_width_x = axes_border_width * hexarray_width
-		axes_border_width_y = axes_border_width * hexarray_height
+		axes_border_width_x = axes_border_width * max(hexarray_x)
+		axes_border_width_y = axes_border_width * max(hexarray_y)
 
 		ax.axis(
-			(min(hexarray_x) - (math.sqrt(3) / 2 + axes_border_width_x),
-			 max(hexarray_x) + (math.sqrt(3) / 2 + axes_border_width_x),
-			 min(hexarray_y) - (1 + axes_border_width_y),
-			 max(hexarray_y) + (1 + axes_border_width_y))
+			(min(hexarray_x) - axes_border_width_x,
+			 max(hexarray_x) + axes_border_width_x,
+			 min(hexarray_y) - axes_border_width_y,
+			 max(hexarray_y) + axes_border_width_y)
 		)
 
 		ax.invert_yaxis()
@@ -119,8 +147,14 @@ def visualize_hexarray(hexarray, title, colormap=None, visualize_axes=True, show
 			plt.show()
 
 
+	# Close
+
 	plt.close()
 
+
+################################################################################
+# Visualize filters via function visualize_hexarray()
+################################################################################
 
 def visualize_filters(model, colormap, visualize_hexagonal, output_dir, verbosity_level=2):
 	filter_to_visualize = 0
@@ -145,6 +179,10 @@ def visualize_filters(model, colormap, visualize_hexagonal, output_dir, verbosit
 			if visualize_hexagonal:
 				visualize_hexarray(filter, filter_filename, colormap)
 
+
+################################################################################
+# Visualize feature maps via function visualize_hexarray()
+################################################################################
 
 def visualize_feature_maps(
 	model,
@@ -207,6 +245,10 @@ def visualize_feature_maps(
 			if visualize_hexagonal:
 				visualize_hexarray(feature_map, feature_map_filename, colormap)
 
+
+################################################################################
+# Visualize activations via function visualize_hexarray()
+################################################################################
 
 def visualize_activations(
 	model,
@@ -296,6 +338,10 @@ def visualize_activations(
 				visualize_hexarray(heatmap,          heatmap_filename)
 
 
+################################################################################
+# Visualize filters, feature maps, and activations
+################################################################################
+
 def visualize_model(
 	model,
 	test_classes,
@@ -336,6 +382,10 @@ def visualize_model(
 		max_images_per_class,
 		verbosity_level)
 
+
+################################################################################
+# Output training results and visualize as plot
+################################################################################
 
 def visualize_training_results(history, title, output_dir, show_results):
 	if output_dir is not None:
@@ -384,6 +434,11 @@ def visualize_training_results(history, title, output_dir, show_results):
 
 	plt.close()
 
+
+################################################################################
+# Output test results as classification report and visualize confusion
+#  matrices
+################################################################################
 
 # TODO: multi-label classification
 def visualize_test_results(
@@ -541,6 +596,10 @@ def visualize_test_results(
 	return classification_report
 
 
+################################################################################
+# Create summarized classification report: calculate mean and std per metric
+################################################################################
+
 def summarize_classification_reports(classification_reports):
 	summary = {}
 
@@ -567,10 +626,16 @@ def summarize_classification_reports(classification_reports):
 
 	return summary
 
+
+################################################################################
+# Create summarized classification report for all training and test runs
+################################################################################
+
 def visualize_global_test_results(classification_reports, title, output_dir):
 	if output_dir is not None:
 		os.makedirs(output_dir, exist_ok=True)
 
 	with open(os.path.join(output_dir, f'{title}_classification_reports_summary.dat'), 'w') as classification_report_file:
 		pprint(summarize_classification_reports(classification_reports), stream=classification_report_file)
+
 

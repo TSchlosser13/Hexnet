@@ -30,7 +30,7 @@
 ################################################################################
 
 '''
-    - https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py
+    This implementation is based on https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py
 
     - [a] ResNet v1: Deep Residual Learning for Image Recognition (2015), https://arxiv.org/abs/1512.03385
     - [b] ResNet v2: Identity Mappings in Deep Residual Networks  (2016), https://arxiv.org/abs/1603.05027

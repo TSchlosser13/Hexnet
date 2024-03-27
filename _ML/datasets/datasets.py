@@ -36,7 +36,6 @@ import math
 import os
 import random
 import shutil
-import uuid
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -56,7 +55,12 @@ from misc.visualization import visualize_hexarray
 
 
 
-def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_level=2):
+################################################################################
+# Create classification dataset from dataset using "{set:fraction}"
+#  (e.g., "{'train':0.9,'test':0.1}") and save to memory
+################################################################################
+
+def create_dataset(dataset, split_ratios, output_dir, randomized_assignment=True, seed=6, verbosity_level=2):
 	Hexnet_print(f'Creating classification dataset from dataset {dataset}')
 
 	start_time = time()
@@ -65,8 +69,12 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 	split_ratios_sets      = list(split_ratios.keys())
 	split_ratios_fractions = list(split_ratios.values())
 
-	classification_dataset = f'{dataset}_classification_dataset'
+	classification_dataset = os.path.join(output_dir, f'{os.path.basename(dataset)}_classification_dataset_seed_{seed}')
 	os.makedirs(classification_dataset, exist_ok=True)
+
+
+	if randomized_assignment:
+		random.seed(seed)
 
 
 	max_files_to_copy         = max([len(glob(os.path.join(set_class, '*'))) for set_class in glob(os.path.join(dataset, '*'))])
@@ -81,7 +89,7 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 		if verbosity_level >= 1:
 			Hexnet_print(f'\t> current_class={current_class}')
 
-		files_to_copy = glob(os.path.join(set_class, '*'))
+		files_to_copy = natsorted(glob(os.path.join(set_class, '*')))
 
 		if not files_to_copy:
 			continue
@@ -130,7 +138,7 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 			Hexnet_print(f'\t\t> copied_files_per_set={copied_files_per_set} (copied_files_len={copied_files_len})')
 
 
-		# Step 2: randomized file dataset set balancing: duplicate and hash assigned files
+		# Step 2: randomized file dataset set balancing via file duplication
 
 		for current_set_index, current_set in enumerate(split_ratios_sets):
 			while copied_files_per_set[current_set_index] < max_files_to_copy_per_set[current_set_index]:
@@ -138,7 +146,7 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 
 				file_to_copy = copied_files[file_selector]
 				copy_file_to = os.path.basename(file_to_copy).split('.')
-				copy_file_to = '.'.join(copy_file_to[:-1]) + '_' + str(uuid.uuid4()) + '.' + copy_file_to[-1]
+				copy_file_to = '.'.join(copy_file_to[:-1]) + '_' + str(copied_files_per_set[current_set_index]).zfill(8) + '.' + copy_file_to[-1]
 				copy_file_to = os.path.join(classification_dataset, current_set, current_class, copy_file_to)
 
 				shutil.copyfile(file_to_copy, copy_file_to)
@@ -154,6 +162,13 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 
 	Hexnet_print(f'Created classification dataset from dataset {dataset} in {time_diff:.3f} seconds')
 
+
+	return classification_dataset
+
+
+################################################################################
+# Create HDF5 file (*.h5) from dataset
+################################################################################
 
 def create_dataset_h5(
 	dataset,
@@ -183,6 +198,10 @@ def create_dataset_h5(
 		h5py_file.create_dataset('test_filenames',  data=test_filenames,  compression='lzf')
 		h5py_file.create_dataset('test_labels',     data=test_labels,     compression='lzf')
 
+
+################################################################################
+# Create dataset overview from dataset
+################################################################################
 
 def create_dataset_overview(classes, train_labels, test_labels, dataset, output_dir):
 	# Prepare dataset overview table: entries
@@ -247,9 +266,17 @@ def create_dataset_overview(classes, train_labels, test_labels, dataset, output_
 			print(dataset_overview, file=file)
 
 
+################################################################################
+# copytree (recursively copy an entire directory tree): ignore files function
+################################################################################
+
 def copytree_ignore_files(directory, files):
 	return [file for file in files if os.path.isfile(os.path.join(directory, file))]
 
+
+################################################################################
+# Load dataset into memory
+################################################################################
 
 def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	Hexnet_print(f'Loading dataset {dataset}')
@@ -483,6 +510,10 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	        (test_classes,  test_data,  test_filenames,  test_labels))
 
 
+################################################################################
+# Transform dataset and save to memory
+################################################################################
+
 def transform_dataset(
 	dataset,
 	output_dir,
@@ -561,6 +592,10 @@ def transform_dataset(
 	Hexnet_print(f'Transformed dataset {dataset} in {time_diff:.3f} seconds')
 
 
+################################################################################
+# Resize dataset using "HxW" (e.g., 32x32)
+################################################################################
+
 def resize_dataset(dataset_s, resize_string, method='nearest'):
 	# HxW
 	resize   = resize_string.split('x')
@@ -575,6 +610,11 @@ def resize_dataset(dataset_s, resize_string, method='nearest'):
 
 	return dataset_s
 
+
+################################################################################
+# Crop dataset using "HxW" with offset "+Y+X"
+#  (e.g., 32x32+2+2, 32x32, or +2+2)
+################################################################################
 
 def crop_dataset(dataset_s, crop_string):
 	# HxW+Y+X
@@ -607,6 +647,10 @@ def crop_dataset(dataset_s, crop_string):
 	return dataset_s
 
 
+################################################################################
+# Pad dataset using "T,B,L,R" (e.g., 2,2,2,2)
+################################################################################
+
 def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
 	# T,B,L,R
 	pad       = pad_string.split(',')
@@ -621,6 +665,10 @@ def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
 
 	return dataset_s
 
+
+################################################################################
+# Show dataset via Matplotlib
+################################################################################
 
 def show_dataset(
 	train_classes,
@@ -692,8 +740,12 @@ def show_dataset(
 	plt.close()
 
 
-def create_dataset_overview_visualization(output_dir, dataset_visualized, visualize_hexagonal, randomized_visualization=False):
-	image_basename = os.path.join(output_dir, os.path.basename(dataset_visualized))
+################################################################################
+# Visualize dataset overview and save to memory
+################################################################################
+
+def create_dataset_overview_visualization(dataset_visualized, visualize_hexagonal, randomized_visualization=False):
+	image_basename = os.path.join(dataset_visualized, os.path.basename(dataset_visualized))
 
 	if not visualize_hexagonal:
 		image_wildcard = '*.png'
@@ -823,6 +875,10 @@ def create_dataset_overview_visualization(output_dir, dataset_visualized, visual
 		cv2.imwrite(f'{image_basename}_dataset_class_overview_image_{current_class_basename}.jpg', overview_image)
 
 
+################################################################################
+# Visualize dataset and save to memory
+################################################################################
+
 def visualize_dataset(
 	dataset,
 	train_classes       = None,
@@ -914,10 +970,9 @@ def visualize_dataset(
 						filename = '.'.join(filename.split('.')[:-1])
 						visualize_hexarray(normalize_array(file), filename, colormap)
 
-	create_dataset_overview_visualization(output_dir, dataset_visualized, visualize_hexagonal)
+	create_dataset_overview_visualization(dataset_visualized, visualize_hexagonal)
 
 	time_diff = time() - start_time
 
 	Hexnet_print(f'Visualized dataset {dataset} in {time_diff:.3f} seconds')
-
 

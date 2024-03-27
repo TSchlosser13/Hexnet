@@ -1046,7 +1046,6 @@ class HConv2D(tf.keras.layers.Layer):
 		# v2 (HResNet_v1: ~220s): list-based tf.concat
 		########################################################################
 
-		'''
 		output = []
 
 		if input.shape[1] > 1:
@@ -1064,7 +1063,6 @@ class HConv2D(tf.keras.layers.Layer):
 			values = output,
 			axis   = 1,
 			name   = 'HConv2D_output_concat')
-		'''
 
 
 		########################################################################
@@ -1075,6 +1073,7 @@ class HConv2D(tf.keras.layers.Layer):
 
 		# Reference: https://stackoverflow.com/questions/46431983/concatenate-two-tensors-in-alternate-fashion-tensorflow
 
+		'''
 		output_shape             = output_even_rows.shape.as_list()
 		output_shape[0]          = -1
 		output_shape[1]         += output_odd_rows.shape[1]
@@ -1086,6 +1085,7 @@ class HConv2D(tf.keras.layers.Layer):
 		output = tf.concat([output_even_rows, output_odd_rows], expand_dims_concat_axis)
 
 		output = tf.reshape(output, output_shape)
+		'''
 
 
 

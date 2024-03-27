@@ -65,7 +65,8 @@ import Hexnet
 
 
 ################################################################################
-# Miscellaneous
+# Create classification report overview and training accuracy and loss plots
+#  via LaTeX with pgfplots
 ################################################################################
 
 separator_string = 80 * '#'
@@ -78,7 +79,7 @@ def visualize_results_LaTeX(output_dir, compiler='pdflatex'):
 	loss_dats     = natsorted(glob(os.path.join(output_dir, '*_loss.dat')))
 
 
-	# Test report
+	# Classification report
 
 	if report_dats:
 		report_dats_len = len(report_dats)

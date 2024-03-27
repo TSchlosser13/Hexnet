@@ -38,6 +38,7 @@ load_weights        = False
 
 dataset             = 'datasets/MNIST/MNIST.h5'
 create_dataset      = False
+rand_seed           = 6
 resize_dataset      = False
 crop_dataset        = False
 pad_dataset         = False
@@ -153,6 +154,7 @@ def run(args):
 	dataset             = args.dataset
 	create_dataset      = args.create_dataset
 	disable_rand        = args.disable_rand
+	rand_seed           = args.rand_seed
 	create_h5           = args.create_h5
 	resize_dataset      = args.resize_dataset
 	crop_dataset        = args.crop_dataset
@@ -300,9 +302,13 @@ def run(args):
 	if create_dataset:
 		print_newline()
 
-		datasets.create_dataset(dataset, split_ratios=create_dataset, randomized_assignment=enable_rand, verbosity_level=verbosity_level)
-
-		dataset = f'{dataset}_classification_dataset'
+		dataset = datasets.create_dataset(
+			dataset               = dataset,
+			split_ratios          = create_dataset,
+			output_dir            = output_dir,
+			randomized_assignment = enable_rand,
+			seed                  = rand_seed,
+			verbosity_level       = verbosity_level)
 
 
 	############################################################################
@@ -316,7 +322,7 @@ def run(args):
 
 		if transform_s2h != False:
 			if transform_s2h is None:
-				transform_s2h = f'{dataset}_s2h'
+				transform_s2h = os.path.join(output_dir, f'{os.path.basename(dataset)}_s2h_rad_o_{transform_s2h_rad_o:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -328,7 +334,7 @@ def run(args):
 
 		if transform_h2s != False:
 			if transform_h2s is None:
-				transform_h2s = f'{dataset}_h2s'
+				transform_h2s = os.path.join(output_dir, f'{os.path.basename(dataset)}_h2s_len_{transform_h2s_len:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -340,7 +346,7 @@ def run(args):
 
 		if transform_h2h != False:
 			if transform_h2h is None:
-				transform_h2h = f'{dataset}_h2h'
+				transform_h2h = os.path.join(output_dir, f'{os.path.basename(dataset)}_h2h_rad_o_{transform_h2h_rad_o:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -352,7 +358,8 @@ def run(args):
 
 		if transform_s2s != False:
 			if transform_s2s is None:
-				transform_s2s = f'{dataset}_s2s'
+				transform_s2s_res_str = "x".join(str(d) for d in transform_s2s_res)
+				transform_s2s         = os.path.join(output_dir, f'{os.path.basename(dataset)}_s2s_res_{transform_s2s_res_str}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -784,9 +791,9 @@ def run(args):
 			else:
 				history = model.fit(train_data, train_labels, batch_size, epochs, validation_split=validation_split, callbacks=fit_callbacks)
 
+				# Training time per epoch and training time per sample
 				training_time_per_epoch  = [float(format(time, '.8f')) for time in time_callback.times]
 				training_time_per_sample = [float(format(1000 * time / ((1 - validation_split) * train_labels_len), '.8f')) for time in time_callback.times]
-
 				Hexnet_print(f'({run_string}) training time per epoch [s]: {training_time_per_epoch}, training time per sample [ms]: {training_time_per_sample}')
 
 
@@ -839,9 +846,9 @@ def run(args):
 				test_loss_metrics = model.evaluate(test_data, test_labels)
 				_testing_time     = time() - _testing_time
 
+				# Testing time and testing time per sample
 				testing_time            = float(format(_testing_time, '.8f'))
 				testing_time_per_sample = float(format(1000 * _testing_time / test_labels_len, '.8f'))
-
 				Hexnet_print(f'({run_string}) testing time [s]: {testing_time}, testing time per sample [ms]: {testing_time_per_sample}')
 
 			if not model_is_standalone:
@@ -972,8 +979,9 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights as HDF5')
 
 	parser.add_argument('--dataset',                           nargs = '?', default = dataset,             help = 'load dataset from HDF5 or directory')
-	parser.add_argument('--create-dataset',                                 default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., {\'train\':0.9,\'test\':0.1})')
+	parser.add_argument('--create-dataset',                                 default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., "{\'train\':0.9,\'test\':0.1}")')
 	parser.add_argument('--disable-rand',                                   action  = 'store_true',        help = 'classification dataset creation: disable randomized file dataset set assignment')
+	parser.add_argument('--rand-seed',           type = int,                default = rand_seed,           help = 'classification dataset creation: seed for randomized file dataset set assignment')
 	parser.add_argument('--create-h5',                                      action  = 'store_true',        help = 'save dataset as HDF5')
 	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g., 32x32)')
 	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g., 32x32+2+2, 32x32, or +2+2)')
@@ -1053,4 +1061,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 

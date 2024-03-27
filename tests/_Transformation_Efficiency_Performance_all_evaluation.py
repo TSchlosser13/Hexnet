@@ -3,7 +3,7 @@
 
 '''****************************************************************************
  * _Transformation_Efficiency_Performance_all_evaluation.py: Transformation
- *  efficiency and performance evaluation for all datasets and metrics
+ *  Efficiency and Performance Evaluation for All Datasets and Metrics
  ******************************************************************************
  * v0.1 - 01.09.2020
  *

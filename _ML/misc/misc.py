@@ -35,12 +35,20 @@ import sys
 import numpy as np
 
 
+################################################################################
+# Hexnet print char and print newline functions
+################################################################################
+
 def putchar(char):
 	sys.stdout.write(char)
 
 def print_newline():
 	putchar('\n')
 
+
+################################################################################
+# Hexnet print and print warning functions
+################################################################################
 
 def Hexnet_print(string, filename=None):
 	if not filename:
@@ -52,6 +60,10 @@ def Hexnet_print(string, filename=None):
 def Hexnet_print_warning(string, filename=None):
 	Hexnet_print(f'(WARNING) {string}', filename)
 
+
+################################################################################
+# Converts array / image batch to NumPy array / NumPy image batch (4D)
+################################################################################
 
 def test_array(array):
 	if type(array) is not np.ndarray:
@@ -68,6 +80,10 @@ def test_image_batch(image_batch):
 	return image_batch
 
 
+################################################################################
+# Normalizes array
+################################################################################
+
 def normalize_array(array):
 	array = test_array(array)
 
@@ -83,6 +99,10 @@ def normalize_array(array):
 	return array
 
 
+################################################################################
+# Converts array to a one-hot vector
+################################################################################
+
 def array_to_one_hot_array(array, classes):
 	array = test_array(array)
 
@@ -92,6 +112,10 @@ def array_to_one_hot_array(array, classes):
 
 	return one_hot_array
 
+
+################################################################################
+# Rounding function: always round up at ".5" and up
+################################################################################
 
 def round_half_up(value):
 	return int(decimal.Decimal(value).quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP))
