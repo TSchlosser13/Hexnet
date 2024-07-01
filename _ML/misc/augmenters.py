@@ -25,6 +25,10 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import random
 import uuid
 
@@ -35,6 +39,10 @@ import numpy             as np
 from core.Hexarray import rotate_Hexarray, scale_Hexarray, translate_Hexarray
 from misc.misc     import test_image_batch
 
+
+################################################################################
+# Augmentation "size": augmentation via duplication
+################################################################################
 
 def augment_size(data, filenames, labels, labels_orig, augmentation_size):
 	if augmentation_size != 1:
@@ -80,6 +88,10 @@ def augment_size(data, filenames, labels, labels_orig, augmentation_size):
 
 
 
+################################################################################
+# Augmenter "simple": rotation, translation, and scaling
+################################################################################
+
 def augmenter_simple(augmentation_level=1):
 	lp = augmentation_level / 100
 
@@ -99,8 +111,12 @@ def augmenter_simple(augmentation_level=1):
 	return augmenter
 
 
+################################################################################
+# Augmenter "complex_custom": different randomized transformations
+################################################################################
+
 def augmenter_complex_custom():
-	# https://github.com/aleju/imgaug
+	# This augmeter is based on https://github.com/aleju/imgaug?tab=readme-ov-file#example-very-complex-augmentation-pipeline
 
 	# Sometimes(0.5, ...) applies the given augmenter in 50% of all cases,
 	# e.g. Sometimes(0.5, GaussianBlur(0.3)) would blur roughly every second image.
@@ -185,6 +201,10 @@ def augmenter_complex_custom():
 
 
 
+################################################################################
+# Augmentation "rotate_Hexarray": hexagonal rotation
+################################################################################
+
 def randomized_rotate_Hexarray(Hexarray_s):
 	Hexarray_s = test_image_batch(Hexarray_s)
 
@@ -198,6 +218,10 @@ def randomized_rotate_Hexarray(Hexarray_s):
 
 	return Hexarray_s_rotated
 
+
+################################################################################
+# Augmentation "scale_Hexarray": hexagonal scaling
+################################################################################
 
 def randomized_scale_Hexarray(Hexarray_s):
 	Hexarray_s = test_image_batch(Hexarray_s)
@@ -213,6 +237,10 @@ def randomized_scale_Hexarray(Hexarray_s):
 	return Hexarray_s_scaled
 
 
+################################################################################
+# Augmentation "translate_Hexarray": hexagonal translation
+################################################################################
+
 def randomized_translate_Hexarray(Hexarray_s):
 	Hexarray_s = test_image_batch(Hexarray_s)
 
@@ -226,6 +254,10 @@ def randomized_translate_Hexarray(Hexarray_s):
 
 	return Hexarray_s_translated
 
+
+################################################################################
+# Augmenter "simple_hex_custom": hexagonal rotation, scaling, and translation
+################################################################################
 
 class augmenter_simple_hex_custom():
 	def __init__(self):
@@ -244,5 +276,4 @@ class augmenter_simple_hex_custom():
 			images_augmented.append(image)
 
 		return images_augmented
-
 

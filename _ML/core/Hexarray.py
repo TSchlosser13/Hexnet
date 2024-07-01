@@ -28,6 +28,10 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import math
 
 import numpy as np
@@ -40,6 +44,10 @@ from core.Hexint  import rotate_Hexint
 from core.Hexsamp import Hexsamp_h2h
 from misc.misc    import round_half_up, test_image_batch
 
+
+################################################################################
+# Rotate Hexarray by a given angle (n × 60°) around the center of the image
+################################################################################
 
 def rotate_Hexarray(Hexarray_s, angle=60):
 	Hexarray_s = test_image_batch(Hexarray_s)
@@ -99,6 +107,10 @@ def rotate_Hexarray(Hexarray_s, angle=60):
 	return Hexarray_s_rotated
 
 
+################################################################################
+# Scale Hexarray via Hexarray to Hexarray transformation
+################################################################################
+
 def scale_Hexarray(Hexarray_s, res = (64, 64), method = 0, fill_value = 0):
 	Hexarray_s = test_image_batch(Hexarray_s)
 
@@ -144,6 +156,10 @@ def scale_Hexarray(Hexarray_s, res = (64, 64), method = 0, fill_value = 0):
 	return Hexarray_s_scaled
 
 
+################################################################################
+# Translate Hexarray by a given offset (e.g., (x, y))
+################################################################################
+
 def translate_Hexarray(Hexarray_s, translation = (1, 1), axis = (1, 2), fill_value = 0, cyclic_translation = False):
 	Hexarray_s = test_image_batch(Hexarray_s)
 
@@ -180,6 +196,10 @@ def translate_Hexarray(Hexarray_s, translation = (1, 1), axis = (1, 2), fill_val
 	return Hexarray_s_translated
 
 
+################################################################################
+# Rotate Hexarray test function
+################################################################################
+
 def test_rotate_Hexarray(Hexarray_shape = (3, 3, 1)):
 	print(f'>> test_rotate_Hexarray: Hexarray_shape={Hexarray_shape}')
 
@@ -198,6 +218,10 @@ def test_rotate_Hexarray(Hexarray_shape = (3, 3, 1)):
 
 		print(f'test_Hexarray_rotated =\n{np.reshape(test_Hexarray_rotated[0], newshape = (i, i))}')
 
+
+################################################################################
+# Scale Hexarray test function
+################################################################################
 
 def test_scale_Hexarray(Hexarray_shape = (3, 3, 1)):
 	print(f'>> test_scale_Hexarray: Hexarray_shape={Hexarray_shape}')
@@ -219,6 +243,10 @@ def test_scale_Hexarray(Hexarray_shape = (3, 3, 1)):
 		print(f'test_image_batchcaled =\n{np.reshape(test_image_batchcaled[0], newshape = (i, i))}')
 
 
+################################################################################
+# Translate Hexarray test function
+################################################################################
+
 def test_translate_Hexarray(Hexarray_shape = (3, 3, 1)):
 	print(f'>> test_translate_Hexarray: Hexarray_shape={Hexarray_shape}')
 
@@ -239,6 +267,10 @@ def test_translate_Hexarray(Hexarray_shape = (3, 3, 1)):
 
 		print(f'test_Hexarray_translated =\n{np.reshape(test_Hexarray_translated[0], newshape = (i, i))}')
 
+
+################################################################################
+# main
+################################################################################
 
 if __name__ == '__main__':
 	for i in (3, 5, 7):

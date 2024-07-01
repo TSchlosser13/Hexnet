@@ -1,5 +1,5 @@
 /******************************************************************************
- * Hexarray_vs.h: Hexagonal Arrays' Vertex Shader
+ * Hexarray_vs.h: Vertex Shader for the Visualization of Hexagonal Arrays
  ******************************************************************************
  * v0.1 - 01.09.2018
  *
@@ -30,7 +30,7 @@
 
 
 /******************************************************************************
- * Hexagonal Arrays' Vertex Shader
+ * Vertex Shader for the Visualization of Hexagonal Arrays
  ******************************************************************************/
 
 const char* Hexarray_vs = \

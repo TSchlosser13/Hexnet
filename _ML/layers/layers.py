@@ -993,6 +993,33 @@ class HConv2D(tf.keras.layers.Layer):
 				name        = 'HConv2D_output_odd_rows_conv2d')
 
 
+
+
+		########################################################################
+		# Concatenate the output tensor
+		########################################################################
+
+
+		# SResNet_v1: ~75s
+
+
+		########################################################################
+		# v0 (HResNet_v1: ~160s): tf.concat (best performance but invalid)
+		########################################################################
+
+		'''
+		output = tf.concat(
+			values = (output_even_rows, output_odd_rows),
+			axis   = 1,
+			name   = 'HConv2D_output_concat')
+		'''
+
+
+		########################################################################
+		# v1 (HResNet_v1: ~240s): looped tf.concat
+		########################################################################
+
+		'''
 		if input.shape[1] > 1:
 			output = tf.concat(
 				values = (output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]),
@@ -1012,6 +1039,56 @@ class HConv2D(tf.keras.layers.Layer):
 					name   = 'HConv2D_output_concat')
 		else:
 			output = output_even_rows
+		'''
+
+
+		########################################################################
+		# v2 (HResNet_v1: ~220s): list-based tf.concat
+		########################################################################
+
+		output = []
+
+		if input.shape[1] > 1:
+			output.extend([output_even_rows[:, 0:1, :, :], output_odd_rows[:, 0:1, :, :]])
+
+			for h in range(1, min(output_even_rows.shape[1], output_odd_rows.shape[1])):
+				output.extend([output_even_rows[:, h:h+1, :, :], output_odd_rows[:, h:h+1, :, :]])
+
+			if output_even_rows.shape[1] > output_odd_rows.shape[1]:
+				output.append(output_even_rows[:, -1:, :, :])
+		else:
+			output = output_even_rows
+
+		output = tf.concat(
+			values = output,
+			axis   = 1,
+			name   = 'HConv2D_output_concat')
+
+
+		########################################################################
+		# v3 (HResNet_v1: ~165s): tf.expand_dims + tf.concat + tf.reshape
+		########################################################################
+
+		# TODO: add names for tf.*
+
+		# Reference: https://stackoverflow.com/questions/46431983/concatenate-two-tensors-in-alternate-fashion-tensorflow
+
+		'''
+		output_shape             = output_even_rows.shape.as_list()
+		output_shape[0]          = -1
+		output_shape[1]         += output_odd_rows.shape[1]
+		expand_dims_concat_axis  = len(output_shape)
+
+		output_even_rows = tf.expand_dims(output_even_rows, expand_dims_concat_axis)
+		output_odd_rows  = tf.expand_dims(output_odd_rows,  expand_dims_concat_axis)
+
+		output = tf.concat([output_even_rows, output_odd_rows], expand_dims_concat_axis)
+
+		output = tf.reshape(output, output_shape)
+		'''
+
+
+
 
 		output = tf.nn.bias_add(
 			value       = output,
@@ -2341,5 +2418,4 @@ class HSampling2D(tf.keras.layers.Layer):
 				name                  = 'HSampling2D_output_resize')
 
 		return output
-
 

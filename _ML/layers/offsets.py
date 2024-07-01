@@ -28,8 +28,16 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import numpy as np
 
+
+################################################################################
+# Build offsets for hexagonal pooling layers
+################################################################################
 
 def build_offsets(mask_shape=(3, 3)):
 	offsets_even_rows = np.empty(shape=(2, 2), dtype=np.int32)
@@ -49,6 +57,10 @@ def build_offsets(mask_shape=(3, 3)):
 	return (offsets_even_rows, offsets_odd_rows)
 
 
+################################################################################
+# Show offsets for hexagonal pooling layers
+################################################################################
+
 def test_build_offsets(mask_shape=(3, 3)):
 	print(f'test_build_offsets: mask_shape={mask_shape}')
 
@@ -56,6 +68,10 @@ def test_build_offsets(mask_shape=(3, 3)):
 
 	print(f'offsets_even_rows =\n{offsets_even_rows}\noffsets_odd_rows =\n{offsets_odd_rows}')
 
+
+################################################################################
+# main
+################################################################################
 
 if __name__ == '__main__':
 	for i in (3, 5, 7):

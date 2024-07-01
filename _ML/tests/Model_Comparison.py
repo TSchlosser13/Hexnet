@@ -65,12 +65,13 @@ import Hexnet
 
 
 ################################################################################
-# Miscellaneous
+# Create classification report overview and training accuracy and loss plots
+#  via pdfTeX with pgfplots
 ################################################################################
 
 separator_string = 80 * '#'
 
-def visualize_results_LaTeX(output_dir, compiler='pdflatex'):
+def visualize_results(output_dir, compiler='pdflatex'):
 	timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
 
 	report_dats   = natsorted(glob(os.path.join(output_dir, '*_classification_report.dat')))
@@ -78,7 +79,7 @@ def visualize_results_LaTeX(output_dir, compiler='pdflatex'):
 	loss_dats     = natsorted(glob(os.path.join(output_dir, '*_loss.dat')))
 
 
-	# Test report
+	# Classification report
 
 	if report_dats:
 		report_dats_len = len(report_dats)
@@ -271,7 +272,7 @@ def run(args):
 		print(separator_string)
 
 
-	visualize_results_LaTeX(args.output_dir)
+	visualize_results(args.output_dir)
 
 
 	return status
@@ -315,4 +316,5 @@ if __name__ == '__main__':
 	status = run(args)
 
 	sys.exit(status)
+
 
