@@ -25,12 +25,20 @@
  ******************************************************************************/
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <string.h>
 
 #include "strings.h"
 #include "types.h"
 
+
+/******************************************************************************
+ * Insert string into string at position
+ ******************************************************************************/
 
 void insert_string(char* destination, char* source, u32 pos) {
 	char* s = malloc(strlen(destination) + strlen(source) + 1);
@@ -43,4 +51,5 @@ void insert_string(char* destination, char* source, u32 pos) {
 
 	free(s);
 }
+
 

@@ -21,8 +21,8 @@ For the documentation of this project see [../](https://github.com/TSchlosser13/
 
 
 
-Generation of Basic Geometric Primitives
-----------------------------------------
+Generation of Geometric Primitives
+----------------------------------
 
 ### Installation
 
@@ -35,92 +35,109 @@ pip install colorama==0.4.4 joblib==0.17.0 matplotlib sympy==1.6.2 tqdm==4.47.0
 ```
 
 
-### Image Generation Script
+### Image Generation Scripts
 
 Current classes for generation
 
-- Class 0: lines
-- Class 1: curves
-- Class 2: circles
-- Class 3: line-based grids
-- Class 4: curve-based grids
-- Class 5: lines, curves, and circles
-- Class 6: miscellaneous
+- Class 1: lines
+- Class 2: curves
+- Class 3: circles
+- Class 4: line-based grids
+- Class 5: curve-based grids
+- Class 6: lines, curves, and circles
+
+To generate the dataset:
 
 ```
-python geometric_primitives_image_generation_dataset.py
+python geometric_primitives_dataset.py
 ```
 
-See also geometric_primitives_image_generation.py.
+See also geometric_primitives.py.
+
+
+### Test Scripts
+
+```
+cd geometric_primitives
+```
+
+Visualize test functions with square / hexagonal image data storage:
+
+```
+python geometric_primitives_test.py
+```
+
+See also notebook geometric_primitives_test.ipynb.
 
 
 
 
-Generation of Cherenkov Telescope Array (CTA) Images Using ctapipe
-------------------------------------------------------------------
+Generation of Astronomical Images
+---------------------------------
 
 ### Installation
 
 Install ctapipe version 0.8.0
 
 ```
-mkdir ctapipe
-cd ctapipe
-
-CTAPIPE_VER=0.8.0
-wget https://raw.githubusercontent.com/cta-observatory/ctapipe/v$CTAPIPE_VER/environment.yml
-conda env create -n ctapipe -f environment.yml
-conda activate ctapipe
-conda install -c cta-observatory ctapipe=$CTAPIPE_VER
+conda create -n astronomical_image_generation python=3.7
+conda activate astronomical_image_generation
+conda install -c cta-observatory ctapipe=0.8.0 matplotlib=3.1.0
 ```
 
 
-### Image Generation Script
+### Image Generation Scripts
 
 Current classes for generation
 
-- Class 0: no shower areas
-- Class 1: single shower area
-- Class 2: multiple shower areas (2 to 9)
+- Class 1: no shower areas
+- Class 2: single shower area with Gaussian distribution
+- Class 3: multiple shower areas with Gaussian distributions
+- Class 4: single shower area with skewed Gaussian distribution
+- Class 5: multiple shower areas with skewed Gaussian distributions
+- Class 6: single shower area with ring Gaussian distribution
+- Class 7: multiple shower areas with ring Gaussian distributions
+
+To generate the dataset:
 
 ```
-python ctapipe_image_generation_dataset.py
+python astronomical_image_generation_dataset.py
 ```
 
-See also ctapipe_image_generation.py.
+See also astronomical_image_generation.py.
 
 
 ### Test Scripts
 
 ```
-cd ctapipe
+cd astronomical_image_generation
 ```
 
-Show all camera geometries
+Show all camera geometries:
 
 ```
 python ctapipe_basics_test1.py
 ```
 
-Image postprocessing
+Image postprocessing:
 
 ```
 python ctapipe_basics_test2.py
 ```
 
-Generate hexagonal image data
+Generate hexagonal image data:
 
 ```
 python ctapipe_basics_test3.py
 ```
 
-Inspect camera geometry, model, image, and display properties
+Inspect camera geometry, model, image, and display properties:
 
 ```
 python ctapipe_basics_test4.py
 ```
 
-Generate and output hexagonal image data
+Generate and output hexagonal image data:
 
 ```
 python ctapipe_image_generation_test.py
@@ -140,25 +157,7 @@ ls | grep ".camgeom.fits.gz"
 
 ```
 ASTRICam.camgeom.fits.gz
-CHEC.camgeom.fits.gz
-DigiCam.camgeom.fits.gz
-FACT.camgeom.fits.gz
-FlashCam.camgeom.fits.gz
-hess_camgeom.fits.gz
-HESS-I.camgeom.fits.gz
-HESS-II.camgeom.fits.gz
-LSTCam.camgeom.fits.gz
-LSTCam-002.camgeom.fits.gz
-LSTCam-003.camgeom.fits.gz
-MAGICCam.camgeom.fits.gz
-MAGICCamMars.camgeom.fits.gz
-NectarCam.camgeom.fits.gz
-NectarCam-003.camgeom.fits.gz
-SCTCam.camgeom.fits.gz
-VERITAS.camgeom.fits.gz
-Whipple109.camgeom.fits.gz
-Whipple151.camgeom.fits.gz
-Whipple331.camgeom.fits.gz
+(...)
 Whipple490.camgeom.fits.gz
 ```
 
@@ -186,12 +185,14 @@ Whipple490.camgeom.fits.gz
 
 ### References
 
+- https://www.astropy.org/
+- https://pypi.org/project/eventio/
+- https://www.mpi-hd.mpg.de/hfm/~bernlohr/sim_telarray/
+
 - https://cta-observatory.github.io/ctapipe/
-
 - https://cta-observatory.github.io/ctapipe/api/ctapipe.instrument.CameraGeometry.html
-
 - https://cta-observatory.github.io/ctapipe/examples/dilate_image.html
 - https://cta-observatory.github.io/ctapipe/examples/InstrumentDescription.html
-
 - https://cta-observatory.github.io/ctapipe/tutorials/lst_analysis_bootcamp_2018.html
+
 

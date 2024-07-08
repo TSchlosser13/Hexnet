@@ -1,5 +1,5 @@
 /******************************************************************************
- * Hexagon_positions.h: Hexagonal Pixels' Positions
+ * Hexagon_positions.h: Positions for the Visualization of Hexagonal Pixels
  ******************************************************************************
  * v0.1 - 01.09.2018
  *
@@ -39,7 +39,7 @@
 
 
 /******************************************************************************
- * Hexagonal Pixels' Positions
+ * Positions for the Visualization of Hexagonal Pixels
  ******************************************************************************/
 
 const GLfloat Hexagon_positions[24] = {

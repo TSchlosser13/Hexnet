@@ -103,6 +103,24 @@ Usage
 ./Hexnet --help
 ```
 
+```
+Hexnet version 0.1 Copyright (c) 2018-2024 Tobias Schlosser (tobias@tobias-schlosser.net)
+Usage: ./Hexnet [options]
+
+-h, --help                            print options
+-i, --input       <image>             square or hexagonal pixel based input image
+-o, --output      <image>             hexagonal pixel based output image (s2h); h2s, h2h, and s2s output images' base name
+--s2h-rad         <radius>            enable square to hexagonal image transformation by setting the hexagonal pixels' outer radius
+--h2s-len         <length>            enable hexagonal to square image transformation by setting the square pixels' side length
+--h2h-rad         <radius>            enable hexagonal to hexagonal image transformation by setting the hexagonal pixels' outer radius
+--s2s-res         <width> [<height>]  enable square to square image transformation by setting the output resolution
+--compare-s2s     <image>             compare square input (i, input) to input square image <image>
+--compare-s2h                         compare square input (i, input) to hexagonal output image (o, output) using s2h-rad
+--compare-metric  <metric>            compare-s2s and compare-s2h compare metric: AE / SE / MAE / MSE / RMSE / PSNR / SSIM / DSSIM
+-d, --display                         display hexagonal input (i, input) or output image (o, output) using s2h-rad
+-v, --verbose                         increase verbosity
+```
+
 
 Test
 ----
@@ -124,4 +142,5 @@ Funding
 The European Union and the European Social Fund for Germany partially funded this research.
 
 ![ESF logo](doc/logos/ESF_logo.png "ESF logo")
+
 

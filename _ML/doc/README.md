@@ -25,7 +25,7 @@ Create a Classification Dataset
 -------------------------------
 
 ```
-python Hexnet.py --model --dataset dataset --create-dataset {'train':0.9,'test':0.1}
+python Hexnet.py --model --dataset dataset --create-dataset "{'train':0.9,'test':0.1}"
 ```
 
 

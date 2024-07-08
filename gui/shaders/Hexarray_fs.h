@@ -1,5 +1,5 @@
 /******************************************************************************
- * Hexarray_fs.h: Hexagonal Arrays' Fragment Shader
+ * Hexarray_fs.h: Fragment Shader for the Visualization of Hexagonal Arrays
  ******************************************************************************
  * v0.1 - 01.09.2018
  *
@@ -30,7 +30,7 @@
 
 
 /******************************************************************************
- * Hexagonal Arrays' Fragment Shader
+ * Fragment Shader for the Visualization of Hexagonal Arrays
  ******************************************************************************/
 
 const char* Hexarray_fs = \

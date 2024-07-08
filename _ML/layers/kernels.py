@@ -28,6 +28,10 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import math
 
 import numpy      as np
@@ -40,6 +44,10 @@ if __name__ == '__main__':
 from layers.masks import build_masks
 from misc.misc    import round_half_up
 
+
+################################################################################
+# Build kernels for square group convolution layers
+################################################################################
 
 def rotate_square_kernel(kernel, angle=90):
 	if type(kernel) is np.ndarray:
@@ -72,12 +80,18 @@ def rotate_square_kernel(kernel, angle=90):
 	return kernel_rotated
 
 
+################################################################################
+# Build kernels for hexagonal group convolution layers
+################################################################################
+
+# Helper function: rotate point by a given angle around the center of the image
 def rotate_hexagonal_coordinate(p, angle=60, convert_to_radians=True):
 	if convert_to_radians:
 		angle = math.radians(angle)
 
 	return (math.cos(angle) * p[0] - math.sin(angle) * p[1], math.sin(angle) * p[0] + math.cos(angle) * p[1])
 
+# Build kernels function
 def rotate_hexagonal_kernels(kernels, angle=60):
 	even = 0
 	odd  = 1
@@ -200,6 +214,10 @@ def rotate_hexagonal_kernels(kernels, angle=60):
 	return kernels_rotated
 
 
+################################################################################
+# Show kernels for square group convolution layers
+################################################################################
+
 def test_rotate_square_kernel(kernel_size = (3, 3)):
 	print(f'>> test_rotate_square_kernel: kernel_size={kernel_size}')
 
@@ -218,6 +236,10 @@ def test_rotate_square_kernel(kernel_size = (3, 3)):
 
 		print(f'test_kernel_rotated =\n{np.asarray(test_kernel_rotated)}')
 
+
+################################################################################
+# Show kernels for hexagonal group convolution layers
+################################################################################
 
 def test_rotate_hexagonal_kernels(kernel_size = (3, 3)):
 	even = 0
@@ -244,6 +266,10 @@ def test_rotate_hexagonal_kernels(kernel_size = (3, 3)):
 
 		print(f'test_kernels_rotated[even] =\n{np.asarray(test_kernels_rotated[even])}\ntest_kernels_rotated[odd] =\n{np.asarray(test_kernels_rotated[odd])}')
 
+
+################################################################################
+# main
+################################################################################
 
 if __name__ == '__main__':
 	for i in (3, 5, 7):

@@ -36,7 +36,6 @@ import math
 import os
 import random
 import shutil
-import uuid
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -51,12 +50,17 @@ from tqdm              import tqdm
 
 from core.Hexnet        import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
 from misc.misc          import Hexnet_print, Hexnet_print_warning, normalize_array
-from misc.visualization import visualize_hexarray
+from misc.visualization import visualize_array, visualize_hexarray
 
 
 
 
-def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_level=2):
+################################################################################
+# Create classification dataset from dataset using "{set:fraction}"
+#  (e.g., "{'train':0.9,'test':0.1}") and save to memory
+################################################################################
+
+def create_dataset(dataset, split_ratios, output_dir, randomized_assignment=True, seed=6, verbosity_level=2):
 	Hexnet_print(f'Creating classification dataset from dataset {dataset}')
 
 	start_time = time()
@@ -65,8 +69,12 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 	split_ratios_sets      = list(split_ratios.keys())
 	split_ratios_fractions = list(split_ratios.values())
 
-	classification_dataset = f'{dataset}_classification_dataset'
+	classification_dataset = os.path.join(output_dir, f'{os.path.basename(dataset)}_classification_dataset_seed_{seed}')
 	os.makedirs(classification_dataset, exist_ok=True)
+
+
+	if randomized_assignment:
+		random.seed(seed)
 
 
 	max_files_to_copy         = max([len(glob(os.path.join(set_class, '*'))) for set_class in glob(os.path.join(dataset, '*'))])
@@ -81,7 +89,7 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 		if verbosity_level >= 1:
 			Hexnet_print(f'\t> current_class={current_class}')
 
-		files_to_copy = glob(os.path.join(set_class, '*'))
+		files_to_copy = natsorted(glob(os.path.join(set_class, '*')))
 
 		if not files_to_copy:
 			continue
@@ -130,7 +138,7 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 			Hexnet_print(f'\t\t> copied_files_per_set={copied_files_per_set} (copied_files_len={copied_files_len})')
 
 
-		# Step 2: randomized file dataset set balancing: duplicate and hash assigned files
+		# Step 2: randomized file dataset set balancing via file duplication
 
 		for current_set_index, current_set in enumerate(split_ratios_sets):
 			while copied_files_per_set[current_set_index] < max_files_to_copy_per_set[current_set_index]:
@@ -138,7 +146,7 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 
 				file_to_copy = copied_files[file_selector]
 				copy_file_to = os.path.basename(file_to_copy).split('.')
-				copy_file_to = '.'.join(copy_file_to[:-1]) + '_' + str(uuid.uuid4()) + '.' + copy_file_to[-1]
+				copy_file_to = '.'.join(copy_file_to[:-1]) + '_' + str(copied_files_per_set[current_set_index]).zfill(8) + '.' + copy_file_to[-1]
 				copy_file_to = os.path.join(classification_dataset, current_set, current_class, copy_file_to)
 
 				shutil.copyfile(file_to_copy, copy_file_to)
@@ -154,6 +162,13 @@ def create_dataset(dataset, split_ratios, randomized_assignment=True, verbosity_
 
 	Hexnet_print(f'Created classification dataset from dataset {dataset} in {time_diff:.3f} seconds')
 
+
+	return classification_dataset
+
+
+################################################################################
+# Create HDF5 file (*.h5) from dataset
+################################################################################
 
 def create_dataset_h5(
 	dataset,
@@ -183,6 +198,10 @@ def create_dataset_h5(
 		h5py_file.create_dataset('test_filenames',  data=test_filenames,  compression='lzf')
 		h5py_file.create_dataset('test_labels',     data=test_labels,     compression='lzf')
 
+
+################################################################################
+# Create dataset overview from dataset
+################################################################################
 
 def create_dataset_overview(classes, train_labels, test_labels, dataset, output_dir):
 	# Prepare dataset overview table: entries
@@ -247,9 +266,34 @@ def create_dataset_overview(classes, train_labels, test_labels, dataset, output_
 			print(dataset_overview, file=file)
 
 
+################################################################################
+# copytree (recursively copy an entire directory tree): ignore files function
+################################################################################
+
 def copytree_ignore_files(directory, files):
 	return [file for file in files if os.path.isfile(os.path.join(directory, file))]
 
+
+################################################################################
+# Load dataset into memory: load single file
+################################################################################
+
+def load_file(current_file, class_file):
+	current_file_lower = current_file.lower()
+
+	if current_file_lower.endswith('.csv'):
+		file_data = np.loadtxt(class_file, delimiter=',')
+	elif current_file_lower.endswith('.npy'):
+		file_data = np.load(class_file)
+	else:
+		file_data = cv2.cvtColor(cv2.imread(class_file, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+
+	return file_data
+
+
+################################################################################
+# Load dataset into memory
+################################################################################
 
 def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	Hexnet_print(f'Loading dataset {dataset}')
@@ -274,28 +318,14 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	dataset_is_dir_of_files = False
 	dataset_is_dir_of_dirs  = False
 
-	dataset_has_allowed_filetype = False
-
-	allowed_dataset_filetypes       = ('.h5')
-	allowed_dataset_set_filetypes   = ('.csv', '.h5', '.npy')
-	dataset_set_filetypes_to_ignore = ('.log', '.md', '.txt')
+	dataset_dirs = natsorted(glob(os.path.join(dataset, '*')))
 
 	if os.path.isfile(dataset):
 		dataset_is_file = True
-
-		if dataset.lower().endswith(allowed_dataset_filetypes): dataset_has_allowed_filetype = True
 	else:
-		for dataset_set in glob(os.path.join(dataset, '*')):
-			if os.path.isfile(dataset_set):
-				dataset_set_lower = dataset_set.lower()
-
-				if dataset_set_lower.endswith(allowed_dataset_set_filetypes) and not dataset_set_lower.endswith(dataset_set_filetypes_to_ignore):
-					dataset_is_dir_of_files = True
-					dataset_is_dir_of_dirs  = False
-
-					dataset_has_allowed_filetype = True
-
-					break
+		for dataset_dir in dataset_dirs:
+			if os.path.isfile(dataset_dir):
+				dataset_is_dir_of_files = True
 			else:
 				dataset_is_dir_of_dirs = True
 
@@ -303,7 +333,7 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	# Load the dataset
 
 	# Dataset is file
-	if dataset_is_file and dataset_has_allowed_filetype:
+	if dataset_is_file and dataset.lower().endswith('.h5'):
 		with h5py.File(dataset, 'r') as h5py_file:
 			train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
 			train_data      = np.asarray(h5py_file['train_data'])
@@ -317,75 +347,41 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 		loaded_dataset = True
 
 	# Dataset is directory of files
-	elif dataset_is_dir_of_files and dataset_has_allowed_filetype:
-		for dataset_set in glob(os.path.join(dataset, '*')):
-			current_set = os.path.basename(dataset_set)
+	elif dataset_is_dir_of_files:
+		Hexnet_print_warning('Cannot load dataset from directory of files')
 
-			if verbosity_level >= 1:
-				Hexnet_print(f'\t> current_set={current_set}')
+	# Dataset is directory of directories: datasets without train or test sets
+	elif dataset_is_dir_of_dirs and not any('train' in c or 'test' in c for c in dataset_dirs):
+		for set_class in dataset_dirs:
+			current_class = os.path.basename(set_class)
 
-			current_set_lower = current_set.lower()
+			if verbosity_level >= 2:
+				Hexnet_print(f'\t\t> current_class={current_class}')
 
-			if 'train' in current_set:
-				if current_set_lower.endswith('.csv'):
-					file_data = pd.read_csv(dataset_set)
+			train_classes.append(current_class)
 
-					set_is_multilabel_set = type(file_data['label'][0]) is str
+			for class_file in tqdm(natsorted(glob(os.path.join(set_class, '*')))):
+				current_file = os.path.basename(class_file)
 
-					if not set_is_multilabel_set:
-						train_labels = np.asarray(file_data['label']).astype('U')
-					else:
-						train_labels = np.asarray([row.split(',') for row in file_data['label']]).astype('U')
+				if verbosity_level >= 3:
+					Hexnet_print(f'\t\t\t> current_file={current_file}')
 
-					train_classes   = np.unique(train_labels)
-					train_data      = np.asarray([np.fromstring(row, sep=',') for row in file_data['data']])
-					train_filenames = np.asarray(file_data['filename']).astype('U')
-				elif current_set_lower.endswith('.h5'):
-					with h5py.File(dataset_set, 'r') as h5py_file:
-						train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
-						train_data      = np.asarray(h5py_file['train_data'])
-						train_filenames = np.asarray(h5py_file['train_filenames']).astype('U')
-						train_labels    = np.asarray(h5py_file['train_labels']).astype('U')
-				else: # npy
-					file_data = np.load(dataset_set, allow_pickle=True)
+				file_data = load_file(current_file, class_file)
 
-					train_labels    = np.asarray(file_data[0]).astype('U')
-					train_classes   = np.unique(train_labels)
-					train_data      = np.stack(file_data[2])
-					train_filenames = np.asarray(file_data[1]).astype('U')
-			elif 'test' in current_set:
-				if current_set_lower.endswith('.csv'):
-					file_data = pd.read_csv(dataset_set)
+				train_data.append(file_data)
+				train_filenames.append(current_file)
+				train_labels.append(current_class)
 
-					set_is_multilabel_set = type(file_data['label'][0]) is str
-
-					if not set_is_multilabel_set:
-						test_labels = np.asarray(file_data['label']).astype('U')
-					else:
-						test_labels = np.asarray([row.split(',') for row in file_data['label']]).astype('U')
-
-					test_classes   = np.unique(train_labels)
-					test_data      = np.asarray([np.fromstring(row, sep=',') for row in file_data['data']])
-					test_filenames = np.asarray(file_data['filename']).astype('U')
-				elif current_set_lower.endswith('.h5'):
-					with h5py.File(dataset_set, 'r') as h5py_file:
-						test_classes   = np.asarray(h5py_file['test_classes']).astype('U')
-						test_data      = np.asarray(h5py_file['test_data'])
-						test_filenames = np.asarray(h5py_file['test_filenames']).astype('U')
-						test_labels    = np.asarray(h5py_file['test_labels']).astype('U')
-				else: # npy
-					file_data = np.load(dataset_set, allow_pickle=True)
-
-					test_labels    = np.asarray(file_data[0]).astype('U')
-					test_classes   = np.unique(test_labels)
-					test_data      = np.stack(file_data[2])
-					test_filenames = np.asarray(file_data[1]).astype('U')
+		train_classes   = np.asarray(train_classes)
+		train_data      = np.asarray(train_data)
+		train_filenames = np.asarray(train_filenames)
+		train_labels    = np.asarray(train_labels)
 
 		loaded_dataset = True
 
 	# Dataset is directory of directories
 	elif dataset_is_dir_of_dirs:
-		for dataset_set in natsorted(glob(os.path.join(dataset, '*'))):
+		for dataset_set in dataset_dirs:
 			current_set = os.path.basename(dataset_set)
 
 			if verbosity_level >= 1:
@@ -408,14 +404,7 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 					if verbosity_level >= 3:
 						Hexnet_print(f'\t\t\t> current_file={current_file}')
 
-					current_file_lower = current_file.lower()
-
-					if current_file_lower.endswith('.csv'):
-						file_data = np.loadtxt(class_file, delimiter=',')
-					elif current_file_lower.endswith('.npy'):
-						file_data = np.load(class_file)
-					else:
-						file_data = cv2.cvtColor(cv2.imread(class_file, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+					file_data = load_file(current_file, class_file)
 
 					if 'train' in current_set:
 						train_data.append(file_data)
@@ -479,9 +468,21 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 			test_filenames,
 			test_labels)
 
-	return ((train_classes, train_data, train_filenames, train_labels),
-	        (test_classes,  test_data,  test_filenames,  test_labels))
+	return \
+		(train_classes, \
+		 train_data, \
+		 train_filenames, \
+		 train_labels), \
+		(test_classes, \
+		 test_data, \
+		 test_filenames, \
+		 test_labels), \
+		loaded_dataset
 
+
+################################################################################
+# Transform dataset and save to memory
+################################################################################
 
 def transform_dataset(
 	dataset,
@@ -561,6 +562,10 @@ def transform_dataset(
 	Hexnet_print(f'Transformed dataset {dataset} in {time_diff:.3f} seconds')
 
 
+################################################################################
+# Resize dataset using "HxW" (e.g., 32x32)
+################################################################################
+
 def resize_dataset(dataset_s, resize_string, method='nearest'):
 	# HxW
 	resize   = resize_string.split('x')
@@ -575,6 +580,11 @@ def resize_dataset(dataset_s, resize_string, method='nearest'):
 
 	return dataset_s
 
+
+################################################################################
+# Crop dataset using "HxW" with offset "+Y+X"
+#  (e.g., 32x32+2+2, 32x32, or +2+2)
+################################################################################
 
 def crop_dataset(dataset_s, crop_string):
 	# HxW+Y+X
@@ -607,6 +617,10 @@ def crop_dataset(dataset_s, crop_string):
 	return dataset_s
 
 
+################################################################################
+# Pad dataset using "T,B,L,R" (e.g., 2,2,2,2)
+################################################################################
+
 def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
 	# T,B,L,R
 	pad       = pad_string.split(',')
@@ -621,6 +635,10 @@ def pad_dataset(dataset_s, pad_string, mode='constant', constant_values=0):
 
 	return dataset_s
 
+
+################################################################################
+# Show dataset via Matplotlib
+################################################################################
 
 def show_dataset(
 	train_classes,
@@ -692,20 +710,31 @@ def show_dataset(
 	plt.close()
 
 
-def create_dataset_overview_visualization(output_dir, dataset_visualized, visualize_hexagonal, randomized_visualization=False):
-	image_basename = os.path.join(output_dir, os.path.basename(dataset_visualized))
+################################################################################
+# Visualize dataset overview and save to memory
+################################################################################
 
-	if not visualize_hexagonal:
-		image_wildcard = '*.png'
-	else:
+def create_dataset_overview_visualization(dataset_visualized, classes_per_set, samples_per_class, mode, randomized_visualization=False):
+	image_basename = os.path.join(dataset_visualized, os.path.basename(dataset_visualized))
+
+	if mode == 'square':
+		image_wildcard = '*_sq.png'
+	elif mode == 'hexagonal':
 		image_wildcard = '*_hex.png'
+	else: # 'baseline'
+		image_wildcard = '*.png'
 
 
-	sets    = glob(os.path.join(dataset_visualized, '*'))
-	classes = glob(os.path.join(sets[0], '*'))
+	sets    = natsorted(glob(os.path.join(dataset_visualized, '*')))
+	classes = natsorted(glob(os.path.join(sets[0], '*')))
+
+	if classes_per_set is None or classes_per_set == 'all':
+		classes_per_set = len(classes)
+	else:
+		classes_per_set = int(classes_per_set)
 
 
-	sample_image = glob(os.path.join(classes[0], image_wildcard))[0]
+	sample_image = natsorted(glob(os.path.join(classes[0], image_wildcard)))[0]
 	sample_image = cv2.imread(sample_image, cv2.IMREAD_COLOR)
 
 	image_shape      = sample_image.shape
@@ -715,9 +744,12 @@ def create_dataset_overview_visualization(output_dir, dataset_visualized, visual
 
 	# Dataset overview image's and class overview images' shapes
 
+	classes_per_set   = min(classes_per_set, len(classes))
+	samples_per_class = min(samples_per_class, 3)
+
 	image_spacing = (10, 10)
 
-	overview_image_size       = (3, min(7, len(classes)))
+	overview_image_size       = (samples_per_class, classes_per_set)
 	class_overview_image_size = overview_image_size
 
 	overview_image_shape = (
@@ -740,7 +772,7 @@ def create_dataset_overview_visualization(output_dir, dataset_visualized, visual
 	for current_class_index in range(overview_image_size[1]):
 		current_class = classes[current_class_index]
 
-		available_images     = glob(os.path.join(current_class, image_wildcard))
+		available_images     = natsorted(glob(os.path.join(current_class, image_wildcard)))
 		available_images_len = len(available_images)
 
 		if not current_class_index:
@@ -823,6 +855,10 @@ def create_dataset_overview_visualization(output_dir, dataset_visualized, visual
 		cv2.imwrite(f'{image_basename}_dataset_class_overview_image_{current_class_basename}.jpg', overview_image)
 
 
+################################################################################
+# Visualize dataset and save to memory
+################################################################################
+
 def visualize_dataset(
 	dataset,
 	train_classes       = None,
@@ -835,6 +871,9 @@ def visualize_dataset(
 	test_labels         = None,
 	output_dir          = None,
 	colormap            = None,
+	classes_per_set     = None,
+	samples_per_class   = None,
+	visualize_square    = None,
 	visualize_hexagonal = None,
 	create_h5           = False,
 	verbosity_level     = 2):
@@ -874,6 +913,14 @@ def visualize_dataset(
 	else:
 		dataset_visualized = f'{output_dir_dataset}_visualized'
 
+		if samples_per_class is not None and samples_per_class != 'all':
+			visualization_counter = {}
+
+			for current_class in set(train_labels):
+				visualization_counter[current_class] = 0
+
+			samples_per_class = int(samples_per_class)
+
 		if os.path.isfile(dataset) and dataset.lower().endswith('.h5'):
 			for current_class in train_classes:
 				os.makedirs(os.path.join(dataset_visualized, 'train', current_class), exist_ok=True)
@@ -886,14 +933,28 @@ def visualize_dataset(
 		for current_set, current_data, current_filenames, current_labels in \
 		 zip(('train', 'test'), (train_data, test_data), (train_filenames, test_filenames), (train_labels, test_labels)):
 
+			if (type(current_data) is list and not current_data) or not current_data.size:
+				continue
+
+			if samples_per_class is not None and samples_per_class != 'all':
+				for current_class in set(train_labels):
+					visualization_counter[current_class] = 0
+
 			if verbosity_level >= 1:
 				Hexnet_print(f'\t> current_set={current_set}')
 
-			if not current_data.size:
-				continue
-
 			for file, filename, label in zip(tqdm(current_data), current_filenames, current_labels):
-				filename = os.path.join(dataset_visualized, current_set, label, filename)
+				if samples_per_class is not None and samples_per_class != 'all' and \
+				   visualization_counter[label] >= classes_per_set * samples_per_class:
+					continue
+
+				if samples_per_class is not None and samples_per_class != 'all':
+					visualization_counter[label] = visualization_counter[label] + 1
+
+				if os.path.isdir(os.path.join(dataset_visualized, current_set)):
+					filename = os.path.join(dataset_visualized, current_set, label, filename)
+				else:
+					filename = os.path.join(dataset_visualized, label, filename)
 
 				if verbosity_level >= 3:
 					Hexnet_print(f'\t\t\t> filename={filename}')
@@ -908,16 +969,30 @@ def visualize_dataset(
 					if colormap is not None:
 						file = cv2.cvtColor(file, cv2.COLOR_RGB2GRAY)
 
-					if not visualize_hexagonal:
-						imsave(filename, file, cmap=colormap)
-					else:
-						filename = '.'.join(filename.split('.')[:-1])
-						visualize_hexarray(normalize_array(file), filename, colormap)
+					imsave(filename, file, cmap=colormap)
 
-	create_dataset_overview_visualization(output_dir, dataset_visualized, visualize_hexagonal)
+					if visualize_square:
+						_filename = '.'.join(filename.split('.')[:-1])
+						visualize_array(normalize_array(file), _filename, colormap)
+
+					if visualize_hexagonal:
+						_filename = '.'.join(filename.split('.')[:-1])
+						visualize_hexarray(normalize_array(file), _filename, colormap)
+
+	if visualize_square:
+		overview_visualization_mode = 'square'
+	elif visualize_hexagonal:
+		overview_visualization_mode = 'hexagonal'
+	else:
+		overview_visualization_mode = 'baseline'
+
+	# TODO: datasets without train or test sets
+	try:
+		create_dataset_overview_visualization(dataset_visualized, classes_per_set, samples_per_class, overview_visualization_mode)
+	except:
+		pass
 
 	time_diff = time() - start_time
 
 	Hexnet_print(f'Visualized dataset {dataset} in {time_diff:.3f} seconds')
-
 

@@ -36,8 +36,9 @@ model               = 'CNN'
 load_model          = False
 load_weights        = False
 
-dataset             = 'datasets/MNIST/MNIST.h5'
+dataset             = '../../Hexnet_datasets/MNIST/MNIST.h5'
 create_dataset      = False
+rand_seed           = 6
 resize_dataset      = False
 crop_dataset        = False
 pad_dataset         = False
@@ -50,6 +51,8 @@ chunk_size          = 1000
 
 output_dir          = 'tests/tmp'
 visualize_colormap  = None
+classes_per_set     = 6
+samples_per_class   = 3
 
 optimizer           = 'adam'
 metrics             = 'auto'
@@ -108,6 +111,7 @@ import tensorflow as tf
 from datetime          import datetime
 from matplotlib.pyplot import imsave
 from pprint            import pprint
+from time              import time
 from tqdm              import tqdm
 
 import datasets.datasets  as datasets
@@ -152,6 +156,7 @@ def run(args):
 	dataset             = args.dataset
 	create_dataset      = args.create_dataset
 	disable_rand        = args.disable_rand
+	rand_seed           = args.rand_seed
 	create_h5           = args.create_h5
 	resize_dataset      = args.resize_dataset
 	crop_dataset        = args.crop_dataset
@@ -168,6 +173,9 @@ def run(args):
 	visualize_dataset   = args.visualize_dataset
 	visualize_model     = args.visualize_model
 	visualize_colormap  = args.visualize_colormap
+	classes_per_set     = args.classes_per_set
+	samples_per_class   = args.samples_per_class
+	visualize_square    = args.visualize_square
 	visualize_hexagonal = args.visualize_hexagonal
 	show_results        = args.show_results
 
@@ -299,9 +307,13 @@ def run(args):
 	if create_dataset:
 		print_newline()
 
-		datasets.create_dataset(dataset, split_ratios=create_dataset, randomized_assignment=enable_rand, verbosity_level=verbosity_level)
-
-		dataset = f'{dataset}_classification_dataset'
+		dataset = datasets.create_dataset(
+			dataset               = dataset,
+			split_ratios          = create_dataset,
+			output_dir            = output_dir,
+			randomized_assignment = enable_rand,
+			seed                  = rand_seed,
+			verbosity_level       = verbosity_level)
 
 
 	############################################################################
@@ -315,7 +327,7 @@ def run(args):
 
 		if transform_s2h != False:
 			if transform_s2h is None:
-				transform_s2h = f'{dataset}_s2h'
+				transform_s2h = os.path.join(output_dir, f'{os.path.basename(dataset)}_s2h_rad_o_{transform_s2h_rad_o:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -327,7 +339,7 @@ def run(args):
 
 		if transform_h2s != False:
 			if transform_h2s is None:
-				transform_h2s = f'{dataset}_h2s'
+				transform_h2s = os.path.join(output_dir, f'{os.path.basename(dataset)}_h2s_len_{transform_h2s_len:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -339,7 +351,7 @@ def run(args):
 
 		if transform_h2h != False:
 			if transform_h2h is None:
-				transform_h2h = f'{dataset}_h2h'
+				transform_h2h = os.path.join(output_dir, f'{os.path.basename(dataset)}_h2h_rad_o_{transform_h2h_rad_o:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -351,7 +363,8 @@ def run(args):
 
 		if transform_s2s != False:
 			if transform_s2s is None:
-				transform_s2s = f'{dataset}_s2s'
+				transform_s2s_res_str = "x".join(str(d) for d in transform_s2s_res)
+				transform_s2s         = os.path.join(output_dir, f'{os.path.basename(dataset)}_s2s_res_{transform_s2s_res_str}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -373,6 +386,9 @@ def run(args):
 			dataset,
 			output_dir          = output_dir,
 			visualize_colormap  = visualize_colormap,
+			classes_per_set     = classes_per_set,
+			samples_per_class   = samples_per_class,
+			visualize_square    = visualize_square,
 			visualize_hexagonal = visualize_hexagonal,
 			create_h5           = create_h5,
 			verbosity_level     = verbosity_level)
@@ -384,9 +400,21 @@ def run(args):
 
 	print_newline()
 
-	((train_classes_orig, train_data, train_filenames, train_labels_orig),
-	 (test_classes_orig,  test_data,  test_filenames,  test_labels_orig)) = \
-		datasets.load_dataset(dataset, create_h5, verbosity_level)
+	dataset_data = datasets.load_dataset(dataset, create_h5, verbosity_level)
+
+	loaded_dataset = dataset[2]
+
+	if not loaded_dataset:
+		return 0
+
+	train_classes_orig = dataset_data[0][0]
+	train_data         = dataset_data[0][1]
+	train_filenames    = dataset_data[0][2]
+	train_labels_orig  = dataset_data[0][3]
+	test_classes_orig  = dataset_data[1][0]
+	test_data          = dataset_data[1][1]
+	test_filenames     = dataset_data[1][2]
+	test_labels_orig   = dataset_data[1][3]
 
 	print_newline()
 
@@ -430,6 +458,7 @@ def run(args):
 		train_classes     = np.unique(train_labels)
 		train_classes_len = len(train_classes)
 		train_labels      = np.reshape(train_labels, newshape=train_labels_orig.shape)
+		train_labels_len  = len(train_labels)
 
 		if class_labels_are_digits:
 			train_classes_min = min(train_classes)
@@ -449,6 +478,7 @@ def run(args):
 		test_classes     = np.unique(test_labels)
 		test_classes_len = len(test_classes)
 		test_labels      = np.reshape(test_labels, newshape=test_labels_orig.shape)
+		test_labels_len  = len(test_labels)
 
 		if class_labels_are_digits:
 			test_classes_min = min(test_classes)
@@ -543,6 +573,9 @@ def run(args):
 			test_labels_orig,
 			output_dir,
 			visualize_colormap,
+			classes_per_set,
+			samples_per_class,
+			visualize_square,
 			visualize_hexagonal,
 			create_h5,
 			verbosity_level)
@@ -575,6 +608,8 @@ def run(args):
 			else:
 				mean_axis = 1
 
+			train_data = train_data.astype(np.float32, copy=False)
+
 			for chunk_start in tqdm(range(0, train_data.shape[0], chunk_size)):
 				chunk_end = min(chunk_start + chunk_size, train_data.shape[0])
 
@@ -590,6 +625,9 @@ def run(args):
 				mean_axis = (1, 2)
 			else:
 				mean_axis = 1
+
+			test_data_orig = test_data
+			test_data      = test_data.astype(np.float32)
 
 			for chunk_start in tqdm(range(0, test_data.shape[0], chunk_size)):
 				chunk_end = min(chunk_start + chunk_size, test_data.shape[0])
@@ -751,6 +789,27 @@ def run(args):
 			print_newline()
 			Hexnet_print(f'({run_string}) Model training')
 
+
+			# Model training time callback: training time per epoch and training time per sample
+
+			class TimeHistory(tf.keras.callbacks.Callback):
+				def on_train_begin(self, logs={}):
+					self.times = []
+
+				def on_epoch_begin(self, batch, logs={}):
+					self.epoch_time_start = time()
+
+				def on_epoch_end(self, batch, logs={}):
+					self.times.append(time() - self.epoch_time_start)
+
+			time_callback = TimeHistory()
+
+			if fit_callbacks:
+				fit_callbacks.append(time_callback)
+			else:
+				fit_callbacks = [time_callback]
+
+
 			if model_is_standalone:
 				model.fit(train_data, train_labels, batch_size, epochs, visualize_hexagonal, output_dir, run_title)
 			elif model_is_autoencoder:
@@ -759,6 +818,11 @@ def run(args):
 				model.fit(np.reshape(train_data, newshape = (train_data.shape[0], -1)), train_labels)
 			else:
 				history = model.fit(train_data, train_labels, batch_size, epochs, validation_split=validation_split, callbacks=fit_callbacks)
+
+				# Training time per epoch and training time per sample
+				training_time_per_epoch  = [float(format(time, '.8f')) for time in time_callback.times]
+				training_time_per_sample = [float(format(1000 * time / ((1 - validation_split) * train_labels_len), '.8f')) for time in time_callback.times]
+				Hexnet_print(f'({run_string}) training time per epoch [s]: {training_time_per_epoch}, training time per sample [ms]: {training_time_per_sample}')
 
 
 		########################################################################
@@ -776,6 +840,7 @@ def run(args):
 					model,
 					test_classes,
 					test_data,
+					test_data_orig,
 					test_filenames,
 					test_labels,
 					visualize_colormap,
@@ -806,7 +871,14 @@ def run(args):
 			elif model_is_autoencoder:
 				test_loss_metrics = model.evaluate(test_data, test_data)
 			else:
+				_testing_time     = time()
 				test_loss_metrics = model.evaluate(test_data, test_labels)
+				_testing_time     = time() - _testing_time
+
+				# Testing time and testing time per sample
+				testing_time            = float(format(_testing_time, '.8f'))
+				testing_time_per_sample = float(format(1000 * _testing_time / test_labels_len, '.8f'))
+				Hexnet_print(f'({run_string}) testing time [s]: {testing_time}, testing time per sample [ms]: {testing_time_per_sample}')
 
 			if not model_is_standalone:
 				Hexnet_print(f'({run_string}) test_loss_metrics={test_loss_metrics}')
@@ -936,8 +1008,9 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--save-weights',                                   action  = 'store_true',        help = 'save model weights as HDF5')
 
 	parser.add_argument('--dataset',                           nargs = '?', default = dataset,             help = 'load dataset from HDF5 or directory')
-	parser.add_argument('--create-dataset',                                 default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., {\'train\':0.9,\'test\':0.1})')
+	parser.add_argument('--create-dataset',                                 default = create_dataset,      help = 'create classification dataset from dataset using "{set:fraction}" (e.g., "{\'train\':0.9,\'test\':0.1}")')
 	parser.add_argument('--disable-rand',                                   action  = 'store_true',        help = 'classification dataset creation: disable randomized file dataset set assignment')
+	parser.add_argument('--rand-seed',           type = int,                default = rand_seed,           help = 'classification dataset creation: seed for randomized file dataset set assignment')
 	parser.add_argument('--create-h5',                                      action  = 'store_true',        help = 'save dataset as HDF5')
 	parser.add_argument('--resize-dataset',                                 default = resize_dataset,      help = 'resize dataset using "HxW" (e.g., 32x32)')
 	parser.add_argument('--crop-dataset',                                   default = crop_dataset,        help = 'crop dataset using "HxW" with offset "+Y+X" (e.g., 32x32+2+2, 32x32, or +2+2)')
@@ -967,6 +1040,9 @@ def parse_args(args=None, namespace=None):
 	parser.add_argument('--visualize-dataset',                              action  = 'store_true',        help = 'visualize the dataset after preprocessing and augmentation')
 	parser.add_argument('--visualize-model',                                action  = 'store_true',        help = 'visualize the model\'s filters, feature maps, and activations after training')
 	parser.add_argument('--visualize-colormap',                             default = visualize_colormap,  help = 'visualization color map (e.g., viridis)')
+	parser.add_argument('--classes-per-set',                                default = classes_per_set,     help = 'classes per set to visualize')
+	parser.add_argument('--samples-per-class',                              default = samples_per_class,   help = 'samples per class to visualize')
+	parser.add_argument('--visualize-square',                               action  = 'store_true',        help = 'visualize as square arrays')
 	parser.add_argument('--visualize-hexagonal',                            action  = 'store_true',        help = 'visualize as hexagonal arrays')
 	parser.add_argument('--show-results',                                   action  = 'store_true',        help = 'show the test results')
 

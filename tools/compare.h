@@ -29,8 +29,23 @@
 #define COMPARE_H
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include "../misc/types.h"
 
+
+
+
+/******************************************************************************
+ * Defines
+ ******************************************************************************/
+
+
+/******************************************************************************
+ * Compare methods
+ ******************************************************************************/
 
 #define COMPARE_AE     0
 #define COMPARE_SE     1
@@ -42,7 +57,16 @@
 #define COMPARE_DSSIM  7
 #define COMPARE_ERROR -1
 
-// Calculate (D)SSIM stabilizers C1 and C2
+
+/******************************************************************************
+ * Calculate (D)SSIM stabilizers C1 and C2
+ *
+ * - SSIM_BITS        : bits per image channel
+ * - SSIM_L           : range of pixel values
+ * - SSIM_K1, SSIM_K2 : stabilization factors
+ * - SSIM_C1, SSIM_C2 : function stabilizers
+ ******************************************************************************/
+
 #define SSIM_BITS 8
 #define SSIM_L    ((1 << SSIM_BITS) - 1)
 #define SSIM_K1   0.01f
@@ -50,6 +74,12 @@
 #define SSIM_C1   ((SSIM_K1 * SSIM_L) * (SSIM_K1 * SSIM_L))
 #define SSIM_C2   ((SSIM_K2 * SSIM_L) * (SSIM_K2 * SSIM_L))
 
+
+
+
+/******************************************************************************
+ * Functions
+ ******************************************************************************/
 
 i32 get_compare_method(char* method);
 

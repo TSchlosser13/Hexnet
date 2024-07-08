@@ -29,10 +29,18 @@
 #define GUI_H
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include <gtk/gtk.h>
 
 #include "../misc/types.h"
 
+
+/******************************************************************************
+ * Functions
+ ******************************************************************************/
 
 void gui_gl_area_realize(GtkGLArea* area, gpointer data);
 void gui_gl_area_render(GtkGLArea* area, GdkGLContext* context, gpointer data);
@@ -45,5 +53,4 @@ int  gui_run(char* title, u32 width, u32 height, Hexarray hexarray);
 
 
 #endif
-
 

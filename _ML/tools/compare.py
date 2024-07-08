@@ -28,11 +28,26 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import math
 
 import numpy      as np
 import tensorflow as tf
 
+
+
+
+################################################################################
+# Compare methods
+################################################################################
+
+
+################################################################################
+# Defines
+################################################################################
 
 _COMPARE_AE    =  0
 _COMPARE_SE    =  1
@@ -42,6 +57,10 @@ _COMPARE_RMSE  =  4
 _COMPARE_PSNR  =  5
 _COMPARE_ERROR = -1
 
+
+################################################################################
+# Determine the compare method
+################################################################################
 
 def get_compare_method(method):
 	if method == 'AE':
@@ -59,6 +78,10 @@ def get_compare_method(method):
 	else:
 		return _COMPARE_ERROR
 
+
+################################################################################
+# ae, se, mae, mse, rmse, psnr, ssim, and dssim
+################################################################################
 
 def ae(p1, p2):
 	if not tf.is_tensor(p1):
@@ -96,9 +119,11 @@ def psnr(p1, p2):
 	return psnr
 
 
-def col_changed(c1, c2):             return int(c1) != int(c2) and (c2) != int(c2)
-def row_changed(r1, r2):             return int(r1) != int(r2) and (r2) != int(r2)
-def col_row_changed(c1, c2, r1, r2): return col_changed(c1, c2) and row_changed(r1, r2)
+
+
+################################################################################
+# Pixels differ and pixel difference
+################################################################################
 
 def pixels_differ(p1, p2):
 	if not tf.is_tensor(p1):
@@ -119,6 +144,19 @@ def pixels_diff(p1, p2, method):
 	else:
 		return _COMPARE_ERROR
 
+
+################################################################################
+# Compare helper functions
+################################################################################
+
+def col_changed(c1, c2):             return int(c1) != int(c2) and (c2) != int(c2)
+def row_changed(r1, r2):             return int(r1) != int(r2) and (r2) != int(r2)
+def col_row_changed(c1, c2, r1, r2): return col_changed(c1, c2) and row_changed(r1, r2)
+
+
+################################################################################
+# Compare Array to Array and Array to Hexarray
+################################################################################
 
 def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 	s1_is_tensor = tf.is_tensor(s1)
@@ -263,7 +301,6 @@ def _compare_s2s(s1, s2, method, s1_shape=None, s2_shape=None):
 
 
 	return result
-
 
 def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 	s_is_tensor = tf.is_tensor(s)
@@ -475,6 +512,10 @@ def _compare_s2h(s, h, method, s_shape=None, h_shape=None):
 
 
 
+################################################################################
+# Test compare Array to Array
+################################################################################
+
 def test_compare_s2s():
 	print(f'>> test_compare_s2s')
 
@@ -495,6 +536,10 @@ def test_compare_s2s():
 
 	print(f'> result={result:.8f} (expected_result={expected_result}) -> {test_passed}')
 
+
+################################################################################
+# Test compare Array to Hexarray
+################################################################################
 
 def test_compare_s2h():
 	print(f'>> test_compare_s2h')
@@ -517,7 +562,13 @@ def test_compare_s2h():
 	print(f'> result={result:.8f} (expected_result={expected_result}) -> {test_passed}')
 
 
+################################################################################
+# main
+################################################################################
+
 if __name__ == '__main__':
 	test_compare_s2s()
+
 	test_compare_s2h()
+
 

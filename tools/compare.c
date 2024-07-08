@@ -25,6 +25,10 @@
  ******************************************************************************/
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +38,17 @@
 #include "../misc/defines.h"
 #include "../misc/types.h"
 
+
+
+
+/******************************************************************************
+ * Compare methods
+ ******************************************************************************/
+
+
+/******************************************************************************
+ * Determine the compare method
+ ******************************************************************************/
 
 i32 get_compare_method(char* method) {
 	if(!strcmp(method, "AE")) {
@@ -57,6 +72,10 @@ i32 get_compare_method(char* method) {
 	}
 }
 
+
+/******************************************************************************
+ * sum, mean, variance, and covariance
+ ******************************************************************************/
 
 u32 sum(u8* p, u32 size) {
 	u32 sum = 0;
@@ -102,6 +121,10 @@ float covariance(u8* p1, u8* p2, u32 size) {
 }
 
 
+/******************************************************************************
+ * ssim and dssim helper functions
+ ******************************************************************************/
+
 float _ssim(float mean_x, float mean_y, float variance_x, float variance_y, float covariance, float c1, float c2) {
 	return ((2 * mean_x * mean_y + c1) * (2 * covariance + c2)) / ((mean_x * mean_x + mean_y * mean_y + c1) * (variance_x + variance_y + c2));
 }
@@ -110,6 +133,10 @@ float _dssim(float mean_x, float mean_y, float variance_x, float variance_y, flo
 	return (1 - _ssim(mean_x, mean_y, variance_x, variance_y, covariance, c1, c2)) / 2;
 }
 
+
+/******************************************************************************
+ * ae, se, mae, mse, rmse, psnr, ssim, and dssim
+ ******************************************************************************/
 
 u32 ae(u8* p1, u8* p2, u32 size) {
 	u32 ae = 0;
@@ -187,6 +214,12 @@ float dssim(u8* p1, u8* p2, u32 size) {
 }
 
 
+
+
+/******************************************************************************
+ * Pixels differ and pixel difference
+ ******************************************************************************/
+
 bool pixels_differ(u8* p1, u8* p2, u32 size) {
 	for(u32 i = 0; i < size; i++) {
 		if(p1[i] != p2[i])
@@ -209,6 +242,10 @@ i32 pixels_diff(u8* p1, u8* p2, u32 size, u32 method) {
 	}
 }
 
+
+/******************************************************************************
+ * Compare helper functions
+ ******************************************************************************/
 
 #define col_changed(c1, c2)             ( (u32)(c1) != (u32)(c2) && (c2) != (u32)(c2) )
 #define row_changed(r1, r2)             ( (u32)(r1) != (u32)(r2) && (r2) != (u32)(r2) )
@@ -242,6 +279,10 @@ void realloc_ps_areas(u8** p1s, u8** p2s, u32 ps_end, u32* ps_size, double** are
 	}
 }
 
+
+/******************************************************************************
+ * Compare Array to Array and Array to Hexarray
+ ******************************************************************************/
 
 double _compare_s2s(Array s1, Array s2, u32 method) {
 	#define MALLOC_INIT_SIZE 1000000
@@ -694,4 +735,5 @@ double _compare_s2h(Array s, Hexarray h, u32 method) {
 void compare_s2h(Array s, Hexarray h, u32 method) {
 	printf("[compare_s2h] result = %f\n", _compare_s2h(s, h, method));
 }
+
 

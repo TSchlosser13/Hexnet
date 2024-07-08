@@ -25,6 +25,10 @@
  ******************************************************************************/
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +39,10 @@
 #include "console.h"
 #include "types.h"
 
+
+/******************************************************************************
+ * Initialize Array
+ ******************************************************************************/
 
 void Array_init(Array* array, u32 width, u32 height, u32 depth, float len) {
 	array->width     = width;
@@ -48,6 +56,11 @@ void Array_init(Array* array, u32 width, u32 height, u32 depth, float len) {
 
 	array->p = (u8*)malloc(array->size * sizeof(u8));
 }
+
+
+/******************************************************************************
+ * Initialize Array from Hexarray
+ ******************************************************************************/
 
 void Array_init_from_Hexarray(Array* array, Hexarray hexarray, float len) {
 	u32 width;
@@ -64,6 +77,11 @@ void Array_init_from_Hexarray(Array* array, Hexarray hexarray, float len) {
 	Array_init(array, width, height, hexarray.depth, len);
 }
 
+
+/******************************************************************************
+ * Free Array
+ ******************************************************************************/
+
 void Array_free(Array* array) {
 	array->width     = 0;
 	array->height    = 0;
@@ -77,6 +95,10 @@ void Array_free(Array* array) {
 	free(array->p);
 }
 
+
+/******************************************************************************
+ * Array debugging
+ ******************************************************************************/
 
 void Array_print_info(Array array, char* title) {
 	const u32 p  = 6;
@@ -108,6 +130,10 @@ void Array_print_info(Array array, char* title) {
 }
 
 
+/******************************************************************************
+ * Load Array from file
+ ******************************************************************************/
+
 void file_to_Array(char* filename, Array* array) {
 	MagickWand* mw = NewMagickWand();
 
@@ -119,6 +145,11 @@ void file_to_Array(char* filename, Array* array) {
 
 	DestroyMagickWand(mw);
 }
+
+
+/******************************************************************************
+ * Save Array to file
+ ******************************************************************************/
 
 void Array_to_file(Array array, char* filename) {
 	MagickWand* mw = NewMagickWand();

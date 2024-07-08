@@ -29,8 +29,16 @@
 #define ARRAY_H
 
 
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+
 #include "types.h"
 
+
+/******************************************************************************
+ * Functions
+ ******************************************************************************/
 
 void Array_init(Array* array, u32 width, u32 height, u32 depth, float len);
 void Array_init_from_Hexarray(Array* array, Hexarray hexarray, float len);
@@ -43,4 +51,5 @@ void Array_to_file(Array array, char* filename);
 
 
 #endif
+
 

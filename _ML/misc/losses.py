@@ -25,10 +25,18 @@
  ****************************************************************************'''
 
 
+################################################################################
+# Imports
+################################################################################
+
 import tensorflow as tf
 
 from tools.compare import _COMPARE_MSE, _compare_s2s, _compare_s2h
 
+
+################################################################################
+# Loss "MSE_test": mean squared error (MSE) loss function
+################################################################################
 
 class loss_MSE_test(tf.losses.Loss):
 	def __init__(self, **kwargs):
@@ -39,6 +47,10 @@ class loss_MSE_test(tf.losses.Loss):
 
 
 
+
+################################################################################
+# Loss "MSE_s2s": MSE loss based on Array to Array comparison
+################################################################################
 
 class loss_MSE_s2s(tf.losses.Loss):
 	def __init__(self, input_shape, output_shape, **kwargs):
@@ -58,6 +70,10 @@ class loss_MSE_s2s(tf.losses.Loss):
 		return loss
 
 
+################################################################################
+# Loss "MSE_s2h": MSE loss based on Array to Hexarray comparison
+################################################################################
+
 class loss_MSE_s2h(tf.losses.Loss):
 	def __init__(self, input_shape, output_shape, **kwargs):
 		super().__init__(**kwargs)
@@ -74,5 +90,4 @@ class loss_MSE_s2h(tf.losses.Loss):
 			h_shape = self.output_shape)
 
 		return loss
-
 
