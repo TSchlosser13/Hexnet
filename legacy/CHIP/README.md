@@ -31,49 +31,18 @@ It optimizes and extends the *Hexagonal Image Processing Framework HIP* by *Lee 
 Installation
 ------------
 
-### Linux
+### Dependencies
 
 ```
-sudo apt-get install libepoxy-dev libgtk-3-dev libxml2-utils
-```
+sudo apt-get install libepoxy-dev libgtk-3-dev libxml2-utils libjpeg-dev libpng-dev libtiff-dev
 
-Install ImageMagick
+wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-0.tar.gz && \
+	tar xzf 7.1.1-0.tar.gz && \
+	cd ImageMagick-7.1.1-0 && \
+	./configure && \
+	make
 
-```
-sudo apt-get install libjpeg-dev libpng-dev libtiff-dev
-# https://imagemagick.org/script/install-source.php
-wget https://imagemagick.org/download/ImageMagick.tar.gz
-mkdir ImageMagick
-tar xvzf ImageMagick.tar.gz --directory ImageMagick --strip-components 1
-cd ImageMagick
-./configure
-make
-sudo make install
-sudo ldconfig /usr/local/lib
-cd ..
-```
-
-
-### Windows
-
-Install MSYS2: https://www.msys2.org/
-
-```
-pacman -S base-devel git mingw-w64-x86_64-gtk3 mingw-w64-x86_64-libepoxy mingw-w64-x86_64-toolchain
-```
-
-Install ImageMagick
-
-```
-# https://imagemagick.org/script/install-source.php
-wget https://imagemagick.org/download/ImageMagick.tar.gz
-mkdir ImageMagick
-tar xvzf ImageMagick.tar.gz --directory ImageMagick --strip-components 1
-cd ImageMagick
-./configure LDFLAGS="-lws2_32"
-make
-make install
-cd ..
+sudo make install && sudo ldconfig /usr/local/lib && cd ..
 ```
 
 
