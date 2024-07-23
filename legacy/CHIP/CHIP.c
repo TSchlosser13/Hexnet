@@ -31,6 +31,9 @@
 
 #define _POSIX_C_SOURCE 199309L
 
+// Clock difference
+#define CLOCK_DIFF(i) ( runtimes[i] = end.tv_sec - begin.tv_sec + (end.tv_nsec - begin.tv_nsec) / 1000000000.0 )
+
 
 /******************************************************************************
  * Includes
@@ -40,7 +43,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <time.h>
 
 #include "MagickWand/MagickWand.h"
@@ -52,20 +54,11 @@
 
 #include "filters/filters.h"
 
-#include "quantization/quantization.h"
-
 #include "misc/Array.h"
 #include "misc/precalculations.h"
 #include "misc/types.h"
 
-
-
-
-#define CLOCK_DIFF(i) ( \
-	runtimes[i] = end.tv_sec  - begin.tv_sec + \
-	             (end.tv_nsec - begin.tv_nsec) / 1000000000.0 )
-
-
+#include "quantization/quantization.h"
 
 
 /******************************************************************************
@@ -78,10 +71,9 @@ int main(int argc, char** argv) {
 	 * Variables
 	 **************************************************************************/
 
-	char*        ifname;      // input image filename
-	char         ofname[256]; // output image filename
+	char* ifname;      // input image filename
+	char  ofname[256]; // output image filename
 
-	// Parameters
 	char*        title;     // title of the output
 	unsigned int order;     // Hexarray size in order (number of pixels = 7^order) (1-7)
 	unsigned int mode;      // image transformation (0-3): bilinear / bicubic / Lanczos / B-spline interpolation
@@ -150,15 +142,16 @@ int main(int argc, char** argv) {
 	}
 
 
-
-
 	/**************************************************************************
 	 * Initialization
 	 **************************************************************************/
 
-
 	MagickWandGenesis();
 
+
+	/**************************************************************************
+	 * Load data from file
+	 **************************************************************************/
 
 	MagickWand* mw = NewMagickWand();
 
@@ -176,24 +169,6 @@ int main(int argc, char** argv) {
 	double runtimes[7] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 	struct timespec begin, end;
 
-
-	printf(
-		"\n\"%s\" (%zu x %zu): \"%s\"\n"
-		"    - order = %u, mode = %u, radius = %.2f, threads = %u\n"
-		"    - s2h_scale = %.2f, h2s_scale = %.2f\n"
-		"    - DCT_N = %u, DCT_mode = %u, quant_qf = %u\n"
-		"    - filter = %u, scaling = %u\n",
-		 ifname, width, height, title,
-		 order, mode, radius, threads,
-		 s2h_scale, h2s_scale,
-		 DCT_N, DCT_mode, quant_qf,
-		 filter, scaling);
-
-
-	/**************************************************************************
-	 * Load data from file
-	 **************************************************************************/
-
 	pArray2d_init(&array, width, height);
 
 	for(unsigned int h = 0; h < height; h++) {
@@ -209,7 +184,26 @@ int main(int argc, char** argv) {
 	free(img);
 
 
-	// Initialize precalculations
+	/**************************************************************************
+	 * Print parameters
+	 **************************************************************************/
+
+	printf(
+		"\n\"%s\" (%zu x %zu): \"%s\"\n"
+		"    - order = %u, mode = %u, radius = %.2f, threads = %u\n"
+		"    - s2h_scale = %.2f, h2s_scale = %.2f\n"
+		"    - DCT_N = %u, DCT_mode = %u, quant_qf = %u\n"
+		"    - filter = %u, scaling = %u\n",
+		 ifname, width, height, title,
+		 order, mode, radius, threads,
+		 s2h_scale, h2s_scale,
+		 DCT_N, DCT_mode, quant_qf,
+		 filter, scaling);
+
+
+	/**************************************************************************
+	 * Initialize precalculations
+	 **************************************************************************/
 
 	clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -223,9 +217,9 @@ int main(int argc, char** argv) {
 	CLOCK_DIFF(0);
 
 
-
-
-	// Square -> hex
+	/**************************************************************************
+	 * Transformation: s2h
+	 **************************************************************************/
 
 	clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -249,11 +243,9 @@ int main(int argc, char** argv) {
 	Hexarray2PNG_2D_directed(hexarray, ofname);
 
 
-
-
-	/*
+	/**************************************************************************
 	 * H-DCT
-	 */
+	 **************************************************************************/
 
 	if(DCT_N == 5) {
 		float**       psiCos_table;
@@ -292,9 +284,9 @@ int main(int argc, char** argv) {
 		}
 
 
-		/*
+		/**********************************************************************
 		 * Quantization
-		 */
+		 **********************************************************************/
 
 		if(quant_qf > 0 && quant_qf < 100) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -371,9 +363,9 @@ int main(int argc, char** argv) {
 		Hexarray2file(&frgb_HDCTHexarray, ofname, 1);
 
 
-		/*
+		/**********************************************************************
 		 * Quantization
-		 */
+		 **********************************************************************/
 
 		if(quant_qf > 0 && quant_qf < 100) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -415,11 +407,9 @@ int main(int argc, char** argv) {
 	}
 
 
-
-
-	/*
+	/**************************************************************************
 	 * Hexagonal filters
-	 */
+	 **************************************************************************/
 
 	if(filter == 1 || filter == 2) {
 		filter_unblurring( &hexarray, filter - 1 );
@@ -428,9 +418,9 @@ int main(int argc, char** argv) {
 	}
 
 
-	/*
+	/**************************************************************************
 	 * Hexagonal scaling
-	 */
+	 **************************************************************************/
 
 	if(scaling == 1) {
 		Hexarray_scale_HIP(&hexarray, 0, 10);
@@ -443,7 +433,9 @@ int main(int argc, char** argv) {
 	}
 
 
-	// Hex -> square
+	/**************************************************************************
+	 * Transformation: h2s
+	 **************************************************************************/
 
 	clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -455,7 +447,9 @@ int main(int argc, char** argv) {
 	Hexarray_free(&hexarray, 0);
 
 
-	// array -> img
+	/**************************************************************************
+	 * Save data to file
+	 **************************************************************************/
 
 	mw = NewMagickWand();
 	PixelWand* pw = NewPixelWand();
@@ -490,7 +484,9 @@ int main(int argc, char** argv) {
 	pArray2d_free(&array);
 
 
-	// Free precalculations
+	/**************************************************************************
+	 * Free precalculations
+	 **************************************************************************/
 
 	clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -500,14 +496,18 @@ int main(int argc, char** argv) {
 	CLOCK_DIFF(6);
 
 
+	/**************************************************************************
+	 * Print runtimes
+	 **************************************************************************/
+
 	printf(
-		"\nLookup tables (LUT): init                            : %.6fs\n"
-		  "Square-to-hexagonal image transformation (s2h)       : %.6fs\n"
-		  "Hexagonal discrete cosine transform (H-DCT)          : %.6fs\n"
-		  "Hexagonal quantization                               : %.6fs\n"
-		  "Hexagonal inverse discrete cosine transform (H-IDCT) : %.6fs\n"
-		  "Hexagonal-to-square image transformation (h2s)       : %.6fs\n"
-		  "Lookup tables (LUT): free                            : %.6fs\n",
+		"\nLookup tables (LUT): init                            : %.6f\n"
+		  "Square-to-hexagonal image transformation (s2h)       : %.6f\n"
+		  "Hexagonal discrete cosine transform (H-DCT)          : %.6f\n"
+		  "Hexagonal quantization                               : %.6f\n"
+		  "Hexagonal inverse discrete cosine transform (H-IDCT) : %.6f\n"
+		  "Hexagonal-to-square image transformation (h2s)       : %.6f\n"
+		  "Lookup tables (LUT): free                            : %.6f\n",
 		 runtimes[0],
 		 runtimes[1],
 		 runtimes[2],
@@ -515,8 +515,6 @@ int main(int argc, char** argv) {
 		 runtimes[4],
 		 runtimes[5],
 		 runtimes[6]);
-
-
 
 
 	/**************************************************************************

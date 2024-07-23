@@ -69,7 +69,7 @@ void fRGB2YCbCr(fRGB_Hexarray* frgb_hexarray) {
 	}
 }
 
-void fYCbCr2RGB(RGB_Hexarray* frgb_hexarray) {
+void fYCbCr2RGB(fRGB_Hexarray* frgb_hexarray) {
 	for(unsigned int i = 0; i < frgb_hexarray->size; i++) {
 		const float Y  = 1.164f * (frgb_hexarray->p[i][0] -  16); // C = 1.164f * (...)
 		const float Cb =           frgb_hexarray->p[i][1] - 128;

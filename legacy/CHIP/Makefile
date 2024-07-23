@@ -25,22 +25,34 @@
  ###############################################################################
 
 
-CC        = gcc
-CFLAGS    = -march=native -O3 -pipe -std=c99 -Wall
-CFLAGS   += -fcommon -Wno-sizeof-pointer-div
-includes  = core/Hexarray.c core/Hexint.c core/Hexsamp.c
-includes += DCT/HDCT.c filters/filters.c quantization/quantization.c
-includes += misc/Array.c misc/precalculations.c
-LDFLS     = -lm -lpthread `pkg-config MagickWand --cflags --libs`
+################################################################################
+# Variables
+################################################################################
 
+CC       = gcc
+CFLAGS   = -march=native -O3 -pipe -std=c99 -Wall
+CFLAGS  += -fcommon -Wno-sizeof-pointer-div
+CFLAGS  += `pkg-config --cflags MagickWand`
+LDFLAGS  = `pkg-config --libs   MagickWand` -lm -lpthread
+
+src = \
+	CHIP.c \
+	$(wildcard */*.c)
+
+obj = $(src:.c=.o)
+
+
+################################################################################
+# Targets
+################################################################################
 
 .PHONY: clean test
 
-CHIP: CHIP.c
-	$(CC) $(CFLAGS) CHIP.c -o CHIP $(includes) $(LDFLS)
+CHIP: $(obj)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
-	find . -maxdepth 1 ! -name "CHIP.c" ! -name "LICENSE.txt" ! -name "Makefile" ! -name "README.md" -type f -delete
+	rm -fv $(obj) CHIP *.png *.ppm *{DCT,s2h}.txt
 
 test:
 	./CHIP ../../tests/testset/USC/4.2.03.tiff Baboon 5 1 1.0 1 1.0 3.0 5 3 90 0 0
