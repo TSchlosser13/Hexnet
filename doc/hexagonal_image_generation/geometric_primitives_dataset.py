@@ -58,7 +58,7 @@ max_filename_length = 50
 
 
 ################################################################################
-# Dataset class for primitive Generation
+# Dataset class for primitive generation
 ################################################################################
 
 class dataset:
