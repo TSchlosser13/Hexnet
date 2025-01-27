@@ -268,19 +268,6 @@ def run(args):
 	disable_tensorboard  = not enable_tensorboard
 	enable_rand          = not disable_rand
 
-	train_classes      = []
-	train_classes_orig = []
-	train_data         = []
-	train_filenames    = []
-	train_labels       = []
-	train_labels_orig  = []
-	test_classes       = []
-	test_classes_orig  = []
-	test_data          = []
-	test_filenames     = []
-	test_labels        = []
-	test_labels_orig   = []
-
 	classification_reports = []
 
 	if enable_tensorboard and enable_output:
@@ -325,9 +312,11 @@ def run(args):
 		Hexnet_init()
 		print_newline()
 
+		dataset_basename = os.path.basename(dataset)
+
 		if transform_s2h != False:
 			if transform_s2h is None:
-				transform_s2h = os.path.join(output_dir, f'{os.path.basename(dataset)}_s2h_rad_o_{transform_s2h_rad_o:.3f}')
+				transform_s2h = os.path.join(output_dir, f'{dataset_basename}_s2h_rad_o_{transform_s2h_rad_o:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -339,7 +328,7 @@ def run(args):
 
 		if transform_h2s != False:
 			if transform_h2s is None:
-				transform_h2s = os.path.join(output_dir, f'{os.path.basename(dataset)}_h2s_len_{transform_h2s_len:.3f}')
+				transform_h2s = os.path.join(output_dir, f'{dataset_basename}_h2s_len_{transform_h2s_len:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -351,7 +340,7 @@ def run(args):
 
 		if transform_h2h != False:
 			if transform_h2h is None:
-				transform_h2h = os.path.join(output_dir, f'{os.path.basename(dataset)}_h2h_rad_o_{transform_h2h_rad_o:.3f}')
+				transform_h2h = os.path.join(output_dir, f'{dataset_basename}_h2h_rad_o_{transform_h2h_rad_o:.3f}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -364,7 +353,7 @@ def run(args):
 		if transform_s2s != False:
 			if transform_s2s is None:
 				transform_s2s_res_str = "x".join(str(d) for d in transform_s2s_res)
-				transform_s2s         = os.path.join(output_dir, f'{os.path.basename(dataset)}_s2s_res_{transform_s2s_res_str}')
+				transform_s2s         = os.path.join(output_dir, f'{dataset_basename}_s2s_res_{transform_s2s_res_str}')
 
 			datasets.transform_dataset(
 				dataset         = dataset,
@@ -400,25 +389,23 @@ def run(args):
 
 	print_newline()
 
-	dataset_data = datasets.load_dataset(dataset, create_h5, verbosity_level)
+	current_dataset = datasets.load_dataset(dataset, create_h5, verbosity_level)
 
-	loaded_dataset = dataset[2]
-
-	if not loaded_dataset:
+	if not current_dataset.loaded_dataset:
 		return 0
 
-	train_classes_orig = dataset_data[0][0]
-	train_data         = dataset_data[0][1]
-	train_filenames    = dataset_data[0][2]
-	train_labels_orig  = dataset_data[0][3]
-	test_classes_orig  = dataset_data[1][0]
-	test_data          = dataset_data[1][1]
-	test_filenames     = dataset_data[1][2]
-	test_labels_orig   = dataset_data[1][3]
+	train_classes_orig = current_dataset.data['train']['classes']
+	train_data         = current_dataset.data['train']['data']
+	train_filenames    = current_dataset.data['train']['filenames']
+	train_labels_orig  = current_dataset.data['train']['labels']
+	test_classes_orig  = current_dataset.data['test']['classes']
+	test_data          = current_dataset.data['test']['data']
+	test_filenames     = current_dataset.data['test']['filenames']
+	test_labels_orig   = current_dataset.data['test']['labels']
 
 	print_newline()
 
-	datasets.create_dataset_overview(train_classes_orig, train_labels_orig, test_labels_orig, dataset, output_dir)
+	datasets.create_dataset_overview(current_dataset, output_dir)
 
 	if type(train_data) is not np.ndarray:
 		disable_training = True

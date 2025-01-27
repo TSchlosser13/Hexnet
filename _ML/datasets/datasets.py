@@ -42,17 +42,29 @@ import numpy             as np
 import pandas            as pd
 import tensorflow        as tf
 
-from glob              import glob
-from matplotlib.pyplot import imsave
-from natsort           import natsorted
-from time              import time
-from tqdm              import tqdm
+from glob                            import glob
+from matplotlib.pyplot               import imsave
+from natsort                         import natsorted
+from sklearn.feature_extraction.text import TfidfVectorizer
+from time                            import time
+from tqdm                            import tqdm
 
 from core.Hexnet        import Hexsamp_s2h, Hexsamp_h2s, Hexsamp_h2h, Sqsamp_s2s
 from misc.misc          import Hexnet_print, Hexnet_print_warning, normalize_array
 from misc.visualization import visualize_array, visualize_hexarray
 
 
+################################################################################
+# Dataset class
+################################################################################
+
+class dataset:
+	def __init__(self):
+		self.input_dir_or_file = None
+
+		self.data = {}
+
+		self.loaded_dataset = False
 
 
 ################################################################################
@@ -203,7 +215,13 @@ def create_dataset_h5(
 # Create dataset overview from dataset
 ################################################################################
 
-def create_dataset_overview(classes, train_labels, test_labels, dataset, output_dir):
+def create_dataset_overview(current_dataset, output_dir):
+	classes      = current_dataset.data['train']['classes']
+	train_labels = current_dataset.data['train']['labels']
+	test_labels  = current_dataset.data['test']['labels']
+	dataset      = current_dataset.input_dir_or_file
+
+
 	# Prepare dataset overview table: entries
 
 	total_string = 'Total'
@@ -283,24 +301,32 @@ def load_file(current_file, class_file):
 
 	if current_file_lower.endswith('.csv'):
 		file_data = np.loadtxt(class_file, delimiter=',')
+		file_type = 'CSV'
 	elif current_file_lower.endswith('.npy'):
 		file_data = np.load(class_file)
+		file_type = 'NPY'
+	elif current_file_lower.endswith('.txt'):
+		with open(class_file) as f:
+			file_data = f.read()
+			file_type = 'TXT'
 	else:
 		file_data = cv2.cvtColor(cv2.imread(class_file, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
 
-	return file_data
+	return file_data, file_type
 
 
 ################################################################################
 # Load dataset into memory
 ################################################################################
 
-def load_dataset(dataset, create_h5=False, verbosity_level=2):
-	Hexnet_print(f'Loading dataset {dataset}')
+def load_dataset(dataset_string, create_h5=False, verbosity_level=2):
+	Hexnet_print(f'Loading dataset {dataset_string}')
+
 
 	start_time = time()
 
-	loaded_dataset = False
+
+	current_dataset = dataset()
 
 	train_classes   = []
 	train_data      = []
@@ -311,6 +337,8 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	test_filenames  = []
 	test_labels     = []
 
+	loaded_dataset = False
+
 
 	# Determine the type of dataset
 
@@ -318,9 +346,9 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	dataset_is_dir_of_files = False
 	dataset_is_dir_of_dirs  = False
 
-	dataset_dirs = natsorted(glob(os.path.join(dataset, '*')))
+	dataset_dirs = natsorted(glob(os.path.join(dataset_string, '*')))
 
-	if os.path.isfile(dataset):
+	if os.path.isfile(dataset_string):
 		dataset_is_file = True
 	else:
 		for dataset_dir in dataset_dirs:
@@ -333,8 +361,8 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	# Load the dataset
 
 	# Dataset is file
-	if dataset_is_file and dataset.lower().endswith('.h5'):
-		with h5py.File(dataset, 'r') as h5py_file:
+	if dataset_is_file and dataset_string.lower().endswith('.h5'):
+		with h5py.File(dataset_string, 'r') as h5py_file:
 			train_classes   = np.asarray(h5py_file['train_classes']).astype('U')
 			train_data      = np.asarray(h5py_file['train_data'])
 			train_filenames = np.asarray(h5py_file['train_filenames']).astype('U')
@@ -366,7 +394,7 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 				if verbosity_level >= 3:
 					Hexnet_print(f'\t\t\t> current_file={current_file}')
 
-				file_data = load_file(current_file, class_file)
+				file_data, file_type = load_file(current_file, class_file)
 
 				train_data.append(file_data)
 				train_filenames.append(current_file)
@@ -404,7 +432,7 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 					if verbosity_level >= 3:
 						Hexnet_print(f'\t\t\t> current_file={current_file}')
 
-					file_data = load_file(current_file, class_file)
+					file_data, file_type = load_file(current_file, class_file)
 
 					if 'train' in current_set:
 						train_data.append(file_data)
@@ -414,6 +442,22 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 						test_data.append(file_data)
 						test_filenames.append(current_file)
 						test_labels.append(current_class)
+
+
+		if file_type == 'TXT':
+			# Convert train and test data to TF-IDF features
+
+			train_test_data = train_data + test_data
+
+			vectorizer = TfidfVectorizer()
+
+			vectorizer.fit(train_test_data)
+
+			train_data = vectorizer.transform(train_data)
+			test_data  = vectorizer.transform(test_data)
+
+			train_data = [row for row in train_data.toarray()]
+			test_data  = [row for row in test_data.toarray()]
 
 
 		# Zero-fill ragged nested sequences
@@ -452,13 +496,14 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 	if loaded_dataset:
 		time_diff = time() - start_time
 
-		Hexnet_print(f'Loaded dataset {dataset} in {time_diff:.3f} seconds')
+		Hexnet_print(f'Loaded dataset {dataset_string} in {time_diff:.3f} seconds')
+
 
 	if create_h5:
-		dataset = f'{dataset}.h5'
+		dataset_string = f'{dataset_string}.h5'
 
 		create_dataset_h5(
-			dataset,
+			dataset_string,
 			train_classes,
 			train_data,
 			train_filenames,
@@ -468,16 +513,26 @@ def load_dataset(dataset, create_h5=False, verbosity_level=2):
 			test_filenames,
 			test_labels)
 
-	return \
-		(train_classes, \
-		 train_data, \
-		 train_filenames, \
-		 train_labels), \
-		(test_classes, \
-		 test_data, \
-		 test_filenames, \
-		 test_labels), \
-		loaded_dataset
+
+	current_dataset.input_dir_or_file = dataset_string
+
+	current_dataset.data['train'] = {}
+	current_dataset.data['test']  = {}
+
+	current_dataset.data['train']['classes']   = train_classes
+	current_dataset.data['train']['data']      = train_data
+	current_dataset.data['train']['filenames'] = train_filenames
+	current_dataset.data['train']['labels']    = train_labels
+
+	current_dataset.data['test']['classes']   = test_classes
+	current_dataset.data['test']['data']      = test_data
+	current_dataset.data['test']['filenames'] = test_filenames
+	current_dataset.data['test']['labels']    = test_labels
+
+	current_dataset.loaded_dataset = loaded_dataset
+
+
+	return current_dataset
 
 
 ################################################################################
